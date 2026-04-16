@@ -8,9 +8,12 @@ use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\ConnectionContext;
 use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\PbxNode;
 use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\WorkerStatus;
 use ApnTalk\LaravelFreeswitchEsl\Exceptions\WorkerException;
+use ApnTalk\LaravelFreeswitchEsl\Contracts\RuntimeHandoffInterface;
+use ApnTalk\LaravelFreeswitchEsl\Contracts\RuntimeRunnerInterface;
 use ApnTalk\LaravelFreeswitchEsl\Integration\EslCoreConnectionHandle;
 use ApnTalk\LaravelFreeswitchEsl\Integration\EslCorePipelineFactory;
 use ApnTalk\LaravelFreeswitchEsl\Integration\EslCoreCommandFactory;
+use ApnTalk\LaravelFreeswitchEsl\Integration\NonLiveRuntimeRunner;
 use ApnTalk\LaravelFreeswitchEsl\Worker\WorkerRuntime;
 use Apntalk\EslCore\Transport\InMemoryTransport;
 use PHPUnit\Framework\TestCase;
@@ -37,8 +40,9 @@ class WorkerRuntimeTest extends TestCase
         $runtime->boot();
         $handle = $runtime->connectionHandle();
 
+        $this->assertInstanceOf(RuntimeHandoffInterface::class, $handle);
         $this->assertInstanceOf(EslCoreConnectionHandle::class, $handle);
-        $this->assertSame($runtime->resolvedContext(), $handle->context);
+        $this->assertSame($runtime->resolvedContext(), $handle->context());
         $this->assertSame('tcp://127.0.0.1:8021', $handle->endpoint());
     }
 
@@ -50,8 +54,15 @@ class WorkerRuntimeTest extends TestCase
         $this->assertSame(WorkerStatus::STATE_BOOTING, $status->state);
         $this->assertFalse($status->meta['context_resolved']);
         $this->assertFalse($status->meta['connection_handoff_prepared']);
+        $this->assertFalse($status->meta['runtime_adapter_ready']);
         $this->assertNull($status->meta['handoff_endpoint']);
+        $this->assertFalse($status->meta['runtime_runner_invoked']);
+        $this->assertSame(RuntimeRunnerInterface::class, $status->meta['runtime_runner_contract']);
+        $this->assertSame(NonLiveRuntimeRunner::class, $status->meta['runtime_runner_class']);
         $this->assertFalse($status->meta['runtime_loop_active']);
+        $this->assertFalse($status->isHandoffPrepared());
+        $this->assertFalse($status->isRuntimeRunnerInvoked());
+        $this->assertFalse($status->isRuntimeLoopActive());
     }
 
     public function test_status_after_boot_reports_prepared_handoff_state(): void
@@ -64,8 +75,17 @@ class WorkerRuntimeTest extends TestCase
         $this->assertSame(WorkerStatus::STATE_RUNNING, $status->state);
         $this->assertTrue($status->meta['context_resolved']);
         $this->assertTrue($status->meta['connection_handoff_prepared']);
+        $this->assertTrue($status->meta['runtime_adapter_ready']);
         $this->assertSame('tcp://127.0.0.1:8021', $status->meta['handoff_endpoint']);
+        $this->assertSame(RuntimeHandoffInterface::class, $status->meta['runtime_handoff_contract']);
+        $this->assertSame(EslCoreConnectionHandle::class, $status->meta['runtime_handoff_class']);
+        $this->assertFalse($status->meta['runtime_runner_invoked']);
+        $this->assertSame(RuntimeRunnerInterface::class, $status->meta['runtime_runner_contract']);
+        $this->assertSame(NonLiveRuntimeRunner::class, $status->meta['runtime_runner_class']);
         $this->assertFalse($status->meta['runtime_loop_active']);
+        $this->assertTrue($status->isHandoffPrepared());
+        $this->assertFalse($status->isRuntimeRunnerInvoked());
+        $this->assertFalse($status->isRuntimeLoopActive());
     }
 
     public function test_run_before_boot_throws_when_handoff_state_missing(): void
@@ -78,6 +98,17 @@ class WorkerRuntimeTest extends TestCase
         $runtime->run();
     }
 
+    public function test_runtime_handoff_exposes_adapter_facing_contract_after_boot(): void
+    {
+        $runtime = $this->makeRuntime();
+
+        $runtime->boot();
+        $handoff = $runtime->runtimeHandoff();
+
+        $this->assertInstanceOf(RuntimeHandoffInterface::class, $handoff);
+        $this->assertSame($runtime->connectionHandle(), $handoff);
+    }
+
     public function test_run_after_boot_keeps_connection_handle_available(): void
     {
         $runtime = $this->makeRuntime();
@@ -87,6 +118,20 @@ class WorkerRuntimeTest extends TestCase
         $runtime->run();
 
         $this->assertSame($handle, $runtime->connectionHandle());
+    }
+
+    public function test_run_after_boot_marks_runtime_runner_invoked_without_marking_runtime_active(): void
+    {
+        $runtime = $this->makeRuntime();
+
+        $runtime->boot();
+        $runtime->run();
+        $status = $runtime->status();
+
+        $this->assertTrue($status->meta['runtime_runner_invoked']);
+        $this->assertTrue($status->isRuntimeRunnerInvoked());
+        $this->assertFalse($status->meta['runtime_loop_active']);
+        $this->assertFalse($status->isRuntimeLoopActive());
     }
 
     private function makeRuntime(): WorkerRuntime
@@ -158,6 +203,7 @@ class WorkerRuntimeTest extends TestCase
             node: $node,
             connectionResolver: $resolver,
             connectionFactory: $connectionFactory,
+            runtimeRunner: new NonLiveRuntimeRunner(),
             logger: new NullLogger(),
         );
     }

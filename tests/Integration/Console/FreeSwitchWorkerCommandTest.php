@@ -5,6 +5,8 @@ namespace ApnTalk\LaravelFreeswitchEsl\Tests\Integration\Console;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\ConnectionFactoryInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\ConnectionResolverInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\PbxRegistryInterface;
+use ApnTalk\LaravelFreeswitchEsl\Contracts\RuntimeHandoffInterface;
+use ApnTalk\LaravelFreeswitchEsl\Contracts\RuntimeRunnerInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\WorkerAssignmentResolverInterface;
 use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\ConnectionContext;
 use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\PbxNode;
@@ -158,10 +160,20 @@ class FreeSwitchWorkerCommandTest extends TestCase
             }
         };
 
+        $runtimeRunner = new class implements RuntimeRunnerInterface {
+            public int $runCalls = 0;
+
+            public function run(RuntimeHandoffInterface $handoff): void
+            {
+                $this->runCalls++;
+            }
+        };
+
         $this->app->instance(PbxRegistryInterface::class, $registry);
         $this->app->instance(WorkerAssignmentResolverInterface::class, $assignmentResolver);
         $this->app->instance(ConnectionResolverInterface::class, $connectionResolver);
         $this->app->instance(ConnectionFactoryInterface::class, $connectionFactory);
+        $this->app->instance(RuntimeRunnerInterface::class, $runtimeRunner);
         $this->app->instance(LoggerInterface::class, new NullLogger());
 
         $this->artisan('freeswitch:worker', [
@@ -169,7 +181,7 @@ class FreeSwitchWorkerCommandTest extends TestCase
             '--pbx' => 'primary-fs',
         ])
             ->expectsOutputToContain('Starting worker [ingest-worker] in [node] mode')
-            ->expectsOutputToContain('Prepared runtime handoff for 1/1 node(s); live apntalk/esl-react runtime not started in this scaffolding pass.')
+            ->expectsOutputToContain('Prepared runtime handoff for 1/1 node(s); runtime runner invoked for 1/1 node(s); live apntalk/esl-react runtime not started in this scaffolding pass.')
             ->assertExitCode(0);
 
         $this->assertSame(1, $registry->findBySlugCalls);
@@ -181,6 +193,7 @@ class FreeSwitchWorkerCommandTest extends TestCase
         $this->assertCount(1, $connectionFactory->contexts);
         $this->assertSame('primary-fs', $connectionFactory->contexts[0]->pbxNodeSlug);
         $this->assertNotNull($connectionFactory->contexts[0]->workerSessionId);
+        $this->assertSame(1, $runtimeRunner->runCalls);
     }
 
     public function test_worker_command_db_path_prepares_runtime_handoffs_for_resolved_nodes(): void
@@ -305,10 +318,20 @@ class FreeSwitchWorkerCommandTest extends TestCase
             }
         };
 
+        $runtimeRunner = new class implements RuntimeRunnerInterface {
+            public int $runCalls = 0;
+
+            public function run(RuntimeHandoffInterface $handoff): void
+            {
+                $this->runCalls++;
+            }
+        };
+
         $this->app->instance(PbxRegistryInterface::class, $registry);
         $this->app->instance(WorkerAssignmentResolverInterface::class, $assignmentResolver);
         $this->app->instance(ConnectionResolverInterface::class, $connectionResolver);
         $this->app->instance(ConnectionFactoryInterface::class, $connectionFactory);
+        $this->app->instance(RuntimeRunnerInterface::class, $runtimeRunner);
         $this->app->instance(LoggerInterface::class, new NullLogger());
 
         $this->artisan('freeswitch:worker', [
@@ -316,7 +339,7 @@ class FreeSwitchWorkerCommandTest extends TestCase
             '--db' => true,
         ])
             ->expectsOutputToContain('Starting worker [db-worker] from DB assignment (worker_assignments table) — 2 node(s).')
-            ->expectsOutputToContain('Prepared runtime handoff for 2/2 node(s); live apntalk/esl-react runtime not started in this scaffolding pass.')
+            ->expectsOutputToContain('Prepared runtime handoff for 2/2 node(s); runtime runner invoked for 2/2 node(s); live apntalk/esl-react runtime not started in this scaffolding pass.')
             ->assertExitCode(0);
 
         $this->assertSame(0, $assignmentResolver->resolveNodesCalls);
@@ -327,6 +350,7 @@ class FreeSwitchWorkerCommandTest extends TestCase
         $this->assertSame('db-node-b', $connectionFactory->contexts[1]->pbxNodeSlug);
         $this->assertNotNull($connectionFactory->contexts[0]->workerSessionId);
         $this->assertNotNull($connectionFactory->contexts[1]->workerSessionId);
+        $this->assertSame(2, $runtimeRunner->runCalls);
     }
 
     private function makeNode(int $id, string $slug): PbxNode

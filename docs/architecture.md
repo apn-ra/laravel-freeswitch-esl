@@ -24,7 +24,9 @@ src/Contracts/
   ProviderDriverRegistryInterface — provider driver map and resolution
   ProviderDriverInterface         — contract for PBX provider drivers
   ConnectionResolverInterface     — full resolution pipeline contract
-  ConnectionFactoryInterface      — runtime factory contract (esl-react integration point)
+  ConnectionFactoryInterface      — runtime handoff factory contract returning RuntimeHandoffInterface
+  RuntimeHandoffInterface         — adapter-facing prepared runtime bundle contract
+  RuntimeRunnerInterface          — Laravel-owned runtime runner seam for invoking adapters
   WorkerInterface                 — worker boot/run/drain/shutdown lifecycle
   WorkerAssignmentResolverInterface — assignment scope resolution
   HealthReporterInterface         — structured health snapshot contract
@@ -94,12 +96,13 @@ PbxNode
   → ConnectionResolverInterface
   → ConnectionContext
   → ConnectionFactoryInterface
-  → EslCoreConnectionHandle
+  → RuntimeHandoffInterface
+  → EslCoreConnectionHandle (current implementation)
 ```
 
-The handle is retained by the worker scaffolding for later `apntalk/esl-react` consumption. It is not itself a long-lived runtime loop.
+The prepared handoff bundle is retained by the worker scaffolding for later runtime-adapter consumption. The current implementation is `EslCoreConnectionHandle`, but runtime adapters should target the Laravel-owned `RuntimeHandoffInterface`. It is not itself a long-lived runtime loop.
 
-`WorkerRuntime::status()` surfaces this seam via `WorkerStatus::meta` so operator-facing Laravel scaffolding can distinguish “handoff prepared” from “live runtime connected.” In the current scaffolding posture, `WorkerStatus::state = running` means boot completed and handoff prepared, while `meta.runtime_loop_active` remains `false`. `WorkerSupervisor::runtimeStatuses()` aggregates those snapshots per PBX node slug without taking ownership of session supervision.
+`WorkerRuntime::status()` surfaces this seam via `WorkerStatus::meta` and helper methods so operator-facing Laravel scaffolding can distinguish “handoff prepared,” “adapter-ready,” “adapter invoked,” and “live runtime connected.” In the current scaffolding posture, `WorkerStatus::state = running` means boot completed and handoff prepared, `meta.runtime_adapter_ready` is the adapter-consumable seam flag, `meta.runtime_runner_invoked` means the Laravel-owned runtime runner seam was called, `meta.runtime_handoff_contract` identifies the adapter contract, `meta.runtime_runner_contract` identifies the runner contract, `meta.runtime_runner_class` identifies the bound runner implementation, and `meta.runtime_loop_active` remains `false`. `WorkerSupervisor::runtimeStatuses()` aggregates those snapshots per PBX node slug, while `runtimeHandoffs()` exposes the prepared adapter-facing bundles without taking ownership of session supervision.
 
 ### esl-core integration
 
@@ -107,7 +110,7 @@ The repository already includes a narrow Laravel-owned adapter layer over `apnta
 
 ```
 src/Integration/
-  EslCoreConnectionFactory — assembles the current runtime handoff seam from ConnectionContext
+  EslCoreConnectionFactory — assembles the current RuntimeHandoffInterface seam from ConnectionContext
   EslCoreConnectionHandle  — package-owned opaque handle for transport/pipeline/command bootstrapping
   EslCoreCommandFactory   — builds typed esl-core command objects from Laravel inputs
   EslCorePipelineFactory  — creates per-session inbound decode pipelines
@@ -127,7 +130,7 @@ It now uses `apntalk/esl-core`'s stable public construction seams:
 - `InboundPipeline::withDefaults()` for the preferred default ingress path
 - `InboundConnectionFactory` as the accepted-stream bootstrap seam available for future runtime adapters
 
-This package still does not own listener/runtime behavior. The accepted-stream factory is only bound as an upstream seam for later integration work.
+This package still does not own listener/runtime behavior. The accepted-stream factory is only bound as an upstream seam for later integration work. The Laravel-owned `RuntimeRunnerInterface` is only an invocation seam; a real long-lived implementation still belongs in `apntalk/esl-react`.
 
 ### Health and observability
 

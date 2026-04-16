@@ -8,10 +8,13 @@ use Apntalk\EslCore\Contracts\TransportFactoryInterface;
 use Apntalk\EslCore\Correlation\ConnectionSessionId;
 use Apntalk\EslCore\Inbound\PreparedInboundConnection;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\ConnectionFactoryInterface;
+use ApnTalk\LaravelFreeswitchEsl\Contracts\RuntimeHandoffInterface;
+use ApnTalk\LaravelFreeswitchEsl\Contracts\RuntimeRunnerInterface;
 use ApnTalk\LaravelFreeswitchEsl\Integration\EslCoreCommandFactory;
 use ApnTalk\LaravelFreeswitchEsl\Integration\EslCoreConnectionHandle;
 use ApnTalk\LaravelFreeswitchEsl\Integration\EslCoreEventBridge;
 use ApnTalk\LaravelFreeswitchEsl\Integration\EslCorePipelineFactory;
+use ApnTalk\LaravelFreeswitchEsl\Integration\NonLiveRuntimeRunner;
 use Apntalk\EslCore\Transport\SocketTransportFactory;
 use ApnTalk\LaravelFreeswitchEsl\Tests\TestCase;
 
@@ -23,6 +26,22 @@ use ApnTalk\LaravelFreeswitchEsl\Tests\TestCase;
  */
 class EslCoreBindingsTest extends TestCase
 {
+
+    public function test_runtime_runner_resolves_from_container(): void
+    {
+        $runner = $this->app->make(RuntimeRunnerInterface::class);
+
+        $this->assertInstanceOf(NonLiveRuntimeRunner::class, $runner);
+    }
+
+    public function test_runtime_runner_is_singleton(): void
+    {
+        $a = $this->app->make(RuntimeRunnerInterface::class);
+        $b = $this->app->make(RuntimeRunnerInterface::class);
+
+        $this->assertSame($a, $b);
+    }
+
     public function test_esl_core_command_factory_resolves_from_container(): void
     {
         $factory = $this->app->make(EslCoreCommandFactory::class);
@@ -128,7 +147,7 @@ class EslCoreBindingsTest extends TestCase
         $this->assertSame("auth ClueCon\n\n", $command->serialize());
     }
 
-    public function test_connection_factory_resolves_from_container_and_creates_handle(): void
+    public function test_connection_factory_resolves_from_container_and_creates_runtime_handoff(): void
     {
         $factory = $this->app->make(ConnectionFactoryInterface::class);
 
@@ -145,6 +164,7 @@ class EslCoreBindingsTest extends TestCase
             connectionProfileName: 'default',
         ));
 
+        $this->assertInstanceOf(RuntimeHandoffInterface::class, $handle);
         $this->assertInstanceOf(EslCoreConnectionHandle::class, $handle);
         $this->assertSame('tcp://10.0.0.1:8021', $handle->endpoint());
     }

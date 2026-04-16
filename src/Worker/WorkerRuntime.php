@@ -8,8 +8,9 @@ use ApnTalk\LaravelFreeswitchEsl\Contracts\WorkerInterface;
 use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\ConnectionContext;
 use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\PbxNode;
 use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\WorkerStatus;
+use ApnTalk\LaravelFreeswitchEsl\Contracts\RuntimeHandoffInterface;
+use ApnTalk\LaravelFreeswitchEsl\Contracts\RuntimeRunnerInterface;
 use ApnTalk\LaravelFreeswitchEsl\Exceptions\WorkerException;
-use ApnTalk\LaravelFreeswitchEsl\Integration\EslCoreConnectionHandle;
 use Psr\Log\LoggerInterface;
 
 /**
@@ -28,10 +29,11 @@ use Psr\Log\LoggerInterface;
  *   - subscription management
  *   - heartbeat monitoring
  *
- * In the current package posture, `run()` is a non-live stub that verifies
- * the retained handoff state and returns. When apntalk/esl-react is available,
- * it should delegate to the ReactPHP runtime loop using the already-prepared
- * connection handle. Re-resolution is not required.
+ * In the current package posture, `run()` verifies the retained handoff state
+ * and invokes the Laravel-owned RuntimeRunnerInterface seam. The default
+ * runner remains non-live and returns immediately. When apntalk/esl-react is
+ * available, it should provide the bound long-lived runtime implementation and
+ * consume the already-prepared handoff bundle without re-resolution.
  *
  * Boundary: do NOT add ESL frame parsing or subscription primitives here.
  */
@@ -42,6 +44,8 @@ class WorkerRuntime implements WorkerInterface
     private bool $draining = false;
 
     private int $inflightCount = 0;
+
+    private bool $runtimeRunnerInvoked = false;
 
     private ?\DateTimeImmutable $bootedAt = null;
 
@@ -59,13 +63,14 @@ class WorkerRuntime implements WorkerInterface
      * Package-owned runtime handoff handle created during boot().
      * Null before boot() is called. Future esl-react integration consumes this.
      */
-    private ?EslCoreConnectionHandle $connectionHandle = null;
+    private ?RuntimeHandoffInterface $runtimeHandoff = null;
 
     public function __construct(
         private readonly string $workerName,
         private readonly PbxNode $node,
         private readonly ConnectionResolverInterface $connectionResolver,
         private readonly ConnectionFactoryInterface $connectionFactory,
+        private readonly RuntimeRunnerInterface $runtimeRunner,
         private readonly LoggerInterface $logger,
     ) {
         $this->sessionId = sprintf(
@@ -91,13 +96,13 @@ class WorkerRuntime implements WorkerInterface
         // Attach worker session identity and persist — downstream runtime consumers
         // must use this resolved context directly without re-resolving credentials.
         $this->resolvedContext = $context->withWorkerSession($this->sessionId);
-        $this->connectionHandle = $this->connectionFactory->create($this->resolvedContext);
+        $this->runtimeHandoff = $this->connectionFactory->create($this->resolvedContext);
 
         $this->logger->info('Connection context resolved', $this->resolvedContext->toLogContext());
         $this->logger->info('Connection handoff prepared', [
             'session_id'    => $this->sessionId,
             'pbx_node_slug' => $this->node->slug,
-            'endpoint'      => $this->connectionHandle->endpoint(),
+            'endpoint'      => $this->runtimeHandoff->endpoint(),
         ]);
 
         // In current scaffolding, "running" means boot completed and the
@@ -108,24 +113,31 @@ class WorkerRuntime implements WorkerInterface
 
     public function run(): void
     {
-        if ($this->resolvedContext === null || $this->connectionHandle === null) {
+        if ($this->resolvedContext === null || $this->runtimeHandoff === null) {
             throw WorkerException::bootFailed(
                 $this->workerName,
                 'run() called before boot() — runtime handoff state is incomplete'
             );
         }
 
-        // Placeholder: real implementation delegates to apntalk/esl-react runtime loop.
-        // When apntalk/esl-react is available, replace this body with:
-        //
-        //   $this->reactRuntime->run($this->connectionHandle);
-        //
-        // The handle already carries the resolved context, command boot sequence,
-        // and inbound pipeline. Do not re-resolve via connectionResolver here.
-        $this->logger->info('Worker running (stub — runtime loop not yet wired to apntalk/esl-react)', [
+        // Current seam: invoke the Laravel-owned runtime runner contract. The
+        // default implementation remains non-live and returns immediately. A later
+        // apntalk/esl-react-backed binding will own the actual async runtime loop.
+        $this->logger->info('Invoking runtime runner', [
             'session_id'    => $this->sessionId,
             'pbx_node_slug' => $this->node->slug,
-            'endpoint'      => $this->connectionHandle->endpoint(),
+            'endpoint'      => $this->runtimeHandoff->endpoint(),
+            'runtime_runner'=> $this->runtimeRunner::class,
+        ]);
+
+        $this->runtimeRunner->run($this->runtimeHandoff);
+        $this->runtimeRunnerInvoked = true;
+
+        $this->logger->info('Worker run completed (non-live runtime runner may return immediately)', [
+            'session_id'    => $this->sessionId,
+            'pbx_node_slug' => $this->node->slug,
+            'endpoint'      => $this->runtimeHandoff->endpoint(),
+            'runtime_runner'=> $this->runtimeRunner::class,
         ]);
     }
 
@@ -165,8 +177,14 @@ class WorkerRuntime implements WorkerInterface
             bootedAt: $this->bootedAt,
             meta: [
                 'context_resolved' => $this->resolvedContext !== null,
-                'connection_handoff_prepared' => $this->connectionHandle !== null,
-                'handoff_endpoint' => $this->connectionHandle?->endpoint(),
+                'connection_handoff_prepared' => $this->runtimeHandoff !== null,
+                'runtime_adapter_ready' => $this->runtimeHandoff !== null,
+                'handoff_endpoint' => $this->runtimeHandoff?->endpoint(),
+                'runtime_handoff_contract' => $this->runtimeHandoff !== null ? RuntimeHandoffInterface::class : null,
+                'runtime_handoff_class' => $this->runtimeHandoff !== null ? $this->runtimeHandoff::class : null,
+                'runtime_runner_invoked' => $this->runtimeRunnerInvoked,
+                'runtime_runner_contract' => RuntimeRunnerInterface::class,
+                'runtime_runner_class' => $this->runtimeRunner::class,
                 'runtime_loop_active' => false,
             ],
         );
@@ -196,8 +214,19 @@ class WorkerRuntime implements WorkerInterface
      * Future runtime integrations should consume this handle rather than rebuilding
      * esl-core boot primitives from the control plane.
      */
-    public function connectionHandle(): ?EslCoreConnectionHandle
+    public function connectionHandle(): ?RuntimeHandoffInterface
     {
-        return $this->connectionHandle;
+        return $this->runtimeHandoff;
+    }
+
+    /**
+     * Return the adapter-facing prepared runtime handoff bundle for this worker.
+     *
+     * This is the preferred seam for future runtime adapters. It is available
+     * after boot() and remains non-live scaffolding until apntalk/esl-react is wired.
+     */
+    public function runtimeHandoff(): ?RuntimeHandoffInterface
+    {
+        return $this->runtimeHandoff;
     }
 }

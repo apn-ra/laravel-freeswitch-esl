@@ -11,6 +11,7 @@ use Apntalk\EslCore\Exceptions\TransportException;
 use Apntalk\EslCore\Transport\SocketEndpoint;
 use Apntalk\EslCore\Transport\InMemoryTransport;
 use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\ConnectionContext;
+use ApnTalk\LaravelFreeswitchEsl\Contracts\RuntimeHandoffInterface;
 use ApnTalk\LaravelFreeswitchEsl\Integration\EslCoreCommandFactory;
 use ApnTalk\LaravelFreeswitchEsl\Integration\EslCoreConnectionFactory;
 use ApnTalk\LaravelFreeswitchEsl\Integration\EslCoreConnectionHandle;
@@ -19,13 +20,22 @@ use PHPUnit\Framework\TestCase;
 
 class EslCoreConnectionFactoryTest extends TestCase
 {
-    public function test_create_returns_connection_handle(): void
+    public function test_create_returns_current_runtime_handoff_implementation(): void
     {
         $factory = $this->makeFactory();
 
         $handle = $factory->create($this->makeContext());
 
         $this->assertInstanceOf(EslCoreConnectionHandle::class, $handle);
+    }
+
+    public function test_create_returns_adapter_facing_runtime_handoff_contract(): void
+    {
+        $factory = $this->makeFactory();
+
+        $handle = $factory->create($this->makeContext());
+
+        $this->assertInstanceOf(RuntimeHandoffInterface::class, $handle);
     }
 
     public function test_handle_preserves_resolved_context(): void
@@ -35,8 +45,8 @@ class EslCoreConnectionFactoryTest extends TestCase
 
         $handle = $factory->create($context);
 
-        $this->assertSame($context, $handle->context);
-        $this->assertSame('session-123', $handle->context->workerSessionId);
+        $this->assertSame($context, $handle->context());
+        $this->assertSame('session-123', $handle->context()->workerSessionId);
     }
 
     public function test_handle_uses_opening_sequence_from_resolved_context(): void

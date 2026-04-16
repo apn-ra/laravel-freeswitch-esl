@@ -6,12 +6,14 @@ use ApnTalk\LaravelFreeswitchEsl\Contracts\ConnectionFactoryInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\ConnectionResolverInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\HealthReporterInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\PbxRegistryInterface;
+use ApnTalk\LaravelFreeswitchEsl\Contracts\RuntimeRunnerInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\ProviderDriverRegistryInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\SecretResolverInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\WorkerAssignmentResolverInterface;
 use ApnTalk\LaravelFreeswitchEsl\ControlPlane\Services\ConnectionProfileResolver;
 use ApnTalk\LaravelFreeswitchEsl\Facades\FreeSwitchEslManager;
 use ApnTalk\LaravelFreeswitchEsl\Integration\EslCoreConnectionFactory;
+use ApnTalk\LaravelFreeswitchEsl\Integration\NonLiveRuntimeRunner;
 use ApnTalk\LaravelFreeswitchEsl\Tests\TestCase;
 
 class FreeSwitchEslServiceProviderTest extends TestCase
@@ -67,6 +69,30 @@ class FreeSwitchEslServiceProviderTest extends TestCase
     {
         $a = $this->app->make(ConnectionFactoryInterface::class);
         $b = $this->app->make(ConnectionFactoryInterface::class);
+
+        $this->assertSame($a, $b);
+    }
+
+
+    public function test_runtime_runner_is_bound(): void
+    {
+        $this->assertInstanceOf(
+            RuntimeRunnerInterface::class,
+            $this->app->make(RuntimeRunnerInterface::class)
+        );
+    }
+
+    public function test_runtime_runner_binding_uses_default_non_live_runner(): void
+    {
+        $runner = $this->app->make(RuntimeRunnerInterface::class);
+
+        $this->assertInstanceOf(NonLiveRuntimeRunner::class, $runner);
+    }
+
+    public function test_runtime_runner_is_singleton(): void
+    {
+        $a = $this->app->make(RuntimeRunnerInterface::class);
+        $b = $this->app->make(RuntimeRunnerInterface::class);
 
         $this->assertSame($a, $b);
     }

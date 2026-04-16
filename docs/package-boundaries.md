@@ -24,6 +24,7 @@ The APNTalk ESL ecosystem is split across four packages with explicit ownership:
 - Secret resolution
 - Worker assignment resolution
 - Worker bootstrapping and supervisor orchestration
+- Laravel-owned runtime handoff bundle contracts, interface-first factory seams, runner seams, and adapter-facing scaffolding
 - Health/diagnostic reporting
 - Replay integration scaffolding and inspection surfaces (without owning canonical replay contracts)
 - Artisan commands for all operational surfaces

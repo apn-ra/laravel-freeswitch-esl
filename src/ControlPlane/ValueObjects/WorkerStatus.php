@@ -54,6 +54,21 @@ final class WorkerStatus
         return $this->state === self::STATE_SHUTDOWN || $this->state === self::STATE_FAILED;
     }
 
+    public function isHandoffPrepared(): bool
+    {
+        return ($this->meta['runtime_adapter_ready'] ?? $this->meta['connection_handoff_prepared'] ?? false) === true;
+    }
+
+    public function isRuntimeLoopActive(): bool
+    {
+        return ($this->meta['runtime_loop_active'] ?? false) === true;
+    }
+
+    public function isRuntimeRunnerInvoked(): bool
+    {
+        return ($this->meta['runtime_runner_invoked'] ?? false) === true;
+    }
+
     /**
      * @return array<string, mixed>
      */

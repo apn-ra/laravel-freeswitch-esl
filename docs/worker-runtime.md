@@ -32,8 +32,8 @@ ApnTalk\LaravelFreeswitchEsl\Worker\WorkerRuntime
 ```
 
 Lifecycle:
-1. `boot()` — resolves and **persists** the `ConnectionContext` (with worker session identity attached via `withWorkerSession()`), creates and retains the package-owned connection handle through `ConnectionFactoryInterface`, then sets state to `running`
-2. `run()` — validates and consumes the prepared handoff state for the current implementation; today it logs and returns immediately, and later will delegate to `apntalk/esl-react`
+1. `boot()` — resolves and **persists** the `ConnectionContext` (with worker session identity attached via `withWorkerSession()`), creates and retains the package-owned runtime handoff bundle through `ConnectionFactoryInterface`, then sets state to `running`
+2. `run()` — validates the prepared handoff state and invokes `RuntimeRunnerInterface`; today the default runner is non-live and returns immediately, and later an `apntalk/esl-react`-backed runner will own the async runtime
 3. `drain()` — signals drain mode; current scaffolding records drain intent only
 4. `shutdown()` — cleans up resources and returns
 
@@ -41,7 +41,7 @@ Each `WorkerRuntime` carries a stable `sessionId` for log correlation and health
 
 The resolved `ConnectionContext` is persisted as `$resolvedContext` during `boot()` and accessible via `resolvedContext(): ?ConnectionContext`. This ensures the credential is resolved exactly once.
 
-`boot()` also creates and retains the package-owned runtime handoff handle via `ConnectionFactoryInterface`. That handle is accessible via `connectionHandle(): ?EslCoreConnectionHandle` and packages:
+`boot()` also creates and retains the package-owned runtime handoff bundle via `ConnectionFactoryInterface`, which is now typed directly to `RuntimeHandoffInterface`. The preferred adapter-facing seam is `runtimeHandoff(): ?RuntimeHandoffInterface`; `connectionHandle()` remains a convenience accessor to the current implementation. The current `EslCoreConnectionHandle` packages:
 - the resolved `ConnectionContext`
 - the opening and closing command sequences
 - a preferred-default inbound pipeline created via `InboundPipeline::withDefaults()`
@@ -49,11 +49,16 @@ The resolved `ConnectionContext` is persisted as `$resolvedContext` during `boot
 
 This makes the worker handoff state explicit and inspectable without claiming ownership of a live runtime loop.
 
-`status()` now reports this handoff readiness truthfully through `WorkerStatus::meta`:
+`status()` now reports this handoff readiness truthfully through `WorkerStatus::meta` and `WorkerStatus` helper methods:
 - `context_resolved`
 - `connection_handoff_prepared`
 - `handoff_endpoint`
+- `runtime_handoff_contract`
+- `runtime_handoff_class`
 
+`WorkerStatus::isHandoffPrepared()` answers whether boot prepared an adapter-consumable bundle.
+`WorkerStatus::isRuntimeRunnerInvoked()` answers whether the Laravel-owned runtime runner seam was called.
+`WorkerStatus::isRuntimeLoopActive()` answers whether a live runtime loop is active.
 These fields mean “boot prepared the runtime handoff seam,” not “a live async runtime is connected.”
 `runtime_loop_active` is currently always `false`.
 
@@ -88,7 +93,7 @@ Both paths:
 - isolate node-level failures (one failing node does not abort the others)
 - coordinate `drain()` and `shutdown()` across all runtimes
 
-`WorkerSupervisor::runtimeStatuses()` exposes per-node `WorkerStatus` snapshots keyed by PBX node slug. This is a Laravel-scaffolding inspection surface for retained handoff state only.
+`WorkerSupervisor::runtimeStatuses()` exposes per-node `WorkerStatus` snapshots keyed by PBX node slug. `WorkerSupervisor::runtimeHandoffs()` exposes the prepared adapter-facing bundles keyed by PBX node slug. Both are Laravel-scaffolding inspection surfaces only; neither implies a live runtime loop. The default runner may be invoked while still leaving `runtime_loop_active = false`.
 
 ---
 
@@ -167,15 +172,15 @@ Signal wiring is the application's responsibility. The package provides `WorkerI
 
 ## esl-react integration (future)
 
-The current `WorkerRuntime::run()` body is a stub that logs and returns immediately. It does not start or own a live async ESL session. When `apntalk/esl-react` is available and required, it should be replaced with:
+The current `WorkerRuntime::run()` body invokes `RuntimeRunnerInterface`. The default `NonLiveRuntimeRunner` is a truthful no-op that returns immediately. It does not start or own a live async ESL session. When `apntalk/esl-react` is available and required, the bound runner should be replaced with an implementation such as:
 
 ```php
-// Inside WorkerRuntime::run():
-// $this->connectionHandle is already prepared by boot() — no re-resolution needed.
-$this->reactRuntime->run($this->connectionHandle, ...$runtimeOptions);
+// Inside RuntimeRunnerInterface implementation:
+// $handoff is already prepared by WorkerRuntime::boot() — no re-resolution needed.
+$this->reactRuntime->run($handoff, ...$runtimeOptions);
 ```
 
-The `ConnectionContext` and connection handle are both prepared during `boot()` (with the worker session ID already attached). The `run()` stub body must call `boot()` first, which it enforces with a guard that throws `WorkerException::bootFailed()` if the runtime handoff state is incomplete.
+The `ConnectionContext` and connection handle are both prepared during `boot()` (with the worker session ID already attached). The `run()` body only invokes `RuntimeRunnerInterface` after `boot()` has completed, which it enforces with a guard that throws `WorkerException::bootFailed()` if the runtime handoff state is incomplete.
 
 For future accepted-stream/listener-backed adapters, the upstream `InboundConnectionFactory` is now the preferred bootstrap seam. Binding that seam here does not imply listener or runtime ownership in this package.
 

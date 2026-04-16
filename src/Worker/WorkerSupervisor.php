@@ -8,6 +8,8 @@ use ApnTalk\LaravelFreeswitchEsl\Contracts\WorkerAssignmentResolverInterface;
 use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\PbxNode;
 use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\WorkerAssignment;
 use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\WorkerStatus;
+use ApnTalk\LaravelFreeswitchEsl\Contracts\RuntimeHandoffInterface;
+use ApnTalk\LaravelFreeswitchEsl\Contracts\RuntimeRunnerInterface;
 use ApnTalk\LaravelFreeswitchEsl\Exceptions\WorkerException;
 use Psr\Log\LoggerInterface;
 
@@ -46,6 +48,7 @@ class WorkerSupervisor
         private readonly WorkerAssignmentResolverInterface $assignmentResolver,
         private readonly ConnectionResolverInterface $connectionResolver,
         private readonly ConnectionFactoryInterface $connectionFactory,
+        private readonly RuntimeRunnerInterface $runtimeRunner,
         private readonly LoggerInterface $logger,
     ) {}
 
@@ -145,6 +148,29 @@ class WorkerSupervisor
     }
 
     /**
+     * Return prepared adapter-facing runtime handoffs keyed by PBX node slug.
+     *
+     * Only runtimes that have completed boot() contribute a handoff here. The
+     * returned bundles are prepared for future adapter consumption, not live sessions.
+     *
+     * @return array<string, RuntimeHandoffInterface>
+     */
+    public function runtimeHandoffs(): array
+    {
+        $handoffs = [];
+
+        foreach ($this->runtimes as $slug => $runtime) {
+            $handoff = $runtime->runtimeHandoff();
+
+            if ($handoff !== null) {
+                $handoffs[$slug] = $handoff;
+            }
+        }
+
+        return $handoffs;
+    }
+
+    /**
      * @param  PbxNode[]  $nodes
      */
     private function bootRuntimes(string $workerName, string $assignmentScope, array $nodes): void
@@ -162,6 +188,7 @@ class WorkerSupervisor
                 node: $node,
                 connectionResolver: $this->connectionResolver,
                 connectionFactory: $this->connectionFactory,
+                runtimeRunner: $this->runtimeRunner,
                 logger: $this->logger,
             );
 

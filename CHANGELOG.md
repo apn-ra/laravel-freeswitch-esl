@@ -36,6 +36,66 @@ It is not a live runtime milestone.
 
 ---
 
+## [Unreleased] — 0.3.0 runtime-prep checkpoint
+
+### Summary
+
+The repository is being advanced toward a truthful `0.3.0` runtime-preparation milestone.
+This is not a live runtime release.
+
+### Highlights
+
+- normalizes Laravel-side runtime preparation around `RuntimeHandoffInterface` and `RuntimeRunnerInterface`
+- keeps `WorkerRuntime`, `WorkerSupervisor`, and `freeswitch:worker` truthful about prepared, adapter-ready, and non-live runner-invoked state
+- keeps the default runtime runner explicitly non-live while leaving real runtime ownership to a later `apntalk/esl-react` phase
+
+### Deferred
+
+- live async runtime loop ownership
+- reconnect/backoff supervision
+- heartbeat/session lifecycle ownership
+- listener/runtime ownership
+- replay runtime orchestration
+
+## [Unreleased] — 0.3.x adapter-boundary normalization pass
+
+### Changed
+
+- `src/Contracts/ConnectionFactoryInterface.php` — now returns the Laravel-owned `RuntimeHandoffInterface` boundary instead of the concrete `EslCoreConnectionHandle`
+- `src/Integration/EslCoreConnectionFactory.php`, worker call-site tests, and binding/integration docs — now prefer interface-first runtime handoff usage while still documenting `EslCoreConnectionHandle` as the current implementation
+
+### Added
+
+- focused boundary-normalization assertions around interface-first factory usage
+
+## [Unreleased] — 0.3.x runtime-adapter seam pass
+
+### Changed
+
+- `src/Contracts/RuntimeRunnerInterface.php` and `src/Integration/NonLiveRuntimeRunner.php` — added a Laravel-owned runtime runner seam plus a truthful default non-live implementation
+- `src/Worker/WorkerRuntime.php`, `src/Worker/WorkerSupervisor.php`, and `src/Console/Commands/FreeSwitchWorkerCommand.php` — now invoke and report the runtime runner seam while keeping `runtime_loop_active = false` in the current checkpoint
+- `src/ControlPlane/ValueObjects/WorkerStatus.php` — now exposes runner-invoked state separately from handoff-prepared and runtime-active state, with explicit runner contract vs bound implementation metadata
+- `src/Providers/FreeSwitchEslServiceProvider.php` — now binds the default `RuntimeRunnerInterface` implementation in the container
+- runtime-prep docs updated to describe prepared vs adapter-ready vs runner-invoked vs runtime-active states explicitly
+
+### Added
+
+- focused provider, worker, integration, and command tests for the new runtime runner seam, plus constructor/doc truth fixes for the new injection path
+
+## [Unreleased] — 0.3.x runtime-prep seam pass
+
+### Changed
+
+- `src/Contracts/RuntimeHandoffInterface.php` — added an explicit Laravel-owned adapter-facing contract for prepared runtime bundles
+- `src/Contracts/ConnectionFactoryInterface.php` and `src/Contracts/RuntimeHandoffInterface.php` — added a Laravel-owned adapter-facing handoff contract while keeping the existing concrete factory seam intact for this step
+- `src/Integration/EslCoreConnectionHandle.php` — now implements `RuntimeHandoffInterface` and exposes the resolved context through a method for adapter-facing consumption
+- `src/Worker/WorkerRuntime.php`, `src/Worker/WorkerSupervisor.php`, and `src/ControlPlane/ValueObjects/WorkerStatus.php` — now distinguish handoff-prepared, adapter-ready, and runtime-active state more explicitly without adding live runtime behavior
+- `README.md`, `docs/architecture.md`, `docs/public-api.md`, `docs/worker-runtime.md`, and `docs/package-boundaries.md` — tightened the runtime-prep story for the next later `apntalk/esl-react` integration phase
+
+### Added
+
+- focused unit coverage for `RuntimeHandoffInterface` exposure on the current `EslCoreConnectionHandle`, `WorkerRuntime`, and `WorkerSupervisor` seams
+
 ## [Unreleased] — 0.1.x closure pass
 
 ## [Unreleased] — 0.2.x release-readiness hardening pass

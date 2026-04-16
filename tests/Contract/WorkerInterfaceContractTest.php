@@ -9,6 +9,7 @@ use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\ConnectionContext;
 use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\PbxNode;
 use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\WorkerStatus;
 use ApnTalk\LaravelFreeswitchEsl\Integration\EslCoreConnectionHandle;
+use ApnTalk\LaravelFreeswitchEsl\Integration\NonLiveRuntimeRunner;
 use ApnTalk\LaravelFreeswitchEsl\Worker\WorkerRuntime;
 use PHPUnit\Framework\TestCase;
 use Apntalk\EslCore\Transport\InMemoryTransport;
@@ -90,7 +91,7 @@ class WorkerInterfaceContractTest extends TestCase
         };
 
         return [
-            'WorkerRuntime' => [new WorkerRuntime('contract-worker', $node, $resolver, $connectionFactory, new NullLogger())],
+            'WorkerRuntime' => [new WorkerRuntime('contract-worker', $node, $resolver, $connectionFactory, new NonLiveRuntimeRunner(), new NullLogger())],
         ];
     }
 
@@ -121,6 +122,8 @@ class WorkerInterfaceContractTest extends TestCase
         $this->assertFalse($status->meta['context_resolved']);
         $this->assertFalse($status->meta['connection_handoff_prepared']);
         $this->assertNull($status->meta['handoff_endpoint']);
+        $this->assertSame('ApnTalk\\LaravelFreeswitchEsl\\Contracts\\RuntimeRunnerInterface', $status->meta['runtime_runner_contract']);
+        $this->assertSame(NonLiveRuntimeRunner::class, $status->meta['runtime_runner_class']);
         $this->assertFalse($status->meta['runtime_loop_active']);
     }
 
@@ -147,6 +150,8 @@ class WorkerInterfaceContractTest extends TestCase
         $this->assertTrue($status->meta['context_resolved']);
         $this->assertTrue($status->meta['connection_handoff_prepared']);
         $this->assertNotNull($status->meta['handoff_endpoint']);
+        $this->assertSame('ApnTalk\\LaravelFreeswitchEsl\\Contracts\\RuntimeRunnerInterface', $status->meta['runtime_runner_contract']);
+        $this->assertSame(NonLiveRuntimeRunner::class, $status->meta['runtime_runner_class']);
         $this->assertFalse($status->meta['runtime_loop_active']);
     }
 
@@ -155,7 +160,7 @@ class WorkerInterfaceContractTest extends TestCase
     {
         $worker->boot();
 
-        // Must not throw in the stub implementation
+        // Must not throw in the current non-live runner implementation
         $this->expectNotToPerformAssertions();
         $worker->run();
     }

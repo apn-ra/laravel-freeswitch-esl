@@ -6,6 +6,7 @@ use Apntalk\EslCore\Contracts\CommandInterface;
 use Apntalk\EslCore\Contracts\InboundPipelineInterface;
 use Apntalk\EslCore\Contracts\TransportInterface;
 use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\ConnectionContext;
+use ApnTalk\LaravelFreeswitchEsl\Contracts\RuntimeHandoffInterface;
 
 /**
  * Package-owned connection handle for the current esl-core integration seam.
@@ -14,7 +15,7 @@ use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\ConnectionContext;
  * packages the resolved Laravel control-plane context together with the esl-core
  * protocol primitives the future runtime will consume.
  */
-final class EslCoreConnectionHandle
+final class EslCoreConnectionHandle implements RuntimeHandoffInterface
 {
     /** @var list<CommandInterface> */
     private readonly array $openingSequence;
@@ -38,6 +39,11 @@ final class EslCoreConnectionHandle
     ) {
         $this->openingSequence = $openingSequence;
         $this->closingSequence = $closingSequence;
+    }
+
+    public function context(): ConnectionContext
+    {
+        return $this->context;
     }
 
     public function pipeline(): InboundPipelineInterface

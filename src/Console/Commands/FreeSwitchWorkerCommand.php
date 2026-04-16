@@ -5,6 +5,7 @@ namespace ApnTalk\LaravelFreeswitchEsl\Console\Commands;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\ConnectionFactoryInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\ConnectionResolverInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\PbxRegistryInterface;
+use ApnTalk\LaravelFreeswitchEsl\Contracts\RuntimeRunnerInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\WorkerAssignmentResolverInterface;
 use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\WorkerAssignment;
 use ApnTalk\LaravelFreeswitchEsl\Exceptions\PbxNotFoundException;
@@ -72,6 +73,7 @@ class FreeSwitchWorkerCommand extends Command
         WorkerAssignmentResolverInterface $assignmentResolver,
         ConnectionResolverInterface $connectionResolver,
         ConnectionFactoryInterface $connectionFactory,
+        RuntimeRunnerInterface $runtimeRunner,
         LoggerInterface $logger,
     ): int {
         $workerName = $this->stringOption('worker') ?? 'esl-worker';
@@ -81,6 +83,7 @@ class FreeSwitchWorkerCommand extends Command
             assignmentResolver: $assignmentResolver,
             connectionResolver: $connectionResolver,
             connectionFactory: $connectionFactory,
+            runtimeRunner: $runtimeRunner,
             logger: $logger,
         );
 
@@ -243,16 +246,23 @@ class FreeSwitchWorkerCommand extends Command
     {
         $statuses = $supervisor->runtimeStatuses();
         $preparedCount = 0;
+        $runnerInvokedCount = 0;
 
         foreach ($statuses as $status) {
             if (($status->meta['connection_handoff_prepared'] ?? false) === true) {
                 $preparedCount++;
             }
+
+            if (($status->meta['runtime_runner_invoked'] ?? false) === true) {
+                $runnerInvokedCount++;
+            }
         }
 
         $this->info(sprintf(
-            'Prepared runtime handoff for %d/%d node(s); live apntalk/esl-react runtime not started in this scaffolding pass.',
+            'Prepared runtime handoff for %d/%d node(s); runtime runner invoked for %d/%d node(s); live apntalk/esl-react runtime not started in this scaffolding pass.',
             $preparedCount,
+            count($statuses),
+            $runnerInvokedCount,
             count($statuses),
         ));
     }

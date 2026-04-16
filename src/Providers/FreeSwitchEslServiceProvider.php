@@ -5,6 +5,7 @@ namespace ApnTalk\LaravelFreeswitchEsl\Providers;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\ConnectionFactoryInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\ConnectionResolverInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\HealthReporterInterface;
+use ApnTalk\LaravelFreeswitchEsl\Contracts\RuntimeRunnerInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\PbxRegistryInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\ProviderDriverRegistryInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\SecretResolverInterface;
@@ -20,6 +21,7 @@ use ApnTalk\LaravelFreeswitchEsl\Integration\EslCoreCommandFactory;
 use ApnTalk\LaravelFreeswitchEsl\Integration\EslCoreConnectionFactory;
 use ApnTalk\LaravelFreeswitchEsl\Integration\EslCoreEventBridge;
 use ApnTalk\LaravelFreeswitchEsl\Integration\EslCorePipelineFactory;
+use ApnTalk\LaravelFreeswitchEsl\Integration\NonLiveRuntimeRunner;
 use Apntalk\EslCore\Contracts\InboundConnectionFactoryInterface;
 use Apntalk\EslCore\Contracts\TransportFactoryInterface;
 use Apntalk\EslCore\Inbound\InboundConnectionFactory;
@@ -57,6 +59,7 @@ class FreeSwitchEslServiceProvider extends ServiceProvider
         $this->registerConnectionProfileResolver();
         $this->registerConnectionResolver();
         $this->registerConnectionFactory();
+        $this->registerRuntimeRunner();
         $this->registerWorkerAssignmentResolver();
         $this->registerHealthReporter();
         $this->registerManager();
@@ -140,6 +143,12 @@ class FreeSwitchEslServiceProvider extends ServiceProvider
                 transportFactory: $app->make(TransportFactoryInterface::class),
             );
         });
+    }
+
+
+    private function registerRuntimeRunner(): void
+    {
+        $this->app->singleton(RuntimeRunnerInterface::class, NonLiveRuntimeRunner::class);
     }
 
     private function registerWorkerAssignmentResolver(): void

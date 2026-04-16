@@ -176,7 +176,7 @@ The core flow:
 Laravel app
   → PbxRegistryInterface         (DB-backed node inventory)
   → ConnectionResolverInterface  (node + profile + secret + driver → ConnectionContext)
-  → ConnectionFactoryInterface   (ConnectionContext → EslCoreConnectionHandle)
+  → ConnectionFactoryInterface   (ConnectionContext → RuntimeHandoffInterface)
   → WorkerSupervisor             (multi-node orchestration)
   → WorkerRuntime                (per-node worker session + retained handoff state)
   → [apntalk/esl-react]          (async ESL runtime — future wiring)
@@ -188,7 +188,8 @@ Laravel app
 
 Current repository posture:
 - `0.1.x` foundation is in place for the Laravel package, DB-backed control plane, worker scaffolding, and operator commands
-- `0.2.x` groundwork has partially landed via direct `apntalk/esl-core` integration for typed commands, inbound decoding, and Laravel event bridging
+- `0.2.x` integration is in place for stable `apntalk/esl-core` transport/bootstrap, command, pipeline, and Laravel event-bridge seams
+- `0.3.x` runtime-prep work is now in place for adapter-facing runtime handoff bundles, runner seams, and truthful non-live worker/runtime reporting
 
 The package is currently usable for:
 - Control-plane setup (DB-backed PBX inventory)
@@ -197,13 +198,15 @@ The package is currently usable for:
 - Health snapshot inspection
 - `apntalk/esl-core` command/pipeline/event-bridge integration inside Laravel
 - stable upstream transport and accepted-stream bootstrap seams bound for future runtime adapters
+- a Laravel-owned runtime handoff contract that future adapters can consume without re-resolving control-plane state, with `ConnectionFactoryInterface` now typed to that boundary
+- a Laravel-owned runtime runner seam that `WorkerRuntime::run()` can invoke while remaining non-live by default
 
 Still deferred:
 - Live ESL runtime lifecycle via `apntalk/esl-react`
 - Reconnect-safe long-lived worker behavior
 - Replay capture/store integration via `apntalk/esl-replay`
 
-`WorkerRuntime::run()` remains a stub until `apntalk/esl-react` is wired.
+`WorkerRuntime::run()` now invokes the Laravel-owned `RuntimeRunnerInterface` seam. The default `NonLiveRuntimeRunner` returns immediately until `apntalk/esl-react` is wired.
 
 Current worker status semantics:
 - `booting` means handoff state is not yet prepared

@@ -8,6 +8,7 @@ use Apntalk\EslCore\Contracts\TransportInterface;
 use Apntalk\EslCore\Exceptions\TransportException;
 use Apntalk\EslCore\Transport\SocketEndpoint;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\ConnectionFactoryInterface;
+use ApnTalk\LaravelFreeswitchEsl\Contracts\RuntimeHandoffInterface;
 use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\ConnectionContext;
 
 /**
@@ -29,7 +30,7 @@ final class EslCoreConnectionFactory implements ConnectionFactoryInterface
         private readonly TransportFactoryInterface $transportFactory,
     ) {}
 
-    public function create(ConnectionContext $context): EslCoreConnectionHandle
+    public function create(ConnectionContext $context): RuntimeHandoffInterface
     {
         [$eventNames, $format] = $this->subscriptionSettings($context);
 

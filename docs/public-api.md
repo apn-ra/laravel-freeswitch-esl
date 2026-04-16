@@ -5,7 +5,7 @@ For the full compatibility and deprecation policy, see `docs/compatibility-polic
 
 ---
 
-## Stable public surfaces (current 0.2.x checkpoint)
+## Stable public surfaces (current 0.3.x runtime-prep checkpoint)
 
 ### Contracts (`src/Contracts/`)
 
@@ -18,7 +18,9 @@ which is explicitly `@internal`.
 | `ProviderDriverRegistryInterface` | Provider driver map and resolution |
 | `ProviderDriverInterface` | Contract for PBX provider drivers |
 | `ConnectionResolverInterface` | Full resolution pipeline |
-| `ConnectionFactoryInterface` | Runtime handoff factory for the current Laravel-owned connection seam |
+| `ConnectionFactoryInterface` | Runtime handoff factory returning the Laravel-owned `RuntimeHandoffInterface` boundary |
+| `RuntimeHandoffInterface` | Adapter-facing prepared runtime bundle contract for future runtime integrations |
+| `RuntimeRunnerInterface` | Laravel-owned runtime runner contract that `WorkerRuntime::run()` invokes |
 | `WorkerInterface` | Worker boot/run/drain/shutdown lifecycle |
 | `WorkerAssignmentResolverInterface` | Assignment scope resolution |
 | `HealthReporterInterface` | Structured health snapshot contract |
@@ -35,7 +37,7 @@ All value objects are stable public API:
 | `ConnectionProfile` | Immutable operational policy VO |
 | `WorkerAssignment` | Immutable worker targeting scope (5 modes) |
 | `ConnectionContext` | Fully resolved connection parameters (use `toLogContext()` for safe logging) |
-| `WorkerStatus` | Worker operational state snapshot; `meta` includes handoff-prepared scaffolding flags and `runtime_loop_active` truth |
+| `WorkerStatus` | Worker operational state snapshot; helper methods and `meta` distinguish handoff-prepared, adapter-ready, runner-invoked, and runtime-active state |
 | `HealthSnapshot` | PBX node health at a point in time |
 
 ### Laravel integration
@@ -55,8 +57,8 @@ These surfaces are now shipped and should be treated as public package surfaces 
 
 | Class | Purpose |
 |---|---|
-| `EslCoreConnectionFactory` | Creates the current runtime handoff handle from `ConnectionContext` |
-| `EslCoreConnectionHandle` | Opaque Laravel-package handle carrying resolved context, esl-core pipeline, and boot command sequences |
+| `EslCoreConnectionFactory` | Creates the current `RuntimeHandoffInterface` bundle from `ConnectionContext` |
+| `EslCoreConnectionHandle` | Current `RuntimeHandoffInterface` implementation carrying resolved context, esl-core pipeline, and boot command sequences |
 | `EslCoreCommandFactory` | Builds typed `apntalk/esl-core` command objects from Laravel-owned inputs |
 | `EslCorePipelineFactory` | Creates per-session inbound decode pipelines |
 | `EslCoreEventBridge` | Dispatches decoded esl-core messages into Laravel events |
@@ -81,8 +83,8 @@ Stable upstream seams bound in the Laravel container:
 | Service implementation internals | Only the interface contract is stable |
 
 Current worker/runtime posture notes:
-- `WorkerInterface::run()` is a stable contract, but current shipped implementations may log and return immediately while runtime handoff remains scaffolding-only.
-- `WorkerStatus::state = running` currently means boot completed and runtime handoff prepared; check `meta.runtime_loop_active` before treating it as a live async session.
+- `WorkerInterface::run()` is a stable contract, but current shipped implementations may invoke a non-live runner and return immediately while runtime handoff remains scaffolding-only.
+- `WorkerStatus::state = running` currently means boot completed and runtime handoff prepared; use `WorkerStatus::isHandoffPrepared()`, `isRuntimeRunnerInvoked()`, and `isRuntimeLoopActive()` to distinguish prepared scaffolding, seam invocation, and a live async session.
 
 ---
 
