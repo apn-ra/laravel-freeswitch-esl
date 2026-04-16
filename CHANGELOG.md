@@ -7,6 +7,35 @@ This project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [0.2.0] - 2026-04-17
+
+### Summary
+
+This release is a truthful partial `0.2.x` Laravel-side integration checkpoint.
+It is not a live runtime milestone.
+
+### Highlights
+
+- aligned Laravel-side integration to stable public `apntalk/esl-core` seams, including `TransportFactoryInterface`, `SocketTransportFactory`, `SocketEndpoint`, `InboundPipeline::withDefaults()`, and `InboundConnectionFactoryInterface`
+- added a concrete `ConnectionFactoryInterface` seam and package-owned `EslCoreConnectionHandle` for runtime handoff scaffolding
+- advanced `WorkerRuntime`, `WorkerSupervisor`, and `freeswitch:worker` to retain and surface handoff-prepared state truthfully without claiming a live async runtime
+- hardened public docs, command surfaces, provider/container proof, and static-analysis posture for the current non-live checkpoint
+
+### Verification
+
+- contract, unit, and integration PHPUnit suites passed for the checkpoint work
+- PHPStan passed at the current configured level
+
+### Deferred
+
+- `apntalk/esl-react` live async runtime wiring
+- reconnect/backoff supervision
+- heartbeat/session lifecycle ownership
+- listener/runtime ownership
+- `apntalk/esl-replay` runtime orchestration
+
+---
+
 ## [Unreleased] — 0.1.x closure pass
 
 ## [Unreleased] — 0.2.x release-readiness hardening pass
