@@ -30,6 +30,7 @@ class WorkerAssignmentResolver implements WorkerAssignmentResolverInterface
             WorkerAssignment::MODE_TAG        => $this->resolveTagMode($assignment),
             WorkerAssignment::MODE_PROVIDER   => $this->resolveProviderMode($assignment),
             WorkerAssignment::MODE_ALL_ACTIVE => $this->pbxRegistry->allActive(),
+            default => [],
         };
     }
 
@@ -38,8 +39,9 @@ class WorkerAssignmentResolver implements WorkerAssignmentResolverInterface
      */
     public function resolveForWorkerName(string $workerName): array
     {
-        $assignments = WorkerAssignmentModel::active()
-            ->forWorker($workerName)
+        $assignments = WorkerAssignmentModel::query()
+            ->where('is_active', true)
+            ->where('worker_name', $workerName)
             ->get()
             ->map(fn (WorkerAssignmentModel $m) => $m->toValueObject())
             ->all();

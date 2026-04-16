@@ -139,7 +139,7 @@ class WorkerRuntimeTest extends TestCase
         };
 
         $connectionFactory = new class implements ConnectionFactoryInterface {
-            public function create(ConnectionContext $context): mixed
+            public function create(ConnectionContext $context): EslCoreConnectionHandle
             {
                 $commandFactory = new EslCoreCommandFactory();
 

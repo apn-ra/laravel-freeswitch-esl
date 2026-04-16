@@ -5,7 +5,7 @@ For the full compatibility and deprecation policy, see `docs/compatibility-polic
 
 ---
 
-## Stable public surfaces (0.1.x)
+## Stable public surfaces (current 0.2.x checkpoint)
 
 ### Contracts (`src/Contracts/`)
 
@@ -18,7 +18,7 @@ which is explicitly `@internal`.
 | `ProviderDriverRegistryInterface` | Provider driver map and resolution |
 | `ProviderDriverInterface` | Contract for PBX provider drivers |
 | `ConnectionResolverInterface` | Full resolution pipeline |
-| `ConnectionFactoryInterface` | Runtime factory (esl-react integration point) |
+| `ConnectionFactoryInterface` | Runtime handoff factory for the current Laravel-owned connection seam |
 | `WorkerInterface` | Worker boot/run/drain/shutdown lifecycle |
 | `WorkerAssignmentResolverInterface` | Assignment scope resolution |
 | `HealthReporterInterface` | Structured health snapshot contract |
@@ -64,6 +64,10 @@ These surfaces are now shipped and should be treated as public package surfaces 
 | `EslReplyReceived` | Laravel event carrying typed reply and `ConnectionContext` |
 | `EslDisconnected` | Laravel event carrying disconnect notice context |
 
+Stable upstream seams bound in the Laravel container:
+- `Apntalk\EslCore\Contracts\TransportFactoryInterface` → `SocketTransportFactory`
+- `Apntalk\EslCore\Contracts\InboundConnectionFactoryInterface` → `InboundConnectionFactory`
+
 ---
 
 ## Internal / non-stable surfaces
@@ -74,7 +78,6 @@ These surfaces are now shipped and should be treated as public package surfaces 
 | Eloquent model internals | Relationships and scopes may change |
 | `WorkerRuntime` internal methods | Implementation detail; only `WorkerInterface` methods are stable |
 | `WorkerSupervisor` internal methods | Implementation detail |
-| `EslCoreConnectionFactory` transport opener internals | Current default opener uses an internal esl-core transport implementation; not a stable extension point |
 | Service implementation internals | Only the interface contract is stable |
 
 Current worker/runtime posture notes:

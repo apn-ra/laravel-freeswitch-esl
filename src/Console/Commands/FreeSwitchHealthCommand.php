@@ -20,9 +20,9 @@ class FreeSwitchHealthCommand extends Command
 
     public function handle(HealthReporterInterface $reporter, PbxRegistryInterface $registry): int
     {
-        $pbx = $this->option('pbx');
-        $cluster = $this->option('cluster');
-        $asJson = $this->option('json');
+        $pbx = $this->stringOption('pbx');
+        $cluster = $this->stringOption('cluster');
+        $asJson = $this->booleanOption('json');
 
         try {
             $snapshots = match (true) {
@@ -32,9 +32,8 @@ class FreeSwitchHealthCommand extends Command
             };
 
             if ($asJson) {
-                $this->line(json_encode(
+                $this->line($this->jsonString(
                     array_map(fn ($s) => $s->toArray(), $snapshots),
-                    JSON_PRETTY_PRINT
                 ));
 
                 return self::SUCCESS;
@@ -65,5 +64,26 @@ class FreeSwitchHealthCommand extends Command
 
             return self::FAILURE;
         }
+    }
+
+
+    private function stringOption(string $name): ?string
+    {
+        $value = $this->option($name);
+
+        return is_string($value) && $value !== '' ? $value : null;
+    }
+
+    private function booleanOption(string $name): bool
+    {
+        return $this->option($name) === true;
+    }
+
+    /**
+     * @param  array<mixed>  $value
+     */
+    private function jsonString(array $value): string
+    {
+        return json_encode($value, JSON_PRETTY_PRINT) ?: '[]';
     }
 }

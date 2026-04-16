@@ -2,12 +2,17 @@
 
 namespace ApnTalk\LaravelFreeswitchEsl\Tests\Integration;
 
+use Apntalk\EslCore\Contracts\InboundConnectionFactoryInterface;
 use Apntalk\EslCore\Contracts\InboundPipelineInterface;
+use Apntalk\EslCore\Contracts\TransportFactoryInterface;
+use Apntalk\EslCore\Correlation\ConnectionSessionId;
+use Apntalk\EslCore\Inbound\PreparedInboundConnection;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\ConnectionFactoryInterface;
 use ApnTalk\LaravelFreeswitchEsl\Integration\EslCoreCommandFactory;
 use ApnTalk\LaravelFreeswitchEsl\Integration\EslCoreConnectionHandle;
 use ApnTalk\LaravelFreeswitchEsl\Integration\EslCoreEventBridge;
 use ApnTalk\LaravelFreeswitchEsl\Integration\EslCorePipelineFactory;
+use Apntalk\EslCore\Transport\SocketTransportFactory;
 use ApnTalk\LaravelFreeswitchEsl\Tests\TestCase;
 
 /**
@@ -31,6 +36,49 @@ class EslCoreBindingsTest extends TestCase
         $b = $this->app->make(EslCoreCommandFactory::class);
 
         $this->assertSame($a, $b);
+    }
+
+    public function test_transport_factory_resolves_from_container(): void
+    {
+        $factory = $this->app->make(TransportFactoryInterface::class);
+
+        $this->assertInstanceOf(SocketTransportFactory::class, $factory);
+    }
+
+    public function test_transport_factory_is_singleton(): void
+    {
+        $a = $this->app->make(TransportFactoryInterface::class);
+        $b = $this->app->make(TransportFactoryInterface::class);
+
+        $this->assertSame($a, $b);
+    }
+
+    public function test_inbound_connection_factory_resolves_from_container(): void
+    {
+        $factory = $this->app->make(InboundConnectionFactoryInterface::class);
+
+        $this->assertInstanceOf(InboundConnectionFactoryInterface::class, $factory);
+    }
+
+    public function test_inbound_connection_factory_is_singleton(): void
+    {
+        $a = $this->app->make(InboundConnectionFactoryInterface::class);
+        $b = $this->app->make(InboundConnectionFactoryInterface::class);
+
+        $this->assertSame($a, $b);
+    }
+
+    public function test_inbound_connection_factory_prepares_accepted_stream_bundle(): void
+    {
+        $factory = $this->app->make(InboundConnectionFactoryInterface::class);
+        $stream = fopen('php://temp', 'r+');
+
+        $prepared = $factory->prepareAcceptedStream($stream);
+
+        $this->assertInstanceOf(PreparedInboundConnection::class, $prepared);
+        $this->assertInstanceOf(InboundPipelineInterface::class, $prepared->pipeline());
+        $this->assertSame(0, $prepared->pipeline()->bufferedByteCount());
+        $this->assertInstanceOf(ConnectionSessionId::class, $prepared->sessionId());
     }
 
     public function test_esl_core_pipeline_factory_resolves_from_container(): void

@@ -23,6 +23,9 @@ class WorkerAssignment extends Model
         'is_active',
     ];
 
+    /**
+     * @var array<string, string>
+     */
     protected $casts = [
         'pbx_node_id' => 'integer',
         'is_active'   => 'boolean',

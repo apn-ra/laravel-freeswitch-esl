@@ -15,7 +15,7 @@ Support for PHP 8.2 and below, and Laravel 10, is not planned.
 | Version | Focus |
 |---|---|
 | `0.1.x` | Repo foundation, control-plane contracts, DB schema, worker lifecycle scaffolding (stub run()) |
-| `0.2.x` | Integrate `apntalk/esl-core` (typed events, command dispatch, event normalizer) |
+| `0.2.x` | Integrate `apntalk/esl-core` (typed events, command dispatch, event normalizer, stable transport/bootstrap seams) |
 | `0.3.x` | Integrate `apntalk/esl-react` (wire async runtime into WorkerRuntime::run()) |
 | `0.4.x` | Laravel worker runtime hardening + assignment orchestration maturity |
 | `0.5.x` | Integrate `apntalk/esl-replay` (capture wiring, retention, replay inspection) |
@@ -24,9 +24,9 @@ Support for PHP 8.2 and below, and Laravel 10, is not planned.
 
 **Current repo posture:** `0.1.x` control-plane scope is complete and the repository has already
 landed part of the `0.2.x` adapter layer: `apntalk/esl-core` is a direct dependency and the
-package ships typed command, inbound pipeline, and Laravel event-bridge classes. `WorkerRuntime`
-and `WorkerSupervisor` still remain scaffolding, and live ESL runtime behavior still requires
-`apntalk/esl-react` (`0.3.x`).
+package ships typed command, inbound pipeline, event-bridge, connection-factory, and stable
+transport/bootstrap seam bindings. `WorkerRuntime` and `WorkerSupervisor` still remain
+scaffolding, and live ESL runtime behavior still requires `apntalk/esl-react` (`0.3.x`).
 
 Current worker/runtime truth:
 - `WorkerRuntime::run()` is scaffolding-only and may return immediately

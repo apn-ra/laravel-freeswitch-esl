@@ -19,9 +19,9 @@ class FreeSwitchStatusCommand extends Command
 
     public function handle(PbxRegistryInterface $registry): int
     {
-        $slug = $this->option('pbx');
-        $cluster = $this->option('cluster');
-        $provider = $this->option('provider');
+        $slug = $this->stringOption('pbx');
+        $cluster = $this->stringOption('cluster');
+        $provider = $this->stringOption('provider');
 
         try {
             $nodes = match (true) {
@@ -58,5 +58,13 @@ class FreeSwitchStatusCommand extends Command
 
             return self::FAILURE;
         }
+    }
+
+
+    private function stringOption(string $name): ?string
+    {
+        $value = $this->option($name);
+
+        return is_string($value) && $value !== '' ? $value : null;
     }
 }

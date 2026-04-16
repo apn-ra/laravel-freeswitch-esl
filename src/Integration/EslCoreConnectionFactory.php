@@ -3,9 +3,10 @@
 namespace ApnTalk\LaravelFreeswitchEsl\Integration;
 
 use Apntalk\EslCore\Commands\EventFormat;
+use Apntalk\EslCore\Contracts\TransportFactoryInterface;
 use Apntalk\EslCore\Contracts\TransportInterface;
 use Apntalk\EslCore\Exceptions\TransportException;
-use Apntalk\EslCore\Internal\Transport\StreamSocketTransport;
+use Apntalk\EslCore\Transport\SocketEndpoint;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\ConnectionFactoryInterface;
 use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\ConnectionContext;
 
@@ -22,13 +23,10 @@ use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\ConnectionContext;
  */
 final class EslCoreConnectionFactory implements ConnectionFactoryInterface
 {
-    /**
-     * @param  \Closure(ConnectionContext): TransportInterface|null  $transportOpener
-     */
     public function __construct(
         private readonly EslCoreCommandFactory $commandFactory,
         private readonly EslCorePipelineFactory $pipelineFactory,
-        private readonly ?\Closure $transportOpener = null,
+        private readonly TransportFactoryInterface $transportFactory,
     ) {}
 
     public function create(ConnectionContext $context): EslCoreConnectionHandle
@@ -40,7 +38,7 @@ final class EslCoreConnectionFactory implements ConnectionFactoryInterface
             pipeline: $this->pipelineFactory->createPipeline(),
             openingSequence: $this->commandFactory->buildOpeningSequence($context, $eventNames, $format),
             closingSequence: $this->commandFactory->buildClosingSequence(),
-            transportOpener: $this->transportOpener ?? fn (ConnectionContext $ctx): TransportInterface => $this->openTransport($ctx),
+            transportOpener: fn (ConnectionContext $ctx) => $this->openTransport($ctx),
         );
     }
 
@@ -71,42 +69,35 @@ final class EslCoreConnectionFactory implements ConnectionFactoryInterface
 
     private function openTransport(ConnectionContext $context): TransportInterface
     {
-        $socketUri = $this->socketUri($context);
-        $timeoutSeconds = $this->connectTimeoutSeconds($context);
-
-        $stream = @stream_socket_client(
-            $socketUri,
-            $errorCode,
-            $errorMessage,
-            $timeoutSeconds,
-            STREAM_CLIENT_CONNECT
-        );
-
-        if (! is_resource($stream)) {
-            throw new TransportException(sprintf(
-                'Failed to connect to [%s]: %s (%d)',
-                $socketUri,
-                $errorMessage ?: 'unknown error',
-                (int) $errorCode,
-            ));
-        }
-
-        stream_set_blocking($stream, false);
-
-        return new StreamSocketTransport($stream);
+        return $this->transportFactory->connect($this->socketEndpoint($context));
     }
 
-    private function socketUri(ConnectionContext $context): string
+    private function socketEndpoint(ConnectionContext $context): SocketEndpoint
     {
-        $scheme = match ($context->transport) {
-            'tcp' => 'tcp',
-            'tls' => 'tls',
+        $timeoutSeconds = $this->connectTimeoutSeconds($context);
+        $contextOptions = $this->streamContextOptions($context);
+
+        return match ($context->transport) {
+            'tcp' => SocketEndpoint::tcp($context->host, $context->port, $timeoutSeconds, $contextOptions),
+            'tls' => new SocketEndpoint(
+                sprintf('tls://%s:%d', $context->host, $context->port),
+                $timeoutSeconds,
+                $contextOptions,
+            ),
             default => throw new TransportException(
                 sprintf('Unsupported transport [%s] for PBX node [%s].', $context->transport, $context->pbxNodeSlug)
             ),
         };
+    }
 
-        return sprintf('%s://%s:%d', $scheme, $context->host, $context->port);
+    /**
+     * @return array<string, mixed>
+     */
+    private function streamContextOptions(ConnectionContext $context): array
+    {
+        $options = $context->driverParameters['stream_context_options'] ?? [];
+
+        return is_array($options) ? $options : [];
     }
 
     private function connectTimeoutSeconds(ConnectionContext $context): float

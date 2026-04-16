@@ -20,6 +20,10 @@ use ApnTalk\LaravelFreeswitchEsl\Integration\EslCoreCommandFactory;
 use ApnTalk\LaravelFreeswitchEsl\Integration\EslCoreConnectionFactory;
 use ApnTalk\LaravelFreeswitchEsl\Integration\EslCoreEventBridge;
 use ApnTalk\LaravelFreeswitchEsl\Integration\EslCorePipelineFactory;
+use Apntalk\EslCore\Contracts\InboundConnectionFactoryInterface;
+use Apntalk\EslCore\Contracts\TransportFactoryInterface;
+use Apntalk\EslCore\Inbound\InboundConnectionFactory;
+use Apntalk\EslCore\Transport\SocketTransportFactory;
 use Illuminate\Contracts\Events\Dispatcher;
 use Illuminate\Support\ServiceProvider;
 
@@ -133,6 +137,7 @@ class FreeSwitchEslServiceProvider extends ServiceProvider
             return new EslCoreConnectionFactory(
                 commandFactory: $app->make(EslCoreCommandFactory::class),
                 pipelineFactory: $app->make(EslCorePipelineFactory::class),
+                transportFactory: $app->make(TransportFactoryInterface::class),
             );
         });
     }
@@ -170,6 +175,16 @@ class FreeSwitchEslServiceProvider extends ServiceProvider
 
     private function registerEslCoreIntegration(): void
     {
+        // SocketTransportFactory — stable public transport construction seam
+        $this->app->singleton(TransportFactoryInterface::class, SocketTransportFactory::class);
+
+        // InboundConnectionFactory — stable accepted-stream bootstrap seam
+        $this->app->singleton(InboundConnectionFactoryInterface::class, function ($app) {
+            return new InboundConnectionFactory(
+                $app->make(TransportFactoryInterface::class),
+            );
+        });
+
         // EslCoreCommandFactory — builds typed esl-core command objects
         $this->app->singleton(EslCoreCommandFactory::class);
 

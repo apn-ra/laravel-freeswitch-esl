@@ -2,6 +2,7 @@
 
 namespace ApnTalk\LaravelFreeswitchEsl\ControlPlane\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
@@ -25,6 +26,9 @@ class PbxProvider extends Model
         'settings_json',
     ];
 
+    /**
+     * @var array<string, string>
+     */
     protected $casts = [
         'is_active'         => 'boolean',
         'capabilities_json' => 'array',
@@ -41,7 +45,7 @@ class PbxProvider extends Model
         return $this->hasMany(PbxConnectionProfile::class, 'provider_id');
     }
 
-    public function scopeActive(\Illuminate\Database\Eloquent\Builder $query): \Illuminate\Database\Eloquent\Builder
+    public function scopeActive(Builder $query): Builder
     {
         return $query->where('is_active', true);
     }

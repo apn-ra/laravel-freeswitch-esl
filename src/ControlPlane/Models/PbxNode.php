@@ -35,6 +35,9 @@ class PbxNode extends Model
         'last_heartbeat_at',
     ];
 
+    /**
+     * @var array<string, string>
+     */
     protected $casts = [
         'port'              => 'integer',
         'is_active'         => 'boolean',
@@ -65,7 +68,10 @@ class PbxNode extends Model
 
     public function scopeWithTag(Builder $query, string $tag): Builder
     {
-        return $query->whereJsonContains('tags_json', $tag);
+        /** @var Builder $scoped */
+        $scoped = $query->whereJsonContains('tags_json', $tag);
+
+        return $scoped;
     }
 
     public function scopeForProvider(Builder $query, string $providerCode): Builder

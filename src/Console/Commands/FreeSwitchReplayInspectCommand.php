@@ -48,22 +48,25 @@ class FreeSwitchReplayInspectCommand extends Command
             return self::FAILURE;
         }
 
-        $pbxSlug = $this->option('pbx');
-        $from = $this->option('from')
-            ? new \DateTimeImmutable((string) $this->option('from'))
+        $pbxSlug = $this->stringOption('pbx');
+        $fromOption = $this->stringOption('from');
+        $toOption = $this->stringOption('to');
+        $limitOption = $this->stringOption('limit');
+        $from = $fromOption !== null
+            ? new \DateTimeImmutable($fromOption)
             : new \DateTimeImmutable('-1 hour');
-        $to = $this->option('to')
-            ? new \DateTimeImmutable((string) $this->option('to'))
+        $to = $toOption !== null
+            ? new \DateTimeImmutable($toOption)
             : new \DateTimeImmutable();
-        $limit = (int) ($this->option('limit') ?? 50);
-        $asJson = $this->option('json');
+        $limit = $limitOption !== null ? (int) $limitOption : 50;
+        $asJson = $this->booleanOption('json');
 
         $store = app(\ApnTalk\LaravelFreeswitchEsl\Contracts\Upstream\ReplayCaptureStoreInterface::class);
         $partitionKey = $pbxSlug ?? 'all';
         $envelopes = array_slice($store->retrieve($partitionKey, $from, $to), 0, $limit);
 
         if ($asJson) {
-            $this->line(json_encode($envelopes, JSON_PRETTY_PRINT));
+            $this->line($this->jsonString($envelopes));
 
             return self::SUCCESS;
         }
@@ -80,10 +83,31 @@ class FreeSwitchReplayInspectCommand extends Command
             $this->line(sprintf(
                 '[%d] %s',
                 $i + 1,
-                json_encode($envelope)
+                $this->jsonString($envelope)
             ));
         }
 
         return self::SUCCESS;
+    }
+
+
+    private function stringOption(string $name): ?string
+    {
+        $value = $this->option($name);
+
+        return is_string($value) && $value !== '' ? $value : null;
+    }
+
+    private function booleanOption(string $name): bool
+    {
+        return $this->option($name) === true;
+    }
+
+    /**
+     * @param  mixed  $value
+     */
+    private function jsonString(mixed $value): string
+    {
+        return json_encode($value, JSON_PRETTY_PRINT) ?: '{}';
     }
 }

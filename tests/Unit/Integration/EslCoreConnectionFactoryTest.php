@@ -5,7 +5,10 @@ namespace ApnTalk\LaravelFreeswitchEsl\Tests\Unit\Integration;
 use Apntalk\EslCore\Commands\AuthCommand;
 use Apntalk\EslCore\Commands\EventFormat;
 use Apntalk\EslCore\Commands\EventSubscriptionCommand;
+use Apntalk\EslCore\Contracts\TransportFactoryInterface;
 use Apntalk\EslCore\Contracts\TransportInterface;
+use Apntalk\EslCore\Exceptions\TransportException;
+use Apntalk\EslCore\Transport\SocketEndpoint;
 use Apntalk\EslCore\Transport\InMemoryTransport;
 use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\ConnectionContext;
 use ApnTalk\LaravelFreeswitchEsl\Integration\EslCoreCommandFactory;
@@ -80,7 +83,24 @@ class EslCoreConnectionFactoryTest extends TestCase
     public function test_open_transport_uses_injected_transport_opener_and_caches_transport(): void
     {
         $transport = new InMemoryTransport();
-        $factory = $this->makeFactory(fn (): TransportInterface => $transport);
+        $transportFactory = new class ($transport) implements TransportFactoryInterface {
+            public int $connectCalls = 0;
+
+            public function __construct(private readonly TransportInterface $transport) {}
+
+            public function connect(SocketEndpoint $endpoint): TransportInterface
+            {
+                $this->connectCalls++;
+
+                return $this->transport;
+            }
+
+            public function fromStream($stream): TransportInterface
+            {
+                return $this->transport;
+            }
+        };
+        $factory = $this->makeFactory($transportFactory);
 
         $handle = $factory->create($this->makeContext());
         $first = $handle->openTransport();
@@ -89,12 +109,26 @@ class EslCoreConnectionFactoryTest extends TestCase
         $this->assertSame($transport, $first);
         $this->assertSame($first, $second);
         $this->assertTrue($handle->hasOpenTransport());
+        $this->assertSame(1, $transportFactory->connectCalls);
     }
 
     public function test_close_transport_closes_and_clears_cached_transport(): void
     {
         $transport = new InMemoryTransport();
-        $factory = $this->makeFactory(fn (): TransportInterface => $transport);
+        $transportFactory = new class ($transport) implements TransportFactoryInterface {
+            public function __construct(private readonly TransportInterface $transport) {}
+
+            public function connect(SocketEndpoint $endpoint): TransportInterface
+            {
+                return $this->transport;
+            }
+
+            public function fromStream($stream): TransportInterface
+            {
+                return $this->transport;
+            }
+        };
+        $factory = $this->makeFactory($transportFactory);
 
         $handle = $factory->create($this->makeContext());
         $handle->openTransport();
@@ -113,15 +147,100 @@ class EslCoreConnectionFactoryTest extends TestCase
         $this->assertSame('tls://192.0.2.10:9000', $handle->endpoint());
     }
 
+    public function test_open_transport_uses_public_socket_endpoint_construction_for_tcp(): void
+    {
+        $transport = new InMemoryTransport();
+        $transportFactory = new class ($transport) implements TransportFactoryInterface {
+            public ?SocketEndpoint $endpoint = null;
+
+            public function __construct(private readonly TransportInterface $transport) {}
+
+            public function connect(SocketEndpoint $endpoint): TransportInterface
+            {
+                $this->endpoint = $endpoint;
+
+                return $this->transport;
+            }
+
+            public function fromStream($stream): TransportInterface
+            {
+                return $this->transport;
+            }
+        };
+
+        $factory = $this->makeFactory($transportFactory);
+        $handle = $factory->create($this->makeContext(host: '203.0.113.10', port: 8022));
+        $handle->openTransport();
+
+        $this->assertNotNull($transportFactory->endpoint);
+        $this->assertSame('tcp://203.0.113.10:8022', $transportFactory->endpoint->address());
+        $this->assertSame(10.0, $transportFactory->endpoint->timeoutSeconds());
+    }
+
+    public function test_open_transport_uses_public_socket_endpoint_construction_for_tls(): void
+    {
+        $transport = new InMemoryTransport();
+        $transportFactory = new class ($transport) implements TransportFactoryInterface {
+            public ?SocketEndpoint $endpoint = null;
+
+            public function __construct(private readonly TransportInterface $transport) {}
+
+            public function connect(SocketEndpoint $endpoint): TransportInterface
+            {
+                $this->endpoint = $endpoint;
+
+                return $this->transport;
+            }
+
+            public function fromStream($stream): TransportInterface
+            {
+                return $this->transport;
+            }
+        };
+
+        $factory = $this->makeFactory($transportFactory);
+        $handle = $factory->create($this->makeContext(
+            host: '198.51.100.5',
+            port: 7443,
+            transport: 'tls',
+            driverParameters: ['stream_context_options' => ['ssl' => ['verify_peer' => false]]],
+        ));
+        $handle->openTransport();
+
+        $this->assertNotNull($transportFactory->endpoint);
+        $this->assertSame('tls://198.51.100.5:7443', $transportFactory->endpoint->address());
+        $this->assertSame(['ssl' => ['verify_peer' => false]], $transportFactory->endpoint->contextOptions());
+    }
+
+    public function test_open_transport_throws_for_unsupported_transport(): void
+    {
+        $factory = $this->makeFactory();
+        $handle = $factory->create($this->makeContext(transport: 'udp'));
+
+        $this->expectException(TransportException::class);
+        $this->expectExceptionMessage('Unsupported transport [udp]');
+
+        $handle->openTransport();
+    }
+
     /**
-     * @param  (\Closure(ConnectionContext): TransportInterface)|null  $transportOpener
      */
-    private function makeFactory(?\Closure $transportOpener = null): EslCoreConnectionFactory
+    private function makeFactory(?TransportFactoryInterface $transportFactory = null): EslCoreConnectionFactory
     {
         return new EslCoreConnectionFactory(
             commandFactory: new EslCoreCommandFactory(),
             pipelineFactory: new EslCorePipelineFactory(),
-            transportOpener: $transportOpener,
+            transportFactory: $transportFactory ?? new class implements TransportFactoryInterface {
+                public function connect(SocketEndpoint $endpoint): TransportInterface
+                {
+                    return new InMemoryTransport();
+                }
+
+                public function fromStream($stream): TransportInterface
+                {
+                    return new InMemoryTransport();
+                }
+            },
         );
     }
 

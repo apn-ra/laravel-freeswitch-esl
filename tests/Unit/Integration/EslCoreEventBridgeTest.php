@@ -208,7 +208,7 @@ class EslCoreEventBridgeTest extends TestCase
 
     private function decodeEventFrame(): DecodedInboundMessage
     {
-        $pipeline = new InboundPipeline();
+        $pipeline = InboundPipeline::withDefaults();
         $body = "Event-Name: HEARTBEAT\nCore-UUID: test-uuid\nEvent-Date-Timestamp: 1000000\n";
         $frame = sprintf(
             "Content-Type: text/event-plain\nContent-Length: %d\n\n%s",
@@ -222,7 +222,7 @@ class EslCoreEventBridgeTest extends TestCase
 
     private function decodeReplyFrame(): DecodedInboundMessage
     {
-        $pipeline = new InboundPipeline();
+        $pipeline = InboundPipeline::withDefaults();
         $frame = "Content-Type: command/reply\nReply-Text: +OK accepted\n\n";
         $messages = $pipeline->decode($frame);
 

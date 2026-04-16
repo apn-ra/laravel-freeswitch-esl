@@ -141,7 +141,7 @@ class FreeSwitchWorkerCommandTest extends TestCase
             /** @var list<ConnectionContext> */
             public array $contexts = [];
 
-            public function create(ConnectionContext $context): mixed
+            public function create(ConnectionContext $context): EslCoreConnectionHandle
             {
                 $this->createCalls++;
                 $this->contexts[] = $context;
@@ -288,7 +288,7 @@ class FreeSwitchWorkerCommandTest extends TestCase
             /** @var list<ConnectionContext> */
             public array $contexts = [];
 
-            public function create(ConnectionContext $context): mixed
+            public function create(ConnectionContext $context): EslCoreConnectionHandle
             {
                 $this->createCalls++;
                 $this->contexts[] = $context;

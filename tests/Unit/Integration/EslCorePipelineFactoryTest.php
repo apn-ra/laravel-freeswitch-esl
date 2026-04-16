@@ -40,6 +40,15 @@ class EslCorePipelineFactoryTest extends TestCase
         $this->assertInstanceOf(InboundPipeline::class, $pipeline);
     }
 
+    public function test_create_pipeline_uses_supported_default_construction_path(): void
+    {
+        $pipeline = $this->factory->createPipeline();
+        $expected = InboundPipeline::withDefaults();
+
+        $this->assertSame($expected::class, $pipeline::class);
+        $this->assertSame(0, $expected->bufferedByteCount());
+    }
+
     public function test_create_pipeline_returns_fresh_instance_each_call(): void
     {
         $a = $this->factory->createPipeline();

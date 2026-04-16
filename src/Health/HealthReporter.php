@@ -25,15 +25,14 @@ class HealthReporter implements HealthReporterInterface
     public function forNode(int $pbxNodeId): HealthSnapshot
     {
         $node = $this->pbxRegistry->findById($pbxNodeId);
-        $model = PbxNodeModel::find($pbxNodeId);
 
-        return $this->snapshotFromNode($node, $model);
+        return $this->snapshotFromNode($node);
     }
 
     public function forAllActive(): array
     {
         return array_map(
-            fn ($node) => $this->snapshotFromNode($node, PbxNodeModel::find($node->id)),
+            fn ($node) => $this->snapshotFromNode($node),
             $this->pbxRegistry->allActive()
         );
     }
@@ -41,14 +40,14 @@ class HealthReporter implements HealthReporterInterface
     public function forCluster(string $cluster): array
     {
         return array_map(
-            fn ($node) => $this->snapshotFromNode($node, PbxNodeModel::find($node->id)),
+            fn ($node) => $this->snapshotFromNode($node),
             $this->pbxRegistry->allByCluster($cluster)
         );
     }
 
     public function record(HealthSnapshot $snapshot): void
     {
-        PbxNodeModel::where('id', $snapshot->pbxNodeId)->update([
+        PbxNodeModel::query()->where('id', $snapshot->pbxNodeId)->update([
             'health_status'    => $snapshot->status,
             'last_heartbeat_at' => $snapshot->lastHeartbeatAt,
         ]);
@@ -56,7 +55,6 @@ class HealthReporter implements HealthReporterInterface
 
     private function snapshotFromNode(
         \ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\PbxNode $node,
-        ?PbxNodeModel $model,
     ): HealthSnapshot {
         $status = $this->deriveStatus(
             storedStatus: $node->healthStatus,

@@ -24,6 +24,9 @@ class PbxConnectionProfile extends Model
         'settings_json',
     ];
 
+    /**
+     * @var array<string, string>
+     */
     protected $casts = [
         'retry_policy_json'          => 'array',
         'drain_policy_json'          => 'array',

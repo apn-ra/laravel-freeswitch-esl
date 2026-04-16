@@ -13,7 +13,7 @@ A production-grade Laravel package that provides:
 - **Worker assignment orchestration** — target one node, a cluster, a tag, or all active nodes
 - **Long-lived worker bootstrapping** — explicit boot/run/drain/shutdown scaffolding, with live async runtime behavior still deferred to `apntalk/esl-react`
 - **Structured health and diagnostics** — machine-usable operational state per node
-- **Replay inspection scaffolding** — config surface and operator command placeholders for future `apntalk/esl-replay` integration
+- **Replay inspection scaffolding** — config surface and operator inspection command for future `apntalk/esl-replay` integration
 
 ## What this package is not
 
@@ -174,11 +174,12 @@ The core flow:
 
 ```
 Laravel app
-  → PbxRegistryInterface        (DB-backed node inventory)
-  → ConnectionResolverInterface (node + profile + secret + driver → ConnectionContext)
-  → WorkerSupervisor            (multi-node orchestration)
-  → WorkerRuntime               (per-node worker session)
-  → [apntalk/esl-react]         (async ESL runtime — future wiring)
+  → PbxRegistryInterface         (DB-backed node inventory)
+  → ConnectionResolverInterface  (node + profile + secret + driver → ConnectionContext)
+  → ConnectionFactoryInterface   (ConnectionContext → EslCoreConnectionHandle)
+  → WorkerSupervisor             (multi-node orchestration)
+  → WorkerRuntime                (per-node worker session + retained handoff state)
+  → [apntalk/esl-react]          (async ESL runtime — future wiring)
 ```
 
 ---
@@ -195,6 +196,7 @@ The package is currently usable for:
 - Worker assignment resolution and boot orchestration
 - Health snapshot inspection
 - `apntalk/esl-core` command/pipeline/event-bridge integration inside Laravel
+- stable upstream transport and accepted-stream bootstrap seams bound for future runtime adapters
 
 Still deferred:
 - Live ESL runtime lifecycle via `apntalk/esl-react`

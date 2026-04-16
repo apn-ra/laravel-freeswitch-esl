@@ -77,7 +77,7 @@ class WorkerInterfaceContractTest extends TestCase
         $connectionFactory = new class ($context) implements ConnectionFactoryInterface {
             public function __construct(private readonly ConnectionContext $ctx) {}
 
-            public function create(ConnectionContext $context): mixed
+            public function create(ConnectionContext $context): EslCoreConnectionHandle
             {
                 return new EslCoreConnectionHandle(
                     context: $context,

@@ -24,6 +24,29 @@ This project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - `tests/Integration/Console/FreeSwitchHealthCommandTest.php` — covers registration and rendered health output for `freeswitch:health`
 - `tests/Integration/Console/FreeSwitchReplayInspectCommandTest.php` — covers registration and disabled-path behavior for `freeswitch:replay:inspect`
 
+## [Unreleased] — esl-core stable seam alignment pass
+
+### Changed
+
+- `src/Integration/EslCoreConnectionFactory.php` — replaced manual socket construction and internal `StreamSocketTransport` usage with upstream public `TransportFactoryInterface` / `SocketTransportFactory` and `SocketEndpoint`
+- `src/Integration/EslCorePipelineFactory.php` — now uses `InboundPipeline::withDefaults()` as the preferred public ingress construction path
+- `src/Contracts/ConnectionFactoryInterface.php` — return type now reflects the actual current 0.2.x handoff object (`EslCoreConnectionHandle`) instead of an opaque `mixed` placeholder
+- `src/Providers/FreeSwitchEslServiceProvider.php` — now binds upstream `TransportFactoryInterface` and `InboundConnectionFactoryInterface` so future runtime adapters can consume stable public `esl-core` seams through Laravel
+- `README.md`, `docs/architecture.md`, `docs/public-api.md`, and `docs/worker-runtime.md` — updated to describe the stable public upstream transport/bootstrap seams now used by this package
+
+### Added
+
+- `tests/Integration/EslCoreBindingsTest.php` — now verifies container resolution for upstream `TransportFactoryInterface` and `InboundConnectionFactoryInterface`, including accepted-stream preparation
+- `tests/Unit/Integration/EslCoreConnectionFactoryTest.php` — now verifies `SocketEndpoint` construction, supported transport handling, and use of the public transport factory seam
+- `tests/Unit/Integration/EslCorePipelineFactoryTest.php` and `tests/Unit/Integration/EslCoreEventBridgeTest.php` — updated to use the preferred default ingress seam
+
+## [Unreleased] — 0.2.x checkpoint hardening and broader verification pass
+
+### Changed
+
+- `README.md`, `docs/public-api.md`, `docs/package-boundaries.md`, and `docs/compatibility-policy.md` — tightened public truth around the current `0.2.x` checkpoint, runtime handoff flow, and replay/runtime ownership boundaries
+- `tests/Integration/Providers/FreeSwitchEslServiceProviderTest.php` — now proves `ConnectionFactoryInterface` resolves to the current `EslCoreConnectionFactory` adapter and remains a singleton binding
+
 ## [Unreleased] — repo/plan alignment pass
 
 ## [Unreleased] — connection-factory seam pass

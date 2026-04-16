@@ -44,8 +44,8 @@ The resolved `ConnectionContext` is persisted as `$resolvedContext` during `boot
 `boot()` also creates and retains the package-owned runtime handoff handle via `ConnectionFactoryInterface`. That handle is accessible via `connectionHandle(): ?EslCoreConnectionHandle` and packages:
 - the resolved `ConnectionContext`
 - the opening and closing command sequences
-- a fresh inbound pipeline
-- lazy raw transport opening
+- a preferred-default inbound pipeline created via `InboundPipeline::withDefaults()`
+- lazy transport opening through `SocketTransportFactory`
 
 This makes the worker handoff state explicit and inspectable without claiming ownership of a live runtime loop.
 
@@ -176,6 +176,8 @@ $this->reactRuntime->run($this->connectionHandle, ...$runtimeOptions);
 ```
 
 The `ConnectionContext` and connection handle are both prepared during `boot()` (with the worker session ID already attached). The `run()` stub body must call `boot()` first, which it enforces with a guard that throws `WorkerException::bootFailed()` if the runtime handoff state is incomplete.
+
+For future accepted-stream/listener-backed adapters, the upstream `InboundConnectionFactory` is now the preferred bootstrap seam. Binding that seam here does not imply listener or runtime ownership in this package.
 
 The `WorkerRuntime` will remain the assignment-aware orchestration layer; `esl-react` handles the async loop.
 

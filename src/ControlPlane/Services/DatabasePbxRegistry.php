@@ -18,7 +18,7 @@ class DatabasePbxRegistry implements PbxRegistryInterface
 {
     public function findById(int $id): PbxNode
     {
-        $model = PbxNodeModel::with('provider')->find($id);
+        $model = PbxNodeModel::query()->with('provider')->find($id);
 
         if ($model === null) {
             throw PbxNotFoundException::forId($id);
@@ -29,7 +29,7 @@ class DatabasePbxRegistry implements PbxRegistryInterface
 
     public function findBySlug(string $slug): PbxNode
     {
-        $model = PbxNodeModel::with('provider')->where('slug', $slug)->first();
+        $model = PbxNodeModel::query()->with('provider')->where('slug', $slug)->first();
 
         if ($model === null) {
             throw PbxNotFoundException::forSlug($slug);
@@ -40,8 +40,8 @@ class DatabasePbxRegistry implements PbxRegistryInterface
 
     public function allActive(): array
     {
-        return PbxNodeModel::with('provider')
-            ->active()
+        return PbxNodeModel::query()->with('provider')
+            ->where('is_active', true)
             ->get()
             ->map(fn (PbxNodeModel $m) => $m->toValueObject())
             ->all();
@@ -49,9 +49,9 @@ class DatabasePbxRegistry implements PbxRegistryInterface
 
     public function allByCluster(string $cluster): array
     {
-        return PbxNodeModel::with('provider')
-            ->active()
-            ->inCluster($cluster)
+        return PbxNodeModel::query()->with('provider')
+            ->where('is_active', true)
+            ->where('cluster', $cluster)
             ->get()
             ->map(fn (PbxNodeModel $m) => $m->toValueObject())
             ->all();
@@ -63,16 +63,16 @@ class DatabasePbxRegistry implements PbxRegistryInterface
             return [];
         }
 
-        $query = PbxNodeModel::with('provider')->active();
+        $query = PbxNodeModel::query()->with('provider')->where('is_active', true);
 
         // Group tag conditions inside a single AND-wrapped OR block so the
         // active() scope is not bypassed by a top-level OR condition.
         $query->where(function ($q) use ($tags) {
             foreach ($tags as $i => $tag) {
                 if ($i === 0) {
-                    $q->withTag($tag);
+                    $q->whereJsonContains('tags_json', $tag);
                 } else {
-                    $q->orWhere(fn ($inner) => $inner->withTag($tag));
+                    $q->orWhere(fn ($inner) => $inner->whereJsonContains('tags_json', $tag));
                 }
             }
         });
@@ -87,9 +87,9 @@ class DatabasePbxRegistry implements PbxRegistryInterface
 
     public function allByProvider(string $providerCode): array
     {
-        return PbxNodeModel::with('provider')
-            ->active()
-            ->forProvider($providerCode)
+        return PbxNodeModel::query()->with('provider')
+            ->where('is_active', true)
+            ->whereHas('provider', fn (\Illuminate\Database\Eloquent\Builder $q) => $q->where('code', $providerCode))
             ->get()
             ->map(fn (PbxNodeModel $m) => $m->toValueObject())
             ->all();

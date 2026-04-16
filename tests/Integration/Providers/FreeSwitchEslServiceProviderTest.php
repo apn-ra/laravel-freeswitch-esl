@@ -11,6 +11,7 @@ use ApnTalk\LaravelFreeswitchEsl\Contracts\SecretResolverInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\WorkerAssignmentResolverInterface;
 use ApnTalk\LaravelFreeswitchEsl\ControlPlane\Services\ConnectionProfileResolver;
 use ApnTalk\LaravelFreeswitchEsl\Facades\FreeSwitchEslManager;
+use ApnTalk\LaravelFreeswitchEsl\Integration\EslCoreConnectionFactory;
 use ApnTalk\LaravelFreeswitchEsl\Tests\TestCase;
 
 class FreeSwitchEslServiceProviderTest extends TestCase
@@ -53,6 +54,21 @@ class FreeSwitchEslServiceProviderTest extends TestCase
             ConnectionFactoryInterface::class,
             $this->app->make(ConnectionFactoryInterface::class)
         );
+    }
+
+    public function test_connection_factory_binding_uses_current_esl_core_adapter(): void
+    {
+        $factory = $this->app->make(ConnectionFactoryInterface::class);
+
+        $this->assertInstanceOf(EslCoreConnectionFactory::class, $factory);
+    }
+
+    public function test_connection_factory_is_singleton(): void
+    {
+        $a = $this->app->make(ConnectionFactoryInterface::class);
+        $b = $this->app->make(ConnectionFactoryInterface::class);
+
+        $this->assertSame($a, $b);
     }
 
     public function test_worker_assignment_resolver_is_bound(): void

@@ -122,10 +122,12 @@ src/Events/
 This is intentionally an adapter layer, not a reimplementation of protocol parsing. Frame decoding, typed message construction, raw transport contracts, and reply/event types remain owned by `apntalk/esl-core`.
 
 `EslCoreConnectionFactory` is the current package-owned runtime handoff seam. It does not implement the `apntalk/esl-react` worker loop; it assembles the resolved context, opening/closing command sequences, inbound pipeline, and lazy raw transport opening into a package-owned handle.
+It now uses `apntalk/esl-core`'s stable public construction seams:
+- `SocketTransportFactory` for socket/stream transport construction
+- `InboundPipeline::withDefaults()` for the preferred default ingress path
+- `InboundConnectionFactory` as the accepted-stream bootstrap seam available for future runtime adapters
 
-Current limitation: the default lazy transport opener wraps an internal `apntalk/esl-core`
-stream transport implementation because no stable public socket transport type exists yet.
-Treat that opener as package-internal scaffolding, not as a stable extension surface.
+This package still does not own listener/runtime behavior. The accepted-stream factory is only bound as an upstream seam for later integration work.
 
 ### Health and observability
 

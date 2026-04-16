@@ -21,6 +21,9 @@ use Apntalk\EslCore\Inbound\InboundPipeline;
  * createPipeline() to obtain a fresh pipeline per worker session, then
  * feed raw bytes from the transport into it via push().
  *
+ * Preferred upstream construction path:
+ *   InboundPipeline::withDefaults()
+ *
  * Boundary: do NOT add transport I/O, reconnect logic, or session state here.
  */
 final class EslCorePipelineFactory
@@ -34,6 +37,6 @@ final class EslCorePipelineFactory
      */
     public function createPipeline(): InboundPipelineInterface
     {
-        return new InboundPipeline();
+        return InboundPipeline::withDefaults();
     }
 }

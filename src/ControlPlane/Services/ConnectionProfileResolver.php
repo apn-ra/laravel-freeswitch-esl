@@ -29,7 +29,7 @@ class ConnectionProfileResolver
      */
     public function resolveByName(string $profileName): ConnectionProfile
     {
-        $model = PbxConnectionProfile::where('name', $profileName)->first();
+        $model = PbxConnectionProfile::query()->where('name', $profileName)->first();
 
         if ($model === null) {
             return ConnectionProfile::fromConfigDefaults($this->retryDefaults, $this->drainDefaults);
@@ -43,7 +43,7 @@ class ConnectionProfileResolver
      */
     public function resolveDefaultForProvider(int $providerId): ConnectionProfile
     {
-        $model = PbxConnectionProfile::where('provider_id', $providerId)->first();
+        $model = PbxConnectionProfile::query()->where('provider_id', $providerId)->first();
 
         if ($model === null) {
             return ConnectionProfile::fromConfigDefaults($this->retryDefaults, $this->drainDefaults);

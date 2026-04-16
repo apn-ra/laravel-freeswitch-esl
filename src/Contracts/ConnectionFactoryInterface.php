@@ -3,6 +3,7 @@
 namespace ApnTalk\LaravelFreeswitchEsl\Contracts;
 
 use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\ConnectionContext;
+use ApnTalk\LaravelFreeswitchEsl\Integration\EslCoreConnectionHandle;
 
 /**
  * Creates a runtime handoff handle from a resolved ConnectionContext.
@@ -20,11 +21,8 @@ interface ConnectionFactoryInterface
     /**
      * Create a connection/runtime handoff handle for the given context.
      *
-     * Returns an opaque handle whose type is defined by the concrete driver
-     * implementation. The control plane does not inspect the handle directly.
-     * WorkerRuntime or later runtime adapters consume it.
-     *
-     * @return mixed
+     * In the current 0.2.x posture, this returns the package-owned
+     * EslCoreConnectionHandle used by worker/runtime handoff scaffolding.
      */
-    public function create(ConnectionContext $context): mixed;
+    public function create(ConnectionContext $context): EslCoreConnectionHandle;
 }

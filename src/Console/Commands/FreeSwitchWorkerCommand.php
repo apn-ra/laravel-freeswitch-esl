@@ -74,8 +74,8 @@ class FreeSwitchWorkerCommand extends Command
         ConnectionFactoryInterface $connectionFactory,
         LoggerInterface $logger,
     ): int {
-        $workerName = (string) $this->option('worker');
-        $useDb = (bool) $this->option('db');
+        $workerName = $this->stringOption('worker') ?? 'esl-worker';
+        $useDb = $this->booleanOption('db');
 
         $supervisor = new WorkerSupervisor(
             assignmentResolver: $assignmentResolver,
@@ -138,11 +138,11 @@ class FreeSwitchWorkerCommand extends Command
         string $workerName,
         PbxRegistryInterface $registry,
     ): ?WorkerAssignment {
-        $pbx = $this->option('pbx');
-        $cluster = $this->option('cluster');
-        $tag = $this->option('tag');
-        $provider = $this->option('provider');
-        $allActive = $this->option('all-active');
+        $pbx = $this->stringOption('pbx');
+        $cluster = $this->stringOption('cluster');
+        $tag = $this->stringOption('tag');
+        $provider = $this->stringOption('provider');
+        $allActive = $this->booleanOption('all-active');
 
         // --db mixed with targeting flags is already caught by runDbBacked guard,
         // so here we just count the explicit targeting options.
@@ -154,7 +154,7 @@ class FreeSwitchWorkerCommand extends Command
 
         if ($pbx !== null) {
             try {
-                $node = $registry->findBySlug((string) $pbx);
+                $node = $registry->findBySlug($pbx);
             } catch (PbxNotFoundException $e) {
                 $this->error($e->getMessage());
 
@@ -165,15 +165,15 @@ class FreeSwitchWorkerCommand extends Command
         }
 
         if ($cluster !== null) {
-            return WorkerAssignment::forCluster($workerName, (string) $cluster);
+            return WorkerAssignment::forCluster($workerName, $cluster);
         }
 
         if ($tag !== null) {
-            return WorkerAssignment::forTag($workerName, (string) $tag);
+            return WorkerAssignment::forTag($workerName, $tag);
         }
 
         if ($provider !== null) {
-            return WorkerAssignment::forProvider($workerName, (string) $provider);
+            return WorkerAssignment::forProvider($workerName, $provider);
         }
 
         if ($allActive) {
@@ -194,11 +194,11 @@ class FreeSwitchWorkerCommand extends Command
     ): int {
         // --db is mutually exclusive with targeting flags.
         $targeting = array_filter([
-            $this->option('pbx'),
-            $this->option('cluster'),
-            $this->option('tag'),
-            $this->option('provider'),
-            $this->option('all-active') ?: null,
+            $this->stringOption('pbx'),
+            $this->stringOption('cluster'),
+            $this->stringOption('tag'),
+            $this->stringOption('provider'),
+            $this->booleanOption('all-active') ? 'all-active' : null,
         ]);
 
         if (! empty($targeting)) {
@@ -255,5 +255,18 @@ class FreeSwitchWorkerCommand extends Command
             $preparedCount,
             count($statuses),
         ));
+    }
+
+
+    private function stringOption(string $name): ?string
+    {
+        $value = $this->option($name);
+
+        return is_string($value) && $value !== '' ? $value : null;
+    }
+
+    private function booleanOption(string $name): bool
+    {
+        return $this->option($name) === true;
     }
 }

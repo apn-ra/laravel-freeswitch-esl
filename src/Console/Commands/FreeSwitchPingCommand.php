@@ -22,8 +22,8 @@ class FreeSwitchPingCommand extends Command
 
     public function handle(ConnectionResolverInterface $resolver): int
     {
-        $slug = $this->option('pbx');
-        $id = $this->option('id');
+        $slug = $this->stringOption('pbx');
+        $id = $this->stringOption('id');
 
         if ($slug === null && $id === null) {
             $this->error('Provide --pbx=<slug> or --id=<id>.');
@@ -40,7 +40,7 @@ class FreeSwitchPingCommand extends Command
             $this->table(
                 ['Key', 'Value'],
                 collect($context->toLogContext())
-                    ->map(fn ($v, $k) => [$k, is_array($v) ? json_encode($v) : (string) $v])
+                    ->map(fn ($v, $k) => [$k, is_array($v) ? $this->jsonString($v) : (string) $v])
                     ->values()
                     ->all()
             );
@@ -51,5 +51,21 @@ class FreeSwitchPingCommand extends Command
 
             return self::FAILURE;
         }
+    }
+
+
+    private function stringOption(string $name): ?string
+    {
+        $value = $this->option($name);
+
+        return is_string($value) && $value !== '' ? $value : null;
+    }
+
+    /**
+     * @param  array<mixed>  $value
+     */
+    private function jsonString(array $value): string
+    {
+        return json_encode($value) ?: '[]';
     }
 }
