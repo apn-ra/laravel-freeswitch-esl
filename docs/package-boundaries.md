@@ -58,23 +58,17 @@ The APNTalk ESL ecosystem is split across four packages with explicit ownership:
 
 ## Upstream stubs
 
-During early development (before upstream packages are published to Packagist),
-this package maintains stub interfaces in `src/Contracts/Upstream/`:
+`apntalk/esl-core` is now consumed directly by this package, so the old local esl-core stubs are gone.
 
-- `EslClientInterface` — stub for `apntalk/esl-core` client
-- `CommandDispatcherInterface` — stub for `apntalk/esl-core` dispatcher
-- `EventStreamInterface` — stub for `apntalk/esl-core` stream
-- `EventNormalizerInterface` — stub for `apntalk/esl-core` normalizer
-- `ReplayCaptureStoreInterface` — stub for `apntalk/esl-replay` store
+The only remaining local upstream stub is:
 
-These stubs:
-- are `@internal` and `@deprecated` from the start
-- carry `Boundary:` notes in their docblocks
-- will be replaced by the real upstream types once those packages are available
-- must NOT be used as stable public API surfaces
+- `ReplayCaptureStoreInterface` — temporary `@internal` placeholder for `apntalk/esl-replay`
 
-When upstream packages are added to `require`, the corresponding stubs should be removed
-and references updated to the canonical upstream interface.
+That stub:
+- is marked `@internal`
+- exists only to keep Laravel-side replay wiring isolated until `apntalk/esl-replay` is integrated
+- must NOT be treated as stable public API
+- should be removed once the canonical replay package contract is required directly
 
 ---
 

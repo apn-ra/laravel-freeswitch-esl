@@ -4,8 +4,60 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "93196552387d7da8976d290df37b0551",
+    "content-hash": "6e289df45c13afea972a5e0e95e40a1f",
     "packages": [
+        {
+            "name": "apntalk/esl-core",
+            "version": "v0.2.3",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/apn-ra/esl-core.git",
+                "reference": "0b3769e7d1eb027e520be0f38e9bef1b07d95a2c"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/apn-ra/esl-core/zipball/0b3769e7d1eb027e520be0f38e9bef1b07d95a2c",
+                "reference": "0b3769e7d1eb027e520be0f38e9bef1b07d95a2c",
+                "shasum": ""
+            },
+            "require": {
+                "php": "^8.3"
+            },
+            "require-dev": {
+                "friendsofphp/php-cs-fixer": "^3.58",
+                "phpstan/phpstan": "^1.11",
+                "phpunit/phpunit": "^10.5 || ^11.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Apntalk\\EslCore\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "RA",
+                    "email": "ronniel.castanito@apntelecom.com"
+                }
+            ],
+            "description": "Framework-agnostic, transport-neutral, typed FreeSWITCH ESL protocol library for PHP with replay-safe protocol primitives",
+            "keywords": [
+                "esl",
+                "event-socket",
+                "freeswitch",
+                "protocol",
+                "telephony"
+            ],
+            "support": {
+                "issues": "https://github.com/apn-ra/esl-core/issues",
+                "source": "https://github.com/apn-ra/esl-core/tree/v0.2.3"
+            },
+            "time": "2026-04-14T09:19:15+00:00"
+        },
         {
             "name": "brick/math",
             "version": "0.14.8",

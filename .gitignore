@@ -8,3 +8,5 @@ coverage/
 auth.json
 CLAUDE.md
 docs/prompts
+AGENTS.md
+.codex

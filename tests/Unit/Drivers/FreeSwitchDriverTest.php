@@ -2,6 +2,7 @@
 
 namespace ApnTalk\LaravelFreeswitchEsl\Tests\Unit\Drivers;
 
+use Apntalk\EslCore\Capabilities\Capability;
 use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\ConnectionProfile;
 use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\PbxNode;
 use ApnTalk\LaravelFreeswitchEsl\Drivers\FreeSwitchDriver;
@@ -93,9 +94,18 @@ class FreeSwitchDriverTest extends TestCase
     {
         $driver = new FreeSwitchDriver();
 
-        $this->assertTrue($driver->supportsCapability('bgapi'));
-        $this->assertTrue($driver->supportsCapability('events'));
+        // FreeSWITCH ESL supports these esl-core Capability values
+        $this->assertTrue($driver->supportsCapability(Capability::Auth->value));
+        $this->assertTrue($driver->supportsCapability(Capability::ApiCommand->value));
+        $this->assertTrue($driver->supportsCapability(Capability::BgapiCommand->value));
+        $this->assertTrue($driver->supportsCapability(Capability::EventSubscription->value));
+        $this->assertTrue($driver->supportsCapability(Capability::EventPlainDecoding->value));
+        $this->assertTrue($driver->supportsCapability(Capability::EventJsonDecoding->value));
+        $this->assertTrue($driver->supportsCapability(Capability::NormalizedEvents->value));
+
+        // Not supported by this driver
         $this->assertFalse($driver->supportsCapability('sip'));
+        $this->assertFalse($driver->supportsCapability('unknown-capability'));
     }
 
     public function test_profile_name_passed_to_context(): void

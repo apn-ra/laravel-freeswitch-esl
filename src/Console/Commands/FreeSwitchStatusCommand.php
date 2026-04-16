@@ -13,8 +13,7 @@ class FreeSwitchStatusCommand extends Command
     protected $signature = 'freeswitch:status
                             {--pbx=     : Filter by node slug}
                             {--cluster= : Filter by cluster}
-                            {--provider=: Filter by provider code}
-                            {--all      : Show all nodes (default: active only)}';
+                            {--provider=: Filter by provider code}';
 
     protected $description = 'Show status of PBX nodes in the control plane';
 

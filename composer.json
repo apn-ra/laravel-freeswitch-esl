@@ -19,10 +19,11 @@
     ],
     "require": {
         "php": "^8.2",
+        "apntalk/esl-core": "^0.2",
+        "illuminate/console": "^11.0|^12.0",
         "illuminate/contracts": "^11.0|^12.0",
-        "illuminate/support": "^11.0|^12.0",
         "illuminate/database": "^11.0|^12.0",
-        "illuminate/console": "^11.0|^12.0"
+        "illuminate/support": "^11.0|^12.0"
     },
     "require-dev": {
         "orchestra/testbench": "^9.0|^10.0",
@@ -33,7 +34,6 @@
         "mockery/mockery": "^1.6"
     },
     "suggest": {
-        "apntalk/esl-core": "Protocol/core ESL contracts, parsing, commands, and typed protocol behavior",
         "apntalk/esl-react": "ReactPHP async runtime, reconnect lifecycle, and long-lived worker support",
         "apntalk/esl-replay": "Replay-safe capture/store abstractions, replay envelopes, and replay tooling"
     },

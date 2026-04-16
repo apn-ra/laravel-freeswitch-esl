@@ -41,22 +41,38 @@ FREESWITCH_ESL_REPLAY_RETENTION_DAYS=7
 
 ## Replay store binding
 
-When `apntalk/esl-replay` is installed, bind the canonical store in your `AppServiceProvider`:
+**This section describes the target integration, not yet implemented.**
+Replay capture wiring is planned for `0.5.x`.
+
+The integration point is currently the stub interface:
+`ApnTalk\LaravelFreeswitchEsl\Contracts\Upstream\ReplayCaptureStoreInterface` (`@internal`)
+
+When `apntalk/esl-replay` is published and integrated:
+
+1. The stub interface will be **removed** from `Contracts/Upstream/`.
+2. The package will directly depend on the canonical `apntalk/esl-replay` contract.
+3. The application binding will target the canonical upstream interface, not the stub.
+
+At that point, in your `AppServiceProvider`:
 
 ```php
-use ApnTalk\EslReplay\Contracts\ReplayCaptureStoreInterface;
-use ApnTalk\EslReplay\Stores\DatabaseReplayCaptureStore;
+// Target type will be the canonical apntalk/esl-replay interface, e.g.:
+// ApnTalk\EslReplay\Contracts\ReplayCaptureStoreInterface
+// The exact namespace will be confirmed when apntalk/esl-replay is published.
 
 public function register(): void
 {
     $this->app->singleton(
-        \ApnTalk\LaravelFreeswitchEsl\Contracts\Upstream\ReplayCaptureStoreInterface::class,
-        fn ($app) => new DatabaseReplayCaptureStore(...)
+        // canonical apntalk/esl-replay interface (available after 0.5.x integration):
+        \ApnTalk\EslReplay\Contracts\ReplayCaptureStoreInterface::class,
+        fn ($app) => new \ApnTalk\EslReplay\Stores\DatabaseReplayCaptureStore(...)
     );
 }
 ```
 
-Until `apntalk/esl-replay` is available, the stub interface in `Contracts\Upstream\` serves as the integration point.
+**Do not bind against `Contracts\Upstream\ReplayCaptureStoreInterface` in application code.**
+That stub is `@internal`, will be removed when the upstream package is integrated, and is
+not a stable contract surface.
 
 ---
 

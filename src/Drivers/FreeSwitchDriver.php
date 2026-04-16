@@ -2,6 +2,7 @@
 
 namespace ApnTalk\LaravelFreeswitchEsl\Drivers;
 
+use Apntalk\EslCore\Capabilities\Capability;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\ProviderDriverInterface;
 use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\ConnectionContext;
 use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\ConnectionProfile;
@@ -15,13 +16,36 @@ use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\PbxNode;
  * Boundary note:
  *   This driver only performs parameter/context construction. It does NOT
  *   open sockets, parse ESL frames, or manage connection lifecycle. Those
- *   responsibilities belong in apntalk/esl-core and apntalk/esl-react.
+ *   responsibilities belong in apntalk/esl-core (protocol) and
+ *   apntalk/esl-react (async runtime).
  *
  * When apntalk/esl-react is available, the ConnectionFactory implementation
  * will use the ConnectionContext produced here to bootstrap the actual runtime.
+ *
+ * Capability strings match apntalk/esl-core Capability enum values.
+ * Use Capability::xxx->value when calling supportsCapability() from typed code.
  */
 class FreeSwitchDriver implements ProviderDriverInterface
 {
+    /**
+     * Capabilities supported by the FreeSWITCH ESL connection.
+     *
+     * These correspond to Capability enum values from apntalk/esl-core.
+     * FreeSWITCH ESL supports auth, synchronous API, background API,
+     * event subscriptions (plain/json/xml), and normalized events.
+     *
+     * @var list<string>
+     */
+    private const SUPPORTED_CAPABILITIES = [
+        Capability::Auth->value,
+        Capability::ApiCommand->value,
+        Capability::BgapiCommand->value,
+        Capability::EventSubscription->value,
+        Capability::EventPlainDecoding->value,
+        Capability::EventJsonDecoding->value,
+        Capability::NormalizedEvents->value,
+    ];
+
     public function providerCode(): string
     {
         return 'freeswitch';
@@ -44,9 +68,15 @@ class FreeSwitchDriver implements ProviderDriverInterface
         );
     }
 
+    /**
+     * Check whether this driver supports a given capability.
+     *
+     * Pass Capability::xxx->value from apntalk/esl-core for typed lookups:
+     *   $driver->supportsCapability(Capability::BgapiCommand->value)
+     */
     public function supportsCapability(string $capability): bool
     {
-        return in_array($capability, ['bgapi', 'events', 'filter', 'auth'], true);
+        return in_array($capability, self::SUPPORTED_CAPABILITIES, true);
     }
 
     /**
