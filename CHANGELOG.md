@@ -9,6 +9,21 @@ This project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased] — 0.1.x closure pass
 
+## [Unreleased] — 0.2.x release-readiness hardening pass
+
+### Changed
+
+- `composer.json`, `README.md`, and `docs/compatibility-policy.md` — aligned PHP support truth to `8.3+` so published requirements match the resolved `apntalk/esl-core` dependency
+- `src/Console/Commands/FreeSwitchHealthCommand.php` — now injects `PbxRegistryInterface` instead of resolving it through global `app()`, keeping the command on the normal binding seam
+- `src/Console/Commands/FreeSwitchReplayInspectCommand.php` — removed an unused registry dependency from the command signature
+- `README.md`, `docs/architecture.md`, and `docs/replay-integration.md` — tightened replay and health wording so current scaffolding is not described as shipped live wiring
+
+### Added
+
+- `tests/Integration/Console/FreeSwitchPingCommandTest.php` — covers registration and successful resolved-context output for `freeswitch:ping`
+- `tests/Integration/Console/FreeSwitchHealthCommandTest.php` — covers registration and rendered health output for `freeswitch:health`
+- `tests/Integration/Console/FreeSwitchReplayInspectCommandTest.php` — covers registration and disabled-path behavior for `freeswitch:replay:inspect`
+
 ## [Unreleased] — repo/plan alignment pass
 
 ## [Unreleased] — connection-factory seam pass
@@ -112,11 +127,11 @@ This project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Added
 
 #### Repo foundation
-- `composer.json` with PHP 8.2+, Laravel 11/12 support matrix
+- `composer.json` with PHP 8.3+, Laravel 11/12 support matrix
 - PHPUnit 11 test configuration (`phpunit.xml`)
 - PHPStan level 8 configuration (`phpstan.neon`)
 - Laravel Pint code-style configuration (`.php-cs-fixer.php`)
-- GitHub Actions CI workflow (PHP 8.2/8.3/8.4 × Laravel 11/12)
+- GitHub Actions CI workflow (PHP 8.3/8.4 × Laravel 11/12)
 
 #### Core contracts
 - `PbxRegistryInterface` — multi-PBX node inventory lookups
@@ -189,7 +204,7 @@ This project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - `WorkerException`
 
 #### Tests
-- 64 tests, 152 assertions, all passing (SQLite in-memory, no live PBX required)
+- focused test suites cover control-plane services, provider contracts, worker/runtime scaffolding, and Laravel integration surfaces (SQLite in-memory, no live PBX required)
 - Unit tests: value objects, secret resolver, worker assignment resolver, FreeSWITCH driver
 - Integration tests: service provider bindings, database PBX registry (all lookup modes)
 

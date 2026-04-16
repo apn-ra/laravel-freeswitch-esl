@@ -2,7 +2,8 @@
 
 ## Ownership model
 
-`apntalk/laravel-freeswitch-esl` does NOT own replay primitives. It wires them into Laravel.
+`apntalk/laravel-freeswitch-esl` does NOT own replay primitives. In the current package posture it
+only ships replay-oriented config and inspection scaffolding; actual replay wiring remains future work.
 
 | Responsibility | Owner |
 |---|---|
@@ -11,10 +12,10 @@
 | `ReplayProjector` | `apntalk/esl-replay` |
 | `ReplayScenarioRunner` | `apntalk/esl-replay` |
 | `ReplayCursor` | `apntalk/esl-replay` |
-| Laravel storage binding | `apntalk/laravel-freeswitch-esl` (this package) |
+| Laravel storage binding | `apntalk/laravel-freeswitch-esl` (planned `0.5.x`) |
 | Retention policy configuration | `apntalk/laravel-freeswitch-esl` |
-| `freeswitch:replay:inspect` command | `apntalk/laravel-freeswitch-esl` |
-| Session/correlation metadata propagation | `apntalk/laravel-freeswitch-esl` |
+| `freeswitch:replay:inspect` command | `apntalk/laravel-freeswitch-esl` (current stub surface) |
+| Session/correlation metadata propagation | `apntalk/laravel-freeswitch-esl` (planned `0.5.x`) |
 
 ---
 
@@ -108,7 +109,7 @@ php artisan freeswitch:replay:inspect --json
 
 ## Session metadata propagation
 
-Each captured envelope carries runtime identity:
+Once replay capture is integrated, each captured envelope should carry runtime identity:
 - `provider_code`
 - `pbx_node_id`
 - `pbx_node_slug`
@@ -116,4 +117,4 @@ Each captured envelope carries runtime identity:
 - `connection_profile_name`
 - `captured_at` timestamp
 
-This metadata is populated by the Laravel-side wiring, not by `apntalk/esl-replay` primitives.
+That metadata will be populated by Laravel-side wiring, not by `apntalk/esl-replay` primitives.

@@ -2,7 +2,6 @@
 
 namespace ApnTalk\LaravelFreeswitchEsl\Console\Commands;
 
-use ApnTalk\LaravelFreeswitchEsl\Contracts\PbxRegistryInterface;
 use Illuminate\Console\Command;
 
 /**
@@ -29,7 +28,7 @@ class FreeSwitchReplayInspectCommand extends Command
 
     protected $description = 'Inspect replay capture store for ESL events (requires freeswitch-esl.replay.enabled)';
 
-    public function handle(PbxRegistryInterface $registry): int
+    public function handle(): int
     {
         $replayEnabled = config('freeswitch-esl.replay.enabled', false);
 

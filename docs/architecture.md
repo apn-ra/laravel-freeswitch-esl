@@ -123,6 +123,10 @@ This is intentionally an adapter layer, not a reimplementation of protocol parsi
 
 `EslCoreConnectionFactory` is the current package-owned runtime handoff seam. It does not implement the `apntalk/esl-react` worker loop; it assembles the resolved context, opening/closing command sequences, inbound pipeline, and lazy raw transport opening into a package-owned handle.
 
+Current limitation: the default lazy transport opener wraps an internal `apntalk/esl-core`
+stream transport implementation because no stable public socket transport type exists yet.
+Treat that opener as package-internal scaffolding, not as a stable extension surface.
+
 ### Health and observability
 
 ```
@@ -200,14 +204,18 @@ The control plane never assumes a single PBX. Every path through registry, resol
 
 ## Runtime identity
 
-Every connection context, worker status, and health snapshot carries:
+Every connection context and worker status carries:
 - `provider_code`
 - `pbx_node_id`
 - `pbx_node_slug`
 - `connection_profile_id` / `connection_profile_name`
 - `worker_session_id` (assigned by WorkerRuntime)
 
-In `0.1.x`, this identity is propagated into structured logs and health snapshots.
+Current `HealthSnapshot` surfaces are narrower. They carry node/provider identity and DB-backed
+health fields, but they do not yet carry connection-profile identity or worker-session identity.
+
+In `0.1.x`, connection/runtime identity is propagated into structured logs and worker/runtime status
+surfaces, not into full live runtime health telemetry.
 
 Propagation into replay metadata remains future work for `0.5.x`.
 

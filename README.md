@@ -13,7 +13,7 @@ A production-grade Laravel package that provides:
 - **Worker assignment orchestration** — target one node, a cluster, a tag, or all active nodes
 - **Long-lived worker bootstrapping** — explicit boot/run/drain/shutdown scaffolding, with live async runtime behavior still deferred to `apntalk/esl-react`
 - **Structured health and diagnostics** — machine-usable operational state per node
-- **Replay integration wiring** — Laravel-side storage binding for `apntalk/esl-replay`
+- **Replay inspection scaffolding** — config surface and operator command placeholders for future `apntalk/esl-replay` integration
 
 ## What this package is not
 
@@ -40,7 +40,7 @@ This package is part of the APNTalk ESL package family:
 
 ## Requirements
 
-- PHP 8.2+
+- PHP 8.3+
 - Laravel 11 or 12
 
 ---

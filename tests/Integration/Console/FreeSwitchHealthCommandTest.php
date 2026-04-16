@@ -1,0 +1,234 @@
+<?php
+
+namespace ApnTalk\LaravelFreeswitchEsl\Tests\Integration\Console;
+
+use ApnTalk\LaravelFreeswitchEsl\Contracts\HealthReporterInterface;
+use ApnTalk\LaravelFreeswitchEsl\Contracts\PbxRegistryInterface;
+use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\HealthSnapshot;
+use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\PbxNode;
+use ApnTalk\LaravelFreeswitchEsl\Tests\TestCase;
+use Illuminate\Contracts\Console\Kernel;
+
+class FreeSwitchHealthCommandTest extends TestCase
+{
+    public function test_health_command_is_registered_with_the_console_kernel(): void
+    {
+        /** @var Kernel $kernel */
+        $kernel = $this->app->make(Kernel::class);
+
+        $this->assertArrayHasKey('freeswitch:health', $kernel->all());
+    }
+
+    public function test_health_command_renders_snapshots_for_active_nodes(): void
+    {
+        $snapshot = new HealthSnapshot(
+            pbxNodeId: 1,
+            pbxNodeSlug: 'primary-fs',
+            providerCode: 'freeswitch',
+            status: HealthSnapshot::STATUS_HEALTHY,
+            connectionState: 'handoff-prepared',
+            subscriptionState: 'not-started',
+            workerAssignmentScope: 'node',
+            inflightCount: 0,
+            retryAttempt: 0,
+            isDraining: false,
+            lastHeartbeatAt: null,
+        );
+
+        $reporter = new class ($snapshot) implements HealthReporterInterface {
+            public function __construct(private readonly HealthSnapshot $snapshot) {}
+
+            public function forNode(int $pbxNodeId): HealthSnapshot
+            {
+                return $this->snapshot;
+            }
+
+            public function forAllActive(): array
+            {
+                return [$this->snapshot];
+            }
+
+            public function forCluster(string $cluster): array
+            {
+                return [$this->snapshot];
+            }
+
+            public function record(HealthSnapshot $snapshot): void
+            {
+            }
+        };
+
+        $registry = new class implements PbxRegistryInterface {
+            public function findById(int $id): PbxNode
+            {
+                return $this->node($id, 'primary-fs');
+            }
+
+            public function findBySlug(string $slug): PbxNode
+            {
+                return $this->node(1, $slug);
+            }
+
+            public function allActive(): array
+            {
+                return [];
+            }
+
+            public function allByCluster(string $cluster): array
+            {
+                return [];
+            }
+
+            public function allByTags(array $tags): array
+            {
+                return [];
+            }
+
+            public function allByProvider(string $providerCode): array
+            {
+                return [];
+            }
+
+            private function node(int $id, string $slug): PbxNode
+            {
+                return new PbxNode(
+                    id: $id,
+                    providerId: 1,
+                    providerCode: 'freeswitch',
+                    name: 'Primary FS',
+                    slug: $slug,
+                    host: '127.0.0.1',
+                    port: 8021,
+                    username: '',
+                    passwordSecretRef: 'secret',
+                    transport: 'tcp',
+                    isActive: true,
+                );
+            }
+        };
+
+        $this->app->instance(HealthReporterInterface::class, $reporter);
+        $this->app->instance(PbxRegistryInterface::class, $registry);
+
+        $this->artisan('freeswitch:health')
+            ->expectsTable(
+                ['Node', 'Provider', 'Status', 'Connection', 'Last Heartbeat', 'Inflight', 'Draining'],
+                [
+                    ['primary-fs', 'freeswitch', 'healthy', 'handoff-prepared', 'never', '0', 'no'],
+                ]
+            )
+            ->assertExitCode(0);
+    }
+
+    public function test_health_command_resolves_node_slug_via_registry_when_filtering_by_pbx(): void
+    {
+        $snapshot = new HealthSnapshot(
+            pbxNodeId: 9,
+            pbxNodeSlug: 'edge-fs',
+            providerCode: 'freeswitch',
+            status: HealthSnapshot::STATUS_DEGRADED,
+            connectionState: 'db-health-only',
+            subscriptionState: 'not-started',
+            workerAssignmentScope: 'node',
+            inflightCount: 2,
+            retryAttempt: 0,
+            isDraining: false,
+            lastHeartbeatAt: null,
+        );
+
+        $reporter = new class ($snapshot) implements HealthReporterInterface {
+            public array $requestedNodeIds = [];
+
+            public function __construct(private readonly HealthSnapshot $snapshot) {}
+
+            public function forNode(int $pbxNodeId): HealthSnapshot
+            {
+                $this->requestedNodeIds[] = $pbxNodeId;
+
+                return $this->snapshot;
+            }
+
+            public function forAllActive(): array
+            {
+                return [];
+            }
+
+            public function forCluster(string $cluster): array
+            {
+                return [];
+            }
+
+            public function record(HealthSnapshot $snapshot): void
+            {
+            }
+        };
+
+        $registry = new class implements PbxRegistryInterface {
+            public int $lookupCalls = 0;
+
+            public function findById(int $id): PbxNode
+            {
+                return $this->node($id, 'edge-fs');
+            }
+
+            public function findBySlug(string $slug): PbxNode
+            {
+                $this->lookupCalls++;
+
+                return $this->node(9, $slug);
+            }
+
+            public function allActive(): array
+            {
+                return [];
+            }
+
+            public function allByCluster(string $cluster): array
+            {
+                return [];
+            }
+
+            public function allByTags(array $tags): array
+            {
+                return [];
+            }
+
+            public function allByProvider(string $providerCode): array
+            {
+                return [];
+            }
+
+            private function node(int $id, string $slug): PbxNode
+            {
+                return new PbxNode(
+                    id: $id,
+                    providerId: 1,
+                    providerCode: 'freeswitch',
+                    name: 'Edge FS',
+                    slug: $slug,
+                    host: '127.0.0.1',
+                    port: 8021,
+                    username: '',
+                    passwordSecretRef: 'secret',
+                    transport: 'tcp',
+                    isActive: true,
+                );
+            }
+        };
+
+        $this->app->instance(HealthReporterInterface::class, $reporter);
+        $this->app->instance(PbxRegistryInterface::class, $registry);
+
+        $this->artisan('freeswitch:health', ['--pbx' => 'edge-fs'])
+            ->expectsTable(
+                ['Node', 'Provider', 'Status', 'Connection', 'Last Heartbeat', 'Inflight', 'Draining'],
+                [
+                    ['edge-fs', 'freeswitch', 'degraded', 'db-health-only', 'never', '2', 'no'],
+                ]
+            )
+            ->assertExitCode(0);
+
+        $this->assertSame(1, $registry->lookupCalls);
+        $this->assertSame([9], $reporter->requestedNodeIds);
+    }
+}

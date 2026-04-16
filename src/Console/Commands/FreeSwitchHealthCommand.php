@@ -3,6 +3,7 @@
 namespace ApnTalk\LaravelFreeswitchEsl\Console\Commands;
 
 use ApnTalk\LaravelFreeswitchEsl\Contracts\HealthReporterInterface;
+use ApnTalk\LaravelFreeswitchEsl\Contracts\PbxRegistryInterface;
 use Illuminate\Console\Command;
 
 /**
@@ -17,7 +18,7 @@ class FreeSwitchHealthCommand extends Command
 
     protected $description = 'Show health status of PBX nodes';
 
-    public function handle(HealthReporterInterface $reporter): int
+    public function handle(HealthReporterInterface $reporter, PbxRegistryInterface $registry): int
     {
         $pbx = $this->option('pbx');
         $cluster = $this->option('cluster');
@@ -25,7 +26,7 @@ class FreeSwitchHealthCommand extends Command
 
         try {
             $snapshots = match (true) {
-                $pbx !== null     => [$reporter->forNode($this->resolveNodeId($pbx))],
+                $pbx !== null     => [$reporter->forNode($registry->findBySlug($pbx)->id)],
                 $cluster !== null => $reporter->forCluster($cluster),
                 default           => $reporter->forAllActive(),
             };
@@ -64,13 +65,5 @@ class FreeSwitchHealthCommand extends Command
 
             return self::FAILURE;
         }
-    }
-
-    private function resolveNodeId(string $slug): int
-    {
-        // Resolve slug to ID via the PBX registry
-        $registry = app(\ApnTalk\LaravelFreeswitchEsl\Contracts\PbxRegistryInterface::class);
-
-        return $registry->findBySlug($slug)->id;
     }
 }

@@ -74,6 +74,7 @@ These surfaces are now shipped and should be treated as public package surfaces 
 | Eloquent model internals | Relationships and scopes may change |
 | `WorkerRuntime` internal methods | Implementation detail; only `WorkerInterface` methods are stable |
 | `WorkerSupervisor` internal methods | Implementation detail |
+| `EslCoreConnectionFactory` transport opener internals | Current default opener uses an internal esl-core transport implementation; not a stable extension point |
 | Service implementation internals | Only the interface contract is stable |
 
 Current worker/runtime posture notes:
