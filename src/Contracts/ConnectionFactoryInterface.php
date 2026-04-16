@@ -5,24 +5,24 @@ namespace ApnTalk\LaravelFreeswitchEsl\Contracts;
 use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\ConnectionContext;
 
 /**
- * Creates live ESL client/transport instances from a resolved ConnectionContext.
+ * Creates a runtime handoff handle from a resolved ConnectionContext.
  *
- * Concrete implementations delegate to apntalk/esl-react or another runtime
- * library. This interface shields the Laravel control plane from runtime
- * library internals.
+ * Concrete implementations assemble the Laravel-owned connection seam for the
+ * current integration stage. In 0.2.x, that means packaging a resolved context
+ * together with the esl-core protocol primitives the future runtime will use.
  *
  * This interface is owned by this Laravel package.
- * The runtime behavior (reconnect, subscription lifecycle) is owned by
- * apntalk/esl-react.
+ * Long-lived runtime behavior (reconnect, subscription lifecycle, supervision)
+ * remains owned by apntalk/esl-react.
  */
 interface ConnectionFactoryInterface
 {
     /**
-     * Create a connection handle for the given context.
+     * Create a connection/runtime handoff handle for the given context.
      *
      * Returns an opaque handle whose type is defined by the concrete driver
-     * implementation. The control plane does not inspect the handle directly;
-     * it passes it to WorkerRuntime and CommandDispatcher adapters.
+     * implementation. The control plane does not inspect the handle directly.
+     * WorkerRuntime or later runtime adapters consume it.
      *
      * @return mixed
      */

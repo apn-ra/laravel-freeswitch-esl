@@ -1,0 +1,107 @@
+# Public API
+
+The stable public API surface of `apntalk/laravel-freeswitch-esl` is defined here.
+For the full compatibility and deprecation policy, see `docs/compatibility-policy.md`.
+
+---
+
+## Stable public surfaces (0.1.x)
+
+### Contracts (`src/Contracts/`)
+
+All interfaces in `src/Contracts/` are stable public API **except** `src/Contracts/Upstream/`
+which is explicitly `@internal`.
+
+| Interface | Purpose |
+|---|---|
+| `PbxRegistryInterface` | Multi-PBX node inventory lookups |
+| `ProviderDriverRegistryInterface` | Provider driver map and resolution |
+| `ProviderDriverInterface` | Contract for PBX provider drivers |
+| `ConnectionResolverInterface` | Full resolution pipeline |
+| `ConnectionFactoryInterface` | Runtime factory (esl-react integration point) |
+| `WorkerInterface` | Worker boot/run/drain/shutdown lifecycle |
+| `WorkerAssignmentResolverInterface` | Assignment scope resolution |
+| `HealthReporterInterface` | Structured health snapshot contract |
+| `SecretResolverInterface` | Credential resolution contract |
+
+### Value objects (`src/ControlPlane/ValueObjects/`)
+
+All value objects are stable public API:
+
+| Class | Description |
+|---|---|
+| `PbxProvider` | Immutable provider family identity |
+| `PbxNode` | Immutable PBX endpoint identity with runtime identity fields |
+| `ConnectionProfile` | Immutable operational policy VO |
+| `WorkerAssignment` | Immutable worker targeting scope (5 modes) |
+| `ConnectionContext` | Fully resolved connection parameters (use `toLogContext()` for safe logging) |
+| `WorkerStatus` | Worker operational state snapshot; `meta` includes handoff-prepared scaffolding flags and `runtime_loop_active` truth |
+| `HealthSnapshot` | PBX node health at a point in time |
+
+### Laravel integration
+
+| Surface | Notes |
+|---|---|
+| `FreeSwitchEslServiceProvider` | Service provider class name is stable |
+| All registered container bindings | Stable (interface → implementation map) |
+| Config key `freeswitch-esl` | Config shape is stable; see `config/freeswitch-esl.php` |
+| All artisan command signatures | `freeswitch:ping`, `freeswitch:status`, `freeswitch:worker`, `freeswitch:health`, `freeswitch:replay:inspect` |
+| DB migration table names | `pbx_providers`, `pbx_nodes`, `pbx_connection_profiles`, `worker_assignments` |
+| DB column names | Stable; see `database/migrations/` |
+
+### esl-core integration surfaces
+
+These surfaces are now shipped and should be treated as public package surfaces unless and until they are explicitly moved under an internal namespace:
+
+| Class | Purpose |
+|---|---|
+| `EslCoreConnectionFactory` | Creates the current runtime handoff handle from `ConnectionContext` |
+| `EslCoreConnectionHandle` | Opaque Laravel-package handle carrying resolved context, esl-core pipeline, and boot command sequences |
+| `EslCoreCommandFactory` | Builds typed `apntalk/esl-core` command objects from Laravel-owned inputs |
+| `EslCorePipelineFactory` | Creates per-session inbound decode pipelines |
+| `EslCoreEventBridge` | Dispatches decoded esl-core messages into Laravel events |
+| `EslEventReceived` | Laravel event carrying typed event, normalized event, and `ConnectionContext` |
+| `EslReplyReceived` | Laravel event carrying typed reply and `ConnectionContext` |
+| `EslDisconnected` | Laravel event carrying disconnect notice context |
+
+---
+
+## Internal / non-stable surfaces
+
+| Surface | Notes |
+|---|---|
+| `src/Contracts/Upstream/ReplayCaptureStoreInterface` | `@internal` replay stub, will be removed when `apntalk/esl-replay` is integrated |
+| Eloquent model internals | Relationships and scopes may change |
+| `WorkerRuntime` internal methods | Implementation detail; only `WorkerInterface` methods are stable |
+| `WorkerSupervisor` internal methods | Implementation detail |
+| Service implementation internals | Only the interface contract is stable |
+
+Current worker/runtime posture notes:
+- `WorkerInterface::run()` is a stable contract, but current shipped implementations may log and return immediately while runtime handoff remains scaffolding-only.
+- `WorkerStatus::state = running` currently means boot completed and runtime handoff prepared; check `meta.runtime_loop_active` before treating it as a live async session.
+
+---
+
+## Extension points
+
+### Adding a new provider driver
+
+Implement `ProviderDriverInterface` and register in config:
+
+```php
+// config/freeswitch-esl.php
+'drivers' => [
+    'freeswitch'  => \ApnTalk\LaravelFreeswitchEsl\Drivers\FreeSwitchDriver::class,
+    'my-provider' => \App\PbxDrivers\MyProviderDriver::class,
+],
+```
+
+### Custom secret resolver
+
+Implement `SecretResolverInterface`, set `secret_resolver.mode = custom`, and
+set `secret_resolver.resolver_class` to your FQCN.
+
+### Custom health reporter
+
+Bind your implementation against `HealthReporterInterface` after the service provider loads,
+or extend `HealthReporter` and re-bind in your `AppServiceProvider`.

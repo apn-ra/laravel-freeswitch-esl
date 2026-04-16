@@ -7,7 +7,107 @@ This project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
-## [Unreleased]
+## [Unreleased] — 0.1.x closure pass
+
+## [Unreleased] — repo/plan alignment pass
+
+## [Unreleased] — connection-factory seam pass
+
+## [Unreleased] — worker runtime handoff seam pass
+
+### Changed
+
+- `src/Worker/WorkerRuntime.php` — `boot()` now advances past `ConnectionContext` and creates a retained package-owned connection handle through `ConnectionFactoryInterface`; `run()` now guards on full runtime handoff state and logs the prepared endpoint while remaining a stub
+- `src/Worker/WorkerRuntime.php` — `status()` now reports handoff scaffolding truthfully via `WorkerStatus::meta` (`context_resolved`, `connection_handoff_prepared`, `handoff_endpoint`)
+- `src/Worker/WorkerSupervisor.php` — now threads `ConnectionFactoryInterface` into each `WorkerRuntime` and exposes per-node runtime snapshots through `runtimeStatuses()`
+- `src/Console/Commands/FreeSwitchWorkerCommand.php` — now injects `ConnectionFactoryInterface`, passes it into `WorkerSupervisor`, and reports prepared runtime handoff counts without implying a live `apntalk/esl-react` loop
+- `docs/worker-runtime.md`, `docs/architecture.md`, and `docs/public-api.md` — updated to describe retained worker handoff state and the new status/meta surfacing
+
+### Added
+
+- `tests/Unit/Worker/WorkerRuntimeTest.php` — focused coverage for retained `resolvedContext`, retained connection handle, and run-before-boot guard semantics
+- `tests/Unit/Worker/WorkerSupervisorTest.php` — focused coverage for per-node runtime status snapshots exposing prepared handoff state
+- `tests/Integration/Console/FreeSwitchWorkerCommandTest.php` — command-level coverage for registration, ephemeral `--pbx` startup, and DB-backed `--db` startup through the runtime handoff seam
+
+## [Unreleased] — worker/runtime truth hardening pass
+
+### Changed
+
+- `src/Contracts/WorkerInterface.php` — contract docblocks now describe the current scaffolding posture truthfully: `boot()` prepares handoff state, `run()` may return immediately, and `drain()` records drain intent rather than promising live async drain semantics
+- `src/ControlPlane/ValueObjects/WorkerStatus.php` — clarified that `running` currently means handoff prepared and that `reconnecting` / `failed` remain reserved future states
+- `src/Worker/WorkerRuntime.php` — `status()->meta` now includes `runtime_loop_active = false` so the current non-live posture is explicit in code
+- `config/freeswitch-esl.php` — removed unused `table_prefix` config drift; the key had no implementation anywhere in the package
+- `README.md`, `docs/worker-runtime.md`, `docs/architecture.md`, `docs/public-api.md`, and `docs/compatibility-policy.md` — aligned worker/runtime wording with the current non-live scaffolding posture
+
+### Added
+
+- focused assertions in worker contract and unit tests for `meta.runtime_loop_active = false`
+
+### Added
+
+- `src/Integration/EslCoreConnectionFactory.php` — concrete `ConnectionFactoryInterface` implementation for the current `apntalk/esl-core` seam; assembles a connection handle from `ConnectionContext`, opening/closing command sequences, and an inbound pipeline without implementing `esl-react` runtime behavior
+- `src/Integration/EslCoreConnectionHandle.php` — package-owned opaque handle carrying resolved context, esl-core pipeline, command sequences, and lazy raw transport opening
+- `tests/Unit/Integration/EslCoreConnectionFactoryTest.php` — focused tests for handle creation, subscription-profile usage, lazy transport opening, and endpoint derivation
+
+### Changed
+
+- `src/Providers/FreeSwitchEslServiceProvider.php` — now binds `ConnectionFactoryInterface` cleanly in the Laravel container
+- `tests/Integration/EslCoreBindingsTest.php` — now verifies the connection factory resolves from the container and creates a connection handle
+- `tests/Integration/Providers/FreeSwitchEslServiceProviderTest.php` — now verifies `ConnectionFactoryInterface` is bound
+
+### Changed
+
+- `README.md` — corrected repository posture to reflect that `0.1.x` control-plane work is complete and partial `0.2.x` `apntalk/esl-core` adapter work is already present
+- `src/Console/Commands/FreeSwitchStatusCommand.php` — removed unsupported `--all` option so the CLI surface matches implemented behavior (`allActive()` by default, filtered by `--pbx`, `--cluster`, or `--provider`)
+- `docs/architecture.md` — removed stale references to deleted `Contracts/Upstream` esl-core stubs and documented current `src/Integration/*` and `src/Events/*` surfaces
+- `docs/public-api.md` — aligned public API documentation with shipped Laravel event classes and `apntalk/esl-core` integration adapters
+- `docs/package-boundaries.md` — updated upstream-stub guidance to reflect that only the replay stub remains local; esl-core is now consumed directly
+- `docs/event-model.md` — changed status from “planned only” to “partially implemented”; documents current command/pipeline/event-bridge layer and deferred higher-level normalized projections
+- `docs/compatibility-policy.md` — clarified current release posture: partial `0.2.x` esl-core integration is already in-tree while `esl-react` and replay remain deferred
+
+### Notes
+
+- No runtime behavior changed in this pass. This is an architectural truthfulness update so public docs match the code already present in the repository.
+
+### Added
+
+- `tests/Integration/Console/FreeSwitchStatusCommandTest.php` — verifies default active-node listing and cluster filtering for `freeswitch:status`
+
+### Changed
+
+- `WorkerRuntime::boot()` — resolved `ConnectionContext` (with worker session identity attached via `withWorkerSession()`) is now **persisted** as `$resolvedContext` rather than discarded; available via `resolvedContext(): ?ConnectionContext` for the future `apntalk/esl-react` integration
+- `WorkerRuntime::run()` — added boot-order guard: throws `WorkerException::bootFailed()` if called before `boot()` (i.e. if `resolvedContext` is null); stub log message updated to reference `apntalk/esl-react`
+- `WorkerSupervisor` — split into two explicit entry points: `run(WorkerAssignment)` for ephemeral CLI-flag targeting (resolves nodes internally) and `runForNodes(string, string, array)` for DB-backed paths (nodes pre-resolved by caller); private `bootRuntimes()` method extracted; log key renamed from `mode` to `assignment_scope` for clarity
+- `FreeSwitchWorkerCommand` — added `--db` flag; `--db` uses `WorkerAssignmentResolver::resolveForWorkerName()` and calls `supervisor->runForNodes()`; ephemeral targeting flags (`--pbx`, `--cluster`, `--tag`, `--provider`, `--all-active`) use `supervisor->run()`; `--db` combined with any ephemeral flag is a command error
+- `docs/worker-runtime.md` — documents persisted `resolvedContext`, two supervisor entry points, ephemeral vs DB-backed assignment modes, corrected `esl-react` integration snippet
+- `phpunit.xml` — restored Contract and Replay test suites (directories created)
+
+### Added
+
+- `tests/Contract/ProviderDriverContractTest.php` — 9 contract tests for `ProviderDriverInterface`; covers `providerCode()` invariants, `buildConnectionContext()` output shape, credential isolation, and `toLogContext()` safety
+- `tests/Contract/WorkerInterfaceContractTest.php` — 9 contract tests for `WorkerInterface`; covers session identity stability, lifecycle state transitions, and boot-order semantics
+- `tests/Replay/ReplayIntegrationTest.php` — structural skeleton for replay integration tests; all 5 tests skipped pending `apntalk/esl-replay` integration (planned 0.5.x)
+- `examples/laravel-app/README.md` — scaffold placeholder documenting 0.1.x-usable steps (seeding, diagnostics, ephemeral and DB-backed worker start); full example app planned for 0.3.x
+
+---
+
+## [Unreleased] — docs alignment pass
+
+### Changed
+
+- `docs/architecture.md` — added `src/Contracts/` section documenting all public contracts and upstream stubs; corrected resolution-pipeline diagram entrypoint label; scoped runtime identity propagation claim to current state (logs and health snapshots only); added cross-references to new `event-model.md` and `public-api.md`; added note that identity propagation to events and replay metadata is deferred to 0.2.x–0.5.x
+- `docs/worker-runtime.md` — checkpointing/replay section now clearly marked as future behavior (planned for 0.5.x); corrected claim that `drain()` flushes replay captures (it sets state only in 0.1.x)
+- `docs/replay-integration.md` — store binding example replaced with accurate migration path guidance; removed confusing instruction to bind against the `@internal` upstream stub; documented that the stub will be removed when apntalk/esl-replay is integrated
+- `docs/package-boundaries.md` — corrected stub description from "`@internal` and `@deprecated`" to "`@internal`" (stubs carry no `@deprecated` tag in their docblocks)
+- `docs/compatibility-policy.md` — 0.1.x release stage description updated to acknowledge worker lifecycle scaffolding (WorkerRuntime/WorkerSupervisor with stub `run()`); 0.4.x description refined to "worker runtime hardening" since scaffolding ships in 0.1.x
+- `README.md` — worker bootstrapping bullet corrected from "real worker lifecycle" to "explicit boot/drain/shutdown lifecycle...async runtime loop wired in 0.3.x"
+
+### Added
+
+- `docs/event-model.md` — ownership model for raw ESL events, typed events, and normalized events; documents apntalk/esl-core vs. this package's Laravel bridge responsibilities; placeholder for 0.2.x implementation details
+- `docs/public-api.md` — complete list of stable public surfaces (contracts, value objects, service provider, config shape, artisan commands, DB schema); internal surfaces; extension points for custom drivers, secret resolvers, and health reporters
+
+---
 
 ### Added
 

@@ -5,35 +5,49 @@ namespace ApnTalk\LaravelFreeswitchEsl\Contracts;
 use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\WorkerStatus;
 
 /**
- * Implemented by the long-lived worker runtime that processes ESL events
- * for one or more PBX nodes.
+ * Implemented by the worker/runtime scaffolding for one or more PBX nodes.
  *
- * The worker lifecycle is:
- *   boot → run → (graceful drain) → shutdown
+ * In the current package posture, implementations own assignment-aware boot,
+ * retained runtime handoff state, drain/shutdown signaling, and status
+ * reporting. They do not yet guarantee a live async event loop.
+ *
+ * Lifecycle:
+ *   boot → run → drain → shutdown
  */
 interface WorkerInterface
 {
     /**
-     * Boot the worker for the given assignment scope.
-     * Called once before run().
+     * Prepare the worker/runtime handoff state for the current assignment scope.
+     *
+     * Called once before run(). Current implementations resolve connection
+     * context and retain any package-owned runtime handoff handle here.
      */
     public function boot(): void;
 
     /**
-     * Enter the main event loop. Blocks until shutdown is signaled.
+     * Consume the prepared runtime handoff state for the current implementation.
+     *
+     * In the current scaffolding posture this may log and return immediately.
+     * Future apntalk/esl-react-backed implementations may block in a live
+     * async runtime loop.
      */
     public function run(): void;
 
     /**
-     * Signal the worker to begin draining.
-     * In drain mode the worker stops accepting new work but continues
-     * processing inflight events until the drain timeout elapses.
+     * Signal the worker to enter drain mode.
+     *
+     * Current implementations only record drain intent in worker state.
+     * They do not yet own inflight completion, drain timers, or async shutdown
+     * orchestration.
      */
     public function drain(): void;
 
     /**
-     * Signal the worker to shut down immediately.
-     * Should clean up resources and return as quickly as safely possible.
+     * Signal the worker/runtime scaffolding to shut down.
+     *
+     * Current implementations update local state and release package-owned
+     * scaffolding resources. Future runtime-backed implementations may perform
+     * additional loop/session cleanup.
      */
     public function shutdown(): void;
 
@@ -44,7 +58,8 @@ interface WorkerInterface
 
     /**
      * A unique identifier for this worker session.
-     * Carries runtime identity across logs, events, health snapshots, and replay.
+     * Carries runtime identity across logs and retained handoff state, and is
+     * intended to propagate into future event/replay integrations.
      */
     public function sessionId(): string;
 }

@@ -4,14 +4,22 @@ namespace ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects;
 
 /**
  * Immutable value object representing the operational status of a worker at a point in time.
+ *
+ * In the current scaffolding posture, status may describe retained runtime
+ * handoff state rather than a live async session. Consumers should inspect
+ * `meta` for details such as whether the runtime handoff was prepared and
+ * whether a live runtime loop is actually active.
  */
 final class WorkerStatus
 {
     public const STATE_BOOTING = 'booting';
+    /** Boot completed and the runtime handoff seam is prepared. */
     public const STATE_RUNNING = 'running';
     public const STATE_DRAINING = 'draining';
+    /** Reserved for future apntalk/esl-react-backed runtime behavior. */
     public const STATE_RECONNECTING = 'reconnecting';
     public const STATE_SHUTDOWN = 'shutdown';
+    /** Reserved for future apntalk/esl-react-backed runtime behavior. */
     public const STATE_FAILED = 'failed';
 
     /**

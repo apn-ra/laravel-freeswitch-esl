@@ -14,6 +14,30 @@ Laravel app → PBX registry → provider driver → resolved runtime connection
 
 ## Core components
 
+### Public contracts
+
+The stable public API surface of this package lives in `src/Contracts/`.
+
+```
+src/Contracts/
+  PbxRegistryInterface            — multi-PBX node inventory lookups
+  ProviderDriverRegistryInterface — provider driver map and resolution
+  ProviderDriverInterface         — contract for PBX provider drivers
+  ConnectionResolverInterface     — full resolution pipeline contract
+  ConnectionFactoryInterface      — runtime factory contract (esl-react integration point)
+  WorkerInterface                 — worker boot/run/drain/shutdown lifecycle
+  WorkerAssignmentResolverInterface — assignment scope resolution
+  HealthReporterInterface         — structured health snapshot contract
+  SecretResolverInterface         — credential resolution contract
+
+  Upstream/                       — @internal development-phase replay stub only
+    ReplayCaptureStoreInterface   — stub for apntalk/esl-replay store
+```
+
+`Contracts/Upstream/ReplayCaptureStoreInterface` is `@internal`. It exists only until `apntalk/esl-replay` is integrated directly. Do not type-hint against it in application code.
+
+---
+
 ### Control plane
 
 The control plane is database-backed. Configuration provides driver wiring and defaults. The database provides the live PBX inventory.
@@ -57,11 +81,47 @@ Drivers build `ConnectionContext` from `PbxNode + ConnectionProfile`. They do no
 
 ```
 src/Worker/
-  WorkerRuntime      — Single-node worker (implements WorkerInterface)
+  WorkerRuntime      — Single-node worker (implements WorkerInterface; retains resolved context + connection handle)
   WorkerSupervisor   — Multi-node orchestrator (boots/supervises WorkerRuntime instances)
 ```
 
 The supervisor resolves target nodes from the assignment scope, boots one runtime per node, and isolates node failures.
+
+Each `WorkerRuntime` now advances the handoff path to:
+
+```
+PbxNode
+  → ConnectionResolverInterface
+  → ConnectionContext
+  → ConnectionFactoryInterface
+  → EslCoreConnectionHandle
+```
+
+The handle is retained by the worker scaffolding for later `apntalk/esl-react` consumption. It is not itself a long-lived runtime loop.
+
+`WorkerRuntime::status()` surfaces this seam via `WorkerStatus::meta` so operator-facing Laravel scaffolding can distinguish “handoff prepared” from “live runtime connected.” In the current scaffolding posture, `WorkerStatus::state = running` means boot completed and handoff prepared, while `meta.runtime_loop_active` remains `false`. `WorkerSupervisor::runtimeStatuses()` aggregates those snapshots per PBX node slug without taking ownership of session supervision.
+
+### esl-core integration
+
+The repository already includes a narrow Laravel-owned adapter layer over `apntalk/esl-core`:
+
+```
+src/Integration/
+  EslCoreConnectionFactory — assembles the current runtime handoff seam from ConnectionContext
+  EslCoreConnectionHandle  — package-owned opaque handle for transport/pipeline/command bootstrapping
+  EslCoreCommandFactory   — builds typed esl-core command objects from Laravel inputs
+  EslCorePipelineFactory  — creates per-session inbound decode pipelines
+  EslCoreEventBridge      — dispatches decoded esl-core messages as Laravel events
+
+src/Events/
+  EslEventReceived        — wraps typed event + normalized substrate + ConnectionContext
+  EslReplyReceived        — wraps typed reply + ConnectionContext
+  EslDisconnected         — wraps disconnect notice + ConnectionContext
+```
+
+This is intentionally an adapter layer, not a reimplementation of protocol parsing. Frame decoding, typed message construction, raw transport contracts, and reply/event types remain owned by `apntalk/esl-core`.
+
+`EslCoreConnectionFactory` is the current package-owned runtime handoff seam. It does not implement the `apntalk/esl-react` worker loop; it assembles the resolved context, opening/closing command sequences, inbound pipeline, and lazy raw transport opening into a package-owned handle.
 
 ### Health and observability
 
@@ -107,7 +167,7 @@ See `database/migrations/` for schema details.
 
 ```
 freeswitch:ping --pbx=my-node
-  → FreeSwitchWorkerCommand / FreeSwitchPingCommand
+  → FreeSwitchPingCommand
     → ConnectionResolverInterface::resolveForSlug('my-node')
       → PbxRegistryInterface::findBySlug('my-node')         → PbxNode VO
       → ConnectionProfileResolver::resolveDefaultForProvider(provider_id) → ConnectionProfile VO
@@ -147,7 +207,21 @@ Every connection context, worker status, and health snapshot carries:
 - `connection_profile_id` / `connection_profile_name`
 - `worker_session_id` (assigned by WorkerRuntime)
 
-This identity propagates into logs, events, replay metadata, and health snapshots.
+In `0.1.x`, this identity is propagated into structured logs and health snapshots.
+
+Propagation into replay metadata remains future work for `0.5.x`.
+
+Propagation into Laravel-dispatched ESL events is already partially implemented through
+`src/Events/*`, where each dispatched event carries `ConnectionContext`.
+
+---
+
+## Event model
+
+Typed ESL events, replies, and normalization remain owned by `apntalk/esl-core`.
+This package now owns the Laravel event bridge layer that wraps decoded esl-core messages for dispatch.
+
+See `docs/event-model.md` for the full ownership model and integration plan.
 
 ---
 
@@ -159,6 +233,12 @@ This package wires:
 - Laravel storage binding for the replay store
 - Retention policy configuration
 - `freeswitch:replay:inspect` command for inspection
-- Session/correlation metadata propagation
+- Session/correlation metadata propagation (wired in `0.5.x`)
 
 See `docs/replay-integration.md` for details.
+
+---
+
+## Public API
+
+See `docs/public-api.md` for the full list of stable public surfaces, internal surfaces, and extension points.

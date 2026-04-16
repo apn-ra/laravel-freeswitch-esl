@@ -1,0 +1,108 @@
+<?php
+
+namespace ApnTalk\LaravelFreeswitchEsl\Tests\Unit\Worker;
+
+use ApnTalk\LaravelFreeswitchEsl\Contracts\ConnectionFactoryInterface;
+use ApnTalk\LaravelFreeswitchEsl\Contracts\ConnectionResolverInterface;
+use ApnTalk\LaravelFreeswitchEsl\Contracts\WorkerAssignmentResolverInterface;
+use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\ConnectionContext;
+use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\PbxNode;
+use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\WorkerStatus;
+use ApnTalk\LaravelFreeswitchEsl\Integration\EslCoreCommandFactory;
+use ApnTalk\LaravelFreeswitchEsl\Integration\EslCoreConnectionHandle;
+use ApnTalk\LaravelFreeswitchEsl\Integration\EslCorePipelineFactory;
+use ApnTalk\LaravelFreeswitchEsl\Worker\WorkerSupervisor;
+use Apntalk\EslCore\Transport\InMemoryTransport;
+use PHPUnit\Framework\TestCase;
+use Psr\Log\NullLogger;
+
+class WorkerSupervisorTest extends TestCase
+{
+    public function test_runtime_statuses_surface_prepared_handoff_state_per_node(): void
+    {
+        $node = $this->makeNode(1, 'node-a');
+        $assignmentResolver = $this->createStub(WorkerAssignmentResolverInterface::class);
+        $connectionResolver = new class implements ConnectionResolverInterface {
+            public function resolveForNode(int $pbxNodeId): ConnectionContext
+            {
+                return $this->context('node-a');
+            }
+
+            public function resolveForSlug(string $slug): ConnectionContext
+            {
+                return $this->context($slug);
+            }
+
+            public function resolveForPbxNode(PbxNode $node): ConnectionContext
+            {
+                return $this->context($node->slug);
+            }
+
+            private function context(string $slug): ConnectionContext
+            {
+                return new ConnectionContext(
+                    pbxNodeId: 1,
+                    pbxNodeSlug: $slug,
+                    providerCode: 'freeswitch',
+                    host: '127.0.0.1',
+                    port: 8021,
+                    username: '',
+                    resolvedPassword: 'ClueCon',
+                    transport: 'tcp',
+                    connectionProfileId: null,
+                    connectionProfileName: 'default',
+                );
+            }
+        };
+
+        $connectionFactory = new class implements ConnectionFactoryInterface {
+            public function create(ConnectionContext $context): mixed
+            {
+                $commandFactory = new EslCoreCommandFactory();
+
+                return new EslCoreConnectionHandle(
+                    context: $context,
+                    pipeline: (new EslCorePipelineFactory())->createPipeline(),
+                    openingSequence: $commandFactory->buildOpeningSequence($context),
+                    closingSequence: $commandFactory->buildClosingSequence(),
+                    transportOpener: fn () => new InMemoryTransport(),
+                );
+            }
+        };
+
+        $supervisor = new WorkerSupervisor(
+            assignmentResolver: $assignmentResolver,
+            connectionResolver: $connectionResolver,
+            connectionFactory: $connectionFactory,
+            logger: new NullLogger(),
+        );
+
+        $supervisor->runForNodes('worker-a', 'db-backed', [$node]);
+        $statuses = $supervisor->runtimeStatuses();
+
+        $this->assertCount(1, $statuses);
+        $this->assertArrayHasKey('node-a', $statuses);
+        $this->assertSame(WorkerStatus::STATE_RUNNING, $statuses['node-a']->state);
+        $this->assertTrue($statuses['node-a']->meta['context_resolved']);
+        $this->assertTrue($statuses['node-a']->meta['connection_handoff_prepared']);
+        $this->assertSame('tcp://127.0.0.1:8021', $statuses['node-a']->meta['handoff_endpoint']);
+        $this->assertFalse($statuses['node-a']->meta['runtime_loop_active']);
+    }
+
+    private function makeNode(int $id, string $slug): PbxNode
+    {
+        return new PbxNode(
+            id: $id,
+            providerId: 1,
+            providerCode: 'freeswitch',
+            name: strtoupper($slug),
+            slug: $slug,
+            host: '127.0.0.1',
+            port: 8021,
+            username: '',
+            passwordSecretRef: 'secret',
+            transport: 'tcp',
+            isActive: true,
+        );
+    }
+}

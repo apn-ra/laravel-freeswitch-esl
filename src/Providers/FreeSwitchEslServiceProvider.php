@@ -2,6 +2,7 @@
 
 namespace ApnTalk\LaravelFreeswitchEsl\Providers;
 
+use ApnTalk\LaravelFreeswitchEsl\Contracts\ConnectionFactoryInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\ConnectionResolverInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\HealthReporterInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\PbxRegistryInterface;
@@ -15,6 +16,11 @@ use ApnTalk\LaravelFreeswitchEsl\ControlPlane\Services\ProviderDriverRegistry;
 use ApnTalk\LaravelFreeswitchEsl\ControlPlane\Services\SecretResolver;
 use ApnTalk\LaravelFreeswitchEsl\ControlPlane\Services\WorkerAssignmentResolver;
 use ApnTalk\LaravelFreeswitchEsl\Health\HealthReporter;
+use ApnTalk\LaravelFreeswitchEsl\Integration\EslCoreCommandFactory;
+use ApnTalk\LaravelFreeswitchEsl\Integration\EslCoreConnectionFactory;
+use ApnTalk\LaravelFreeswitchEsl\Integration\EslCoreEventBridge;
+use ApnTalk\LaravelFreeswitchEsl\Integration\EslCorePipelineFactory;
+use Illuminate\Contracts\Events\Dispatcher;
 use Illuminate\Support\ServiceProvider;
 
 /**
@@ -46,9 +52,11 @@ class FreeSwitchEslServiceProvider extends ServiceProvider
         $this->registerProviderDriverRegistry();
         $this->registerConnectionProfileResolver();
         $this->registerConnectionResolver();
+        $this->registerConnectionFactory();
         $this->registerWorkerAssignmentResolver();
         $this->registerHealthReporter();
         $this->registerManager();
+        $this->registerEslCoreIntegration();
     }
 
     public function boot(): void
@@ -119,6 +127,16 @@ class FreeSwitchEslServiceProvider extends ServiceProvider
         });
     }
 
+    private function registerConnectionFactory(): void
+    {
+        $this->app->singleton(ConnectionFactoryInterface::class, function ($app) {
+            return new EslCoreConnectionFactory(
+                commandFactory: $app->make(EslCoreCommandFactory::class),
+                pipelineFactory: $app->make(EslCorePipelineFactory::class),
+            );
+        });
+    }
+
     private function registerWorkerAssignmentResolver(): void
     {
         $this->app->singleton(WorkerAssignmentResolverInterface::class, function ($app) {
@@ -147,6 +165,20 @@ class FreeSwitchEslServiceProvider extends ServiceProvider
                 resolver: $app->make(ConnectionResolverInterface::class),
                 healthReporter: $app->make(HealthReporterInterface::class),
             );
+        });
+    }
+
+    private function registerEslCoreIntegration(): void
+    {
+        // EslCoreCommandFactory — builds typed esl-core command objects
+        $this->app->singleton(EslCoreCommandFactory::class);
+
+        // EslCorePipelineFactory — creates InboundPipeline instances per session
+        $this->app->singleton(EslCorePipelineFactory::class);
+
+        // EslCoreEventBridge — converts decoded messages to Laravel events
+        $this->app->singleton(EslCoreEventBridge::class, function ($app) {
+            return new EslCoreEventBridge($app->make(Dispatcher::class));
         });
     }
 

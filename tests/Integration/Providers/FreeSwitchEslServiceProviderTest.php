@@ -2,6 +2,7 @@
 
 namespace ApnTalk\LaravelFreeswitchEsl\Tests\Integration\Providers;
 
+use ApnTalk\LaravelFreeswitchEsl\Contracts\ConnectionFactoryInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\ConnectionResolverInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\HealthReporterInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\PbxRegistryInterface;
@@ -43,6 +44,14 @@ class FreeSwitchEslServiceProviderTest extends TestCase
         $this->assertInstanceOf(
             ConnectionResolverInterface::class,
             $this->app->make(ConnectionResolverInterface::class)
+        );
+    }
+
+    public function test_connection_factory_is_bound(): void
+    {
+        $this->assertInstanceOf(
+            ConnectionFactoryInterface::class,
+            $this->app->make(ConnectionFactoryInterface::class)
         );
     }
 

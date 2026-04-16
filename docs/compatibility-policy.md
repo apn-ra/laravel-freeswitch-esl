@@ -14,19 +14,31 @@ Support for PHP 8.1 and Laravel 10 is not planned.
 
 | Version | Focus |
 |---|---|
-| `0.1.x` | Repo foundation + control-plane contracts + DB schema |
-| `0.2.x` | Integrate `apntalk/esl-core` |
-| `0.3.x` | Integrate `apntalk/esl-react` |
-| `0.4.x` | Laravel worker runtime + assignment orchestration |
-| `0.5.x` | Integrate `apntalk/esl-replay` |
+| `0.1.x` | Repo foundation, control-plane contracts, DB schema, worker lifecycle scaffolding (stub run()) |
+| `0.2.x` | Integrate `apntalk/esl-core` (typed events, command dispatch, event normalizer) |
+| `0.3.x` | Integrate `apntalk/esl-react` (wire async runtime into WorkerRuntime::run()) |
+| `0.4.x` | Laravel worker runtime hardening + assignment orchestration maturity |
+| `0.5.x` | Integrate `apntalk/esl-replay` (capture wiring, retention, replay inspection) |
 | `0.6.x` | Observability + hardening |
 | `1.0.0` | Only after runtime and multi-PBX behavior are stable |
+
+**Current repo posture:** `0.1.x` control-plane scope is complete and the repository has already
+landed part of the `0.2.x` adapter layer: `apntalk/esl-core` is a direct dependency and the
+package ships typed command, inbound pipeline, and Laravel event-bridge classes. `WorkerRuntime`
+and `WorkerSupervisor` still remain scaffolding, and live ESL runtime behavior still requires
+`apntalk/esl-react` (`0.3.x`).
+
+Current worker/runtime truth:
+- `WorkerRuntime::run()` is scaffolding-only and may return immediately
+- `WorkerStatus::state = running` currently means handoff prepared, not live async session active
+- reconnecting/failed worker states remain reserved for future `apntalk/esl-react` integration
 
 ---
 
 ## Public API
 
-Public API = anything in `src/` that is not in an `Internal/` or `Support/` namespace and is not marked `@internal`.
+Public API = anything documented in `docs/public-api.md`, plus any shipped `src/` surface that is
+not in an `Internal/` or `Support/` namespace and is not marked `@internal`.
 
 The following are stable public API surfaces:
 
@@ -43,7 +55,7 @@ The following are stable public API surfaces:
 
 The following are NOT stable public API:
 
-- `src/Contracts/Upstream/` — upstream stubs, will be replaced
+- `src/Contracts/Upstream/ReplayCaptureStoreInterface` — replay stub, will be replaced
 - Model internals
 - `WorkerRuntime` and `WorkerSupervisor` internal methods
 - Service implementation internals

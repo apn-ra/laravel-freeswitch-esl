@@ -11,7 +11,7 @@ A production-grade Laravel package that provides:
 - **Database-backed PBX inventory** — nodes, providers, profiles stored in the DB
 - **Provider-aware connection resolution** — FreeSWITCH is the first driver, not the only model
 - **Worker assignment orchestration** — target one node, a cluster, a tag, or all active nodes
-- **Long-lived worker bootstrapping** — real worker lifecycle, not a convenience loop
+- **Long-lived worker bootstrapping** — explicit boot/run/drain/shutdown scaffolding, with live async runtime behavior still deferred to `apntalk/esl-react`
 - **Structured health and diagnostics** — machine-usable operational state per node
 - **Replay integration wiring** — Laravel-side storage binding for `apntalk/esl-replay`
 
@@ -185,16 +185,28 @@ Laravel app
 
 ## Development status
 
-Current release: `0.1.x` — repo foundation + control-plane contracts
+Current repository posture:
+- `0.1.x` foundation is in place for the Laravel package, DB-backed control plane, worker scaffolding, and operator commands
+- `0.2.x` groundwork has partially landed via direct `apntalk/esl-core` integration for typed commands, inbound decoding, and Laravel event bridging
 
-The package is usable for:
+The package is currently usable for:
 - Control-plane setup (DB-backed PBX inventory)
 - Connection parameter resolution and validation
-- Worker assignment resolution (dry-run)
+- Worker assignment resolution and boot orchestration
 - Health snapshot inspection
-- Artisan diagnostics
+- `apntalk/esl-core` command/pipeline/event-bridge integration inside Laravel
 
-Live ESL connections require `apntalk/esl-react` (not yet published). The `WorkerRuntime::run()` body is a stub until that package is wired.
+Still deferred:
+- Live ESL runtime lifecycle via `apntalk/esl-react`
+- Reconnect-safe long-lived worker behavior
+- Replay capture/store integration via `apntalk/esl-replay`
+
+`WorkerRuntime::run()` remains a stub until `apntalk/esl-react` is wired.
+
+Current worker status semantics:
+- `booting` means handoff state is not yet prepared
+- `running` means boot completed and the runtime handoff seam is prepared
+- `running` does not mean a live async ESL loop is active
 
 ---
 

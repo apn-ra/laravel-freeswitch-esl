@@ -27,15 +27,6 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Database Table Prefix
-    |--------------------------------------------------------------------------
-    | Optional prefix for all control-plane tables. Useful when deploying this
-    | package alongside other packages in the same database.
-    */
-    'table_prefix' => env('FREESWITCH_ESL_TABLE_PREFIX', ''),
-
-    /*
-    |--------------------------------------------------------------------------
     | Local Fallback Connection
     |--------------------------------------------------------------------------
     | An optional in-config PBX node definition used when DB-backed inventory
