@@ -94,12 +94,15 @@ class RuntimeRunnerFeedbackTest extends TestCase
             }
         };
 
-        $feedback = RuntimeRunnerFeedback::fromEslReactLifecycleSnapshot($snapshot);
+        $feedback = RuntimeRunnerFeedback::fromEslReactLifecycleSnapshot($snapshot, 'push');
         $meta = $feedback->toMeta();
 
         $this->assertSame(RuntimeRunnerFeedback::STATE_RUNNING, $feedback->state);
         $this->assertSame('apntalk/esl-react-runtime-lifecycle-snapshot', $feedback->source);
+        $this->assertSame('push', $feedback->delivery);
         $this->assertTrue($feedback->isRuntimeLoopActive());
+        $this->assertSame('push', $meta['runtime_feedback_delivery']);
+        $this->assertTrue($meta['runtime_push_lifecycle_observed']);
         $this->assertSame('tcp://127.0.0.1:8021', $meta['runtime_runner_endpoint']);
         $this->assertSame('worker-session-1', $meta['runtime_runner_session_id']);
         $this->assertSame('authenticated', $meta['runtime_connection_state']);
@@ -153,8 +156,11 @@ class RuntimeRunnerFeedbackTest extends TestCase
         $meta = $feedback->toMeta();
 
         $this->assertSame(RuntimeRunnerFeedback::STATE_RUNNING, $feedback->state);
+        $this->assertSame('snapshot', $feedback->delivery);
         $this->assertFalse($feedback->isRuntimeLoopActive());
         $this->assertFalse($meta['runtime_loop_active']);
+        $this->assertSame('snapshot', $meta['runtime_feedback_delivery']);
+        $this->assertFalse($meta['runtime_push_lifecycle_observed']);
         $this->assertTrue($meta['runtime_reconnecting']);
         $this->assertSame('reconnecting', $meta['runtime_connection_state']);
         $this->assertSame('disconnected', $meta['runtime_session_state']);

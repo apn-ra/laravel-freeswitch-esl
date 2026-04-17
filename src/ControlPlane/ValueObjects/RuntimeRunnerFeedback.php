@@ -19,6 +19,7 @@ final class RuntimeRunnerFeedback
     public function __construct(
         public readonly string $state,
         public readonly string $source,
+        public readonly string $delivery = 'snapshot',
         public readonly ?string $endpoint = null,
         public readonly ?string $sessionId = null,
         public readonly ?string $startupErrorClass = null,
@@ -37,11 +38,12 @@ final class RuntimeRunnerFeedback
         public readonly ?string $lastRuntimeErrorMessage = null,
     ) {}
 
-    public static function fromEslReactLifecycleSnapshot(object $snapshot): self
+    public static function fromEslReactLifecycleSnapshot(object $snapshot, string $delivery = 'snapshot'): self
     {
         return new self(
             state: self::stringValue($snapshot->runnerState ?? null) ?? self::STATE_STARTING,
             source: 'apntalk/esl-react-runtime-lifecycle-snapshot',
+            delivery: $delivery,
             endpoint: is_string($snapshot->endpoint ?? null) ? $snapshot->endpoint : null,
             sessionId: self::sessionId($snapshot),
             startupErrorClass: is_string($snapshot->startupErrorClass ?? null) ? $snapshot->startupErrorClass : null,
@@ -74,6 +76,8 @@ final class RuntimeRunnerFeedback
         return [
             'runtime_feedback_observed' => true,
             'runtime_feedback_source' => $this->source,
+            'runtime_feedback_delivery' => $this->delivery,
+            'runtime_push_lifecycle_observed' => $this->delivery === 'push',
             'runtime_runner_state' => $this->state,
             'runtime_runner_endpoint' => $this->endpoint,
             'runtime_runner_session_id' => $this->sessionId,

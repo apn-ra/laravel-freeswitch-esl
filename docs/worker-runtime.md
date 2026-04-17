@@ -61,7 +61,8 @@ This makes the worker handoff state explicit and inspectable without claiming ow
 `WorkerStatus::isHandoffPrepared()` answers whether boot prepared an adapter-consumable bundle.
 `WorkerStatus::isRuntimeRunnerInvoked()` answers whether the Laravel-owned runtime runner seam was called.
 `WorkerStatus::isRuntimeFeedbackObserved()` answers whether the bound runner exposed a feedback snapshot.
-`WorkerStatus::isRuntimeLoopActive()` answers whether that feedback reports a live runtime. On the supported `apntalk/esl-react` `^0.2.1` line, Laravel maps the upstream `RuntimeRunnerHandle::lifecycleSnapshot()` into status metadata including connection/session state, live/reconnecting/draining/stopped flags, reconnect attempts, last heartbeat timestamp, and startup/runtime error fields.
+`WorkerStatus::isRuntimePushObserved()` answers whether that feedback arrived through the upstream push listener rather than Laravel polling a snapshot.
+`WorkerStatus::isRuntimeLoopActive()` answers whether that feedback reports a live runtime. On the supported `apntalk/esl-react` `^0.2.2` line, Laravel maps the upstream `RuntimeRunnerHandle::lifecycleSnapshot()` into status metadata and subscribes to `RuntimeRunnerHandle::onLifecycleChange()` for push-based updates including connection/session state, live/reconnecting/draining/stopped flags, reconnect attempts, last heartbeat timestamp, and startup/runtime error fields.
 These fields mean “boot prepared the runtime handoff seam,” “the configured runner was invoked,” and “Laravel observed upstream runner lifecycle state.” They do not give Laravel ownership of reconnect, heartbeat, or session lifecycle behavior.
 
 ### WorkerSupervisor
@@ -154,7 +155,7 @@ The `--db` flag and any ephemeral targeting flag (`--pbx`, `--cluster`, `--tag`,
 
 The `--worker=<name>` option sets the worker identity (default: `esl-worker`). This name appears in logs, retained runtime handoff state, and is the lookup key for `worker_assignments` rows when `--db` is used.
 
-After startup, `freeswitch:worker` reports how many node runtimes reached the prepared-handoff state, how many invoked the configured runner, and how many reported a running live runtime through the feedback seam. That summary is intentionally narrow and does not claim Laravel owns the `apntalk/esl-react` session lifecycle.
+After startup, `freeswitch:worker` reports how many node runtimes reached the prepared-handoff state, how many invoked the configured runner, how many exposed push-based lifecycle observation, and how many reported a running live runtime through the feedback seam. That summary is intentionally narrow and does not claim Laravel owns the `apntalk/esl-react` session lifecycle.
 
 ---
 
@@ -184,9 +185,9 @@ $this->runner->run($input);
 
 The `ConnectionContext` and connection handle are both prepared during `boot()` (with the worker session ID already attached). The `run()` body only invokes `RuntimeRunnerInterface` after `boot()` has completed, which it enforces with a guard that throws `WorkerException::bootFailed()` if the runtime handoff state is incomplete.
 
-The current adapter supports the default TCP path and now passes an explicit prepared dial URI when the resolved `ConnectionContext` requires a non-default target, including `tls://host:port` for TLS-style handoffs on the supported `apntalk/esl-react` `^0.2.1` line. Direct `apntalk/esl-core` `TransportInterface` polling handoff remains deferred until `apntalk/esl-react` exposes that public path.
+The current adapter supports the default TCP path and now passes an explicit prepared dial URI when the resolved `ConnectionContext` requires a non-default target, including `tls://host:port` for TLS-style handoffs on the supported `apntalk/esl-react` `^0.2.2` line. Direct `apntalk/esl-core` `TransportInterface` polling handoff remains deferred until `apntalk/esl-react` exposes that public path.
 
-The adapter exposes runner feedback from `RuntimeRunnerHandle::lifecycleSnapshot()` on the supported `apntalk/esl-react` `^0.2.1` line. Laravel maps that upstream read-only lifecycle snapshot into `WorkerStatus::meta`; it does not poll the client, reconnect the session, or manage heartbeats.
+The adapter exposes runner feedback from `RuntimeRunnerHandle::lifecycleSnapshot()` on the supported `apntalk/esl-react` `^0.2.2` line and registers `RuntimeRunnerHandle::onLifecycleChange()` so Laravel can cache ordered push-based lifecycle updates. Laravel maps that upstream read-only lifecycle truth into `WorkerStatus::meta`; it does not poll the client for supervision decisions, reconnect the session, or manage heartbeats.
 
 For future accepted-stream/listener-backed adapters, the upstream `InboundConnectionFactory` is now the preferred bootstrap seam. Binding that seam here does not imply listener or runtime ownership in this package.
 

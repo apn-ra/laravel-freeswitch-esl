@@ -189,6 +189,8 @@ class WorkerRuntime implements WorkerInterface
                 'runtime_loop_active_source' => 'not-observed-by-laravel',
                 'runtime_feedback_observed' => false,
                 'runtime_feedback_source' => null,
+                'runtime_feedback_delivery' => null,
+                'runtime_push_lifecycle_observed' => false,
                 'runtime_runner_state' => null,
                 'runtime_runner_endpoint' => null,
                 'runtime_runner_session_id' => null,

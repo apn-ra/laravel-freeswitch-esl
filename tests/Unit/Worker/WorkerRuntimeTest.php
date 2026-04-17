@@ -64,10 +64,13 @@ class WorkerRuntimeTest extends TestCase
         $this->assertFalse($status->meta['runtime_loop_active']);
         $this->assertSame('not-observed-by-laravel', $status->meta['runtime_loop_active_source']);
         $this->assertFalse($status->meta['runtime_feedback_observed']);
+        $this->assertNull($status->meta['runtime_feedback_delivery']);
+        $this->assertFalse($status->meta['runtime_push_lifecycle_observed']);
         $this->assertNull($status->meta['runtime_runner_state']);
         $this->assertFalse($status->isHandoffPrepared());
         $this->assertFalse($status->isRuntimeRunnerInvoked());
         $this->assertFalse($status->isRuntimeFeedbackObserved());
+        $this->assertFalse($status->isRuntimePushObserved());
         $this->assertFalse($status->isRuntimeLoopActive());
     }
 
@@ -91,10 +94,13 @@ class WorkerRuntimeTest extends TestCase
         $this->assertFalse($status->meta['runtime_loop_active']);
         $this->assertSame('not-observed-by-laravel', $status->meta['runtime_loop_active_source']);
         $this->assertFalse($status->meta['runtime_feedback_observed']);
+        $this->assertNull($status->meta['runtime_feedback_delivery']);
+        $this->assertFalse($status->meta['runtime_push_lifecycle_observed']);
         $this->assertNull($status->meta['runtime_runner_state']);
         $this->assertTrue($status->isHandoffPrepared());
         $this->assertFalse($status->isRuntimeRunnerInvoked());
         $this->assertFalse($status->isRuntimeFeedbackObserved());
+        $this->assertFalse($status->isRuntimePushObserved());
         $this->assertFalse($status->isRuntimeLoopActive());
     }
 
@@ -141,7 +147,10 @@ class WorkerRuntimeTest extends TestCase
         $this->assertTrue($status->meta['runtime_runner_invoked']);
         $this->assertTrue($status->isRuntimeRunnerInvoked());
         $this->assertTrue($status->meta['runtime_feedback_observed']);
+        $this->assertSame('snapshot', $status->meta['runtime_feedback_delivery']);
+        $this->assertFalse($status->meta['runtime_push_lifecycle_observed']);
         $this->assertTrue($status->isRuntimeFeedbackObserved());
+        $this->assertFalse($status->isRuntimePushObserved());
         $this->assertSame(RuntimeRunnerFeedback::STATE_NOT_LIVE, $status->meta['runtime_runner_state']);
         $this->assertSame('non-live-runtime-runner', $status->meta['runtime_feedback_source']);
         $this->assertSame('non-live-runtime-runner', $status->meta['runtime_loop_active_source']);
@@ -159,6 +168,7 @@ class WorkerRuntimeTest extends TestCase
                 $this->feedback = new RuntimeRunnerFeedback(
                     state: RuntimeRunnerFeedback::STATE_RUNNING,
                     source: 'test-runner-handle',
+                    delivery: 'push',
                     endpoint: $handoff->endpoint(),
                     sessionId: $handoff->context()->workerSessionId,
                 );
@@ -175,8 +185,11 @@ class WorkerRuntimeTest extends TestCase
         $status = $runtime->status();
 
         $this->assertTrue($status->meta['runtime_feedback_observed']);
+        $this->assertSame('push', $status->meta['runtime_feedback_delivery']);
+        $this->assertTrue($status->meta['runtime_push_lifecycle_observed']);
         $this->assertSame(RuntimeRunnerFeedback::STATE_RUNNING, $status->meta['runtime_runner_state']);
         $this->assertSame('test-runner-handle', $status->meta['runtime_feedback_source']);
+        $this->assertTrue($status->isRuntimePushObserved());
         $this->assertTrue($status->meta['runtime_loop_active']);
         $this->assertTrue($status->isRuntimeLoopActive());
         $this->assertSame($status->sessionId, $status->meta['runtime_runner_session_id']);

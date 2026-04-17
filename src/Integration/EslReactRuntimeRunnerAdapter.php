@@ -19,6 +19,7 @@ use ApnTalk\LaravelFreeswitchEsl\Contracts\RuntimeRunnerInterface;
 final class EslReactRuntimeRunnerAdapter implements RuntimeRunnerInterface, RuntimeRunnerFeedbackProviderInterface
 {
     private ?RuntimeRunnerHandle $lastHandle = null;
+    private ?RuntimeRunnerFeedback $lastFeedback = null;
 
     public function __construct(
         private readonly EslReactRuntimeRunnerInterface $runner,
@@ -28,6 +29,14 @@ final class EslReactRuntimeRunnerAdapter implements RuntimeRunnerInterface, Runt
     public function run(RuntimeHandoffInterface $handoff): void
     {
         $this->lastHandle = $this->runner->run($this->inputFactory->create($handoff));
+        $this->lastFeedback = null;
+
+        $this->lastHandle->onLifecycleChange(function (object $snapshot): void {
+            $this->lastFeedback = RuntimeRunnerFeedback::fromEslReactLifecycleSnapshot(
+                $snapshot,
+                'push',
+            );
+        });
     }
 
     public function lastHandle(): ?RuntimeRunnerHandle
@@ -41,8 +50,9 @@ final class EslReactRuntimeRunnerAdapter implements RuntimeRunnerInterface, Runt
             return null;
         }
 
-        return RuntimeRunnerFeedback::fromEslReactLifecycleSnapshot(
-            $this->lastHandle->lifecycleSnapshot()
-        );
+        return $this->lastFeedback
+            ?? RuntimeRunnerFeedback::fromEslReactLifecycleSnapshot(
+                $this->lastHandle->lifecycleSnapshot()
+            );
     }
 }

@@ -74,6 +74,11 @@ final class WorkerStatus
         return ($this->meta['runtime_feedback_observed'] ?? false) === true;
     }
 
+    public function isRuntimePushObserved(): bool
+    {
+        return ($this->meta['runtime_push_lifecycle_observed'] ?? false) === true;
+    }
+
     /**
      * @return array<string, mixed>
      */

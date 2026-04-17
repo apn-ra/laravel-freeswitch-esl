@@ -38,8 +38,8 @@ All value objects are stable public API:
 | `ConnectionProfile` | Immutable operational policy VO |
 | `WorkerAssignment` | Immutable worker targeting scope (5 modes) |
 | `ConnectionContext` | Fully resolved connection parameters (use `toLogContext()` for safe logging) |
-| `RuntimeRunnerFeedback` | Runner feedback snapshot consumed by `WorkerStatus::meta`; maps the upstream `RuntimeRunnerHandle::lifecycleSnapshot()` without owning runtime lifecycle |
-| `WorkerStatus` | Worker operational state snapshot; helper methods and `meta` distinguish handoff-prepared, adapter-ready, runner-invoked, and runtime-active state |
+| `RuntimeRunnerFeedback` | Runner feedback snapshot consumed by `WorkerStatus::meta`; maps upstream `RuntimeRunnerHandle` lifecycle observation without owning runtime lifecycle |
+| `WorkerStatus` | Worker operational state snapshot; helper methods and `meta` distinguish handoff-prepared, adapter-ready, runner-invoked, snapshot/push-observed lifecycle state, and runtime-active state |
 | `HealthSnapshot` | PBX node health at a point in time |
 
 ### Laravel integration

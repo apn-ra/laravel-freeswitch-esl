@@ -102,6 +102,7 @@ class EslReactRuntimeRunnerAdapterTest extends TestCase
         $this->assertNotNull($adapter->runtimeFeedback());
         $this->assertSame(RuntimeRunnerFeedback::STATE_RUNNING, $adapter->runtimeFeedback()->state);
         $this->assertSame('apntalk/esl-react-runtime-lifecycle-snapshot', $adapter->runtimeFeedback()->source);
+        $this->assertSame('push', $adapter->runtimeFeedback()->delivery);
         $this->assertSame('worker-session-1', $adapter->runtimeFeedback()->sessionId);
         $this->assertTrue($adapter->runtimeFeedback()->isConnected);
         $this->assertTrue($adapter->runtimeFeedback()->isAuthenticated);
@@ -109,5 +110,82 @@ class EslReactRuntimeRunnerAdapterTest extends TestCase
         $this->assertSame('authenticated', $adapter->runtimeFeedback()->connectionState);
         $this->assertSame('active', $adapter->runtimeFeedback()->sessionState);
         $this->assertSame(2, $adapter->runtimeFeedback()->reconnectAttempts);
+    }
+
+    public function test_run_tracks_updated_feedback_from_upstream_push_lifecycle_changes(): void
+    {
+        $connector = $this->createMock(ConnectorInterface::class);
+        $healthReporter = $this->createStub(HealthReporterInterface::class);
+        $healthReporter
+            ->method('snapshot')
+            ->willReturn(new HealthSnapshot(
+                connectionState: ConnectionState::Reconnecting,
+                sessionState: SessionState::Disconnected,
+                isLive: false,
+                inflightCommandCount: 0,
+                pendingBgapiJobCount: 0,
+                totalInflightCount: 0,
+                isOverloaded: false,
+                activeSubscriptions: [],
+                reconnectAttempts: 3,
+                isDraining: false,
+                lastErrorClass: null,
+                lastErrorMessage: null,
+                snapshotAtMicros: 1000.0,
+                lastHeartbeatAtMicros: 900.0,
+            ));
+
+        $client = $this->createStub(AsyncEslClientInterface::class);
+        $client->method('health')->willReturn($healthReporter);
+
+        $upstreamRunner = new class ($client) implements EslReactRuntimeRunnerInterface {
+            public function __construct(private readonly AsyncEslClientInterface $client) {}
+
+            public function run(RuntimeRunnerInputInterface $input, ?LoopInterface $loop = null): RuntimeRunnerHandle
+            {
+                return new RuntimeRunnerHandle(
+                    endpoint: $input->endpoint(),
+                    client: $this->client,
+                    startupPromise: resolve(null),
+                    sessionContext: $input instanceof PreparedRuntimeBootstrapInput ? $input->sessionContext() : null,
+                );
+            }
+        };
+
+        $adapter = new EslReactRuntimeRunnerAdapter(
+            runner: $upstreamRunner,
+            inputFactory: new EslReactRuntimeBootstrapInputFactory(connector: $connector),
+        );
+        $handoff = new EslCoreConnectionHandle(
+            context: new ConnectionContext(
+                pbxNodeId: 10,
+                pbxNodeSlug: 'node-b',
+                providerCode: 'freeswitch',
+                host: '203.0.113.11',
+                port: 8021,
+                username: '',
+                resolvedPassword: 'secret',
+                transport: 'tcp',
+                connectionProfileId: 20,
+                connectionProfileName: 'primary',
+                workerSessionId: 'worker-session-2',
+            ),
+            pipeline: (new EslCorePipelineFactory())->createPipeline(),
+            openingSequence: [],
+            closingSequence: [],
+            transportOpener: fn () => throw new \LogicException('Transport opener must not be called by adapter.'),
+        );
+
+        $adapter->run($handoff);
+
+        $feedback = $adapter->runtimeFeedback();
+
+        $this->assertNotNull($feedback);
+        $this->assertSame('push', $feedback->delivery);
+        $this->assertSame(RuntimeRunnerFeedback::STATE_RUNNING, $feedback->state);
+        $this->assertFalse($feedback->isLive);
+        $this->assertTrue($feedback->isReconnecting);
+        $this->assertSame(3, $feedback->reconnectAttempts);
+        $this->assertSame('reconnecting', $feedback->connectionState);
     }
 }

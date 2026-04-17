@@ -9,6 +9,31 @@ This project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.4.2] - 2026-04-17
+
+### Summary
+
+This release is a truthful `0.4.x` Laravel-side runtime observation checkpoint.
+It extends the current `apntalk/esl-react` runner binding with push-based lifecycle observation through the upstream runner handle.
+It is not a Laravel-owned live runtime milestone.
+
+### Changed
+
+- bumped the minimum supported `apntalk/esl-react` line to `^0.2.2` so Laravel can rely on upstream push-based lifecycle observation through `RuntimeRunnerHandle::onLifecycleChange()`
+- extended `EslReactRuntimeRunnerAdapter` to subscribe to upstream lifecycle change callbacks and cache translated feedback for worker/operator status surfaces
+- added additive worker status metadata for feedback delivery mode and push-observed lifecycle updates, and updated `freeswitch:worker` output to report push-based lifecycle observation
+
+### Verification
+
+- focused PHPUnit coverage passed for the runner adapter, worker runtime, runtime feedback translation, and worker command output
+- PHPStan passed at the current configured level
+- Composer metadata validation passed after the dependency floor change
+
+### Deferred
+
+- reconnect, heartbeat, and session lifecycle ownership remain in `apntalk/esl-react`
+- direct `apntalk/esl-core` `TransportInterface` polling handoff remains deferred to a future `apntalk/esl-react` public seam
+
 ## [0.4.1] - 2026-04-17
 
 ### Summary

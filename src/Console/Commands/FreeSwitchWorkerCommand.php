@@ -247,6 +247,7 @@ class FreeSwitchWorkerCommand extends Command
         $statuses = $supervisor->runtimeStatuses();
         $preparedCount = 0;
         $runnerInvokedCount = 0;
+        $pushObservedCount = 0;
         $runtimeObservedCount = 0;
 
         foreach ($statuses as $status) {
@@ -258,16 +259,22 @@ class FreeSwitchWorkerCommand extends Command
                 $runnerInvokedCount++;
             }
 
+            if ($status->isRuntimePushObserved()) {
+                $pushObservedCount++;
+            }
+
             if ($status->isRuntimeLoopActive()) {
                 $runtimeObservedCount++;
             }
         }
 
         $this->info(sprintf(
-            'Prepared runtime handoff for %d/%d node(s); runtime runner invoked for %d/%d node(s); live runtime observed for %d/%d node(s).',
+            'Prepared runtime handoff for %d/%d node(s); runtime runner invoked for %d/%d node(s); push lifecycle observed for %d/%d node(s); live runtime observed for %d/%d node(s).',
             $preparedCount,
             count($statuses),
             $runnerInvokedCount,
+            count($statuses),
+            $pushObservedCount,
             count($statuses),
             $runtimeObservedCount,
             count($statuses),
