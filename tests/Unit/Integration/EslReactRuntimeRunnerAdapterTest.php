@@ -2,17 +2,17 @@
 
 namespace ApnTalk\LaravelFreeswitchEsl\Tests\Unit\Integration;
 
+use Apntalk\EslReact\Connection\ConnectionState;
 use Apntalk\EslReact\Contracts\AsyncEslClientInterface;
 use Apntalk\EslReact\Contracts\HealthReporterInterface;
 use Apntalk\EslReact\Contracts\RuntimeRunnerInputInterface;
 use Apntalk\EslReact\Contracts\RuntimeRunnerInterface as EslReactRuntimeRunnerInterface;
-use Apntalk\EslReact\Connection\ConnectionState;
 use Apntalk\EslReact\Health\HealthSnapshot;
 use Apntalk\EslReact\Runner\PreparedRuntimeBootstrapInput;
 use Apntalk\EslReact\Runner\RuntimeRunnerHandle;
 use Apntalk\EslReact\Session\SessionState;
-use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\RuntimeRunnerFeedback;
 use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\ConnectionContext;
+use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\RuntimeRunnerFeedback;
 use ApnTalk\LaravelFreeswitchEsl\Integration\EslCoreConnectionHandle;
 use ApnTalk\LaravelFreeswitchEsl\Integration\EslCorePipelineFactory;
 use ApnTalk\LaravelFreeswitchEsl\Integration\EslReactRuntimeBootstrapInputFactory;
@@ -51,7 +51,8 @@ class EslReactRuntimeRunnerAdapterTest extends TestCase
         $client = $this->createStub(AsyncEslClientInterface::class);
         $client->method('health')->willReturn($healthReporter);
 
-        $upstreamRunner = new class ($client) implements EslReactRuntimeRunnerInterface {
+        $upstreamRunner = new class($client) implements EslReactRuntimeRunnerInterface
+        {
             public ?RuntimeRunnerInputInterface $input = null;
 
             public function __construct(private readonly AsyncEslClientInterface $client) {}
@@ -86,7 +87,7 @@ class EslReactRuntimeRunnerAdapterTest extends TestCase
                 connectionProfileName: 'primary',
                 workerSessionId: 'worker-session-1',
             ),
-            pipeline: (new EslCorePipelineFactory())->createPipeline(),
+            pipeline: (new EslCorePipelineFactory)->createPipeline(),
             openingSequence: [],
             closingSequence: [],
             transportOpener: fn () => throw new \LogicException('Transport opener must not be called by adapter.'),
@@ -138,7 +139,8 @@ class EslReactRuntimeRunnerAdapterTest extends TestCase
         $client = $this->createStub(AsyncEslClientInterface::class);
         $client->method('health')->willReturn($healthReporter);
 
-        $upstreamRunner = new class ($client) implements EslReactRuntimeRunnerInterface {
+        $upstreamRunner = new class($client) implements EslReactRuntimeRunnerInterface
+        {
             public function __construct(private readonly AsyncEslClientInterface $client) {}
 
             public function run(RuntimeRunnerInputInterface $input, ?LoopInterface $loop = null): RuntimeRunnerHandle
@@ -170,7 +172,7 @@ class EslReactRuntimeRunnerAdapterTest extends TestCase
                 connectionProfileName: 'primary',
                 workerSessionId: 'worker-session-2',
             ),
-            pipeline: (new EslCorePipelineFactory())->createPipeline(),
+            pipeline: (new EslCorePipelineFactory)->createPipeline(),
             openingSequence: [],
             closingSequence: [],
             transportOpener: fn () => throw new \LogicException('Transport opener must not be called by adapter.'),

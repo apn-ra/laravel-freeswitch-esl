@@ -28,7 +28,7 @@ class WorkerAssignment extends Model
      */
     protected $casts = [
         'pbx_node_id' => 'integer',
-        'is_active'   => 'boolean',
+        'is_active' => 'boolean',
     ];
 
     public function pbxNode(): BelongsTo

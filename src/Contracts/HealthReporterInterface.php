@@ -3,6 +3,7 @@
 namespace ApnTalk\LaravelFreeswitchEsl\Contracts;
 
 use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\HealthSnapshot;
+use ApnTalk\LaravelFreeswitchEsl\Exceptions\PbxNotFoundException;
 
 /**
  * Produces structured health snapshots for PBX nodes and aggregate scopes.
@@ -15,7 +16,7 @@ interface HealthReporterInterface
     /**
      * Return a health snapshot for the given PBX node ID.
      *
-     * @throws \ApnTalk\LaravelFreeswitchEsl\Exceptions\PbxNotFoundException
+     * @throws PbxNotFoundException
      */
     public function forNode(int $pbxNodeId): HealthSnapshot;
 

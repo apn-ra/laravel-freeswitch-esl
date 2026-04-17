@@ -13,12 +13,17 @@ namespace ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects;
 final class WorkerStatus
 {
     public const STATE_BOOTING = 'booting';
+
     /** Boot completed and the runtime handoff seam is prepared. */
     public const STATE_RUNNING = 'running';
+
     public const STATE_DRAINING = 'draining';
+
     /** Reserved for future apntalk/esl-react-backed runtime behavior. */
     public const STATE_RECONNECTING = 'reconnecting';
+
     public const STATE_SHUTDOWN = 'shutdown';
+
     /** Reserved for future apntalk/esl-react-backed runtime behavior. */
     public const STATE_FAILED = 'failed';
 
@@ -85,16 +90,16 @@ final class WorkerStatus
     public function toArray(): array
     {
         return [
-            'session_id'          => $this->sessionId,
-            'worker_name'         => $this->workerName,
-            'state'               => $this->state,
+            'session_id' => $this->sessionId,
+            'worker_name' => $this->workerName,
+            'state' => $this->state,
             'assigned_node_slugs' => $this->assignedNodeSlugs,
-            'inflight_count'      => $this->inflightCount,
-            'retry_attempt'       => $this->retryAttempt,
-            'is_draining'         => $this->isDraining,
-            'last_heartbeat_at'   => $this->lastHeartbeatAt?->format(\DateTimeInterface::ATOM),
-            'booted_at'           => $this->bootedAt?->format(\DateTimeInterface::ATOM),
-            'meta'                => $this->meta,
+            'inflight_count' => $this->inflightCount,
+            'retry_attempt' => $this->retryAttempt,
+            'is_draining' => $this->isDraining,
+            'last_heartbeat_at' => $this->lastHeartbeatAt?->format(\DateTimeInterface::ATOM),
+            'booted_at' => $this->bootedAt?->format(\DateTimeInterface::ATOM),
+            'meta' => $this->meta,
         ];
     }
 }

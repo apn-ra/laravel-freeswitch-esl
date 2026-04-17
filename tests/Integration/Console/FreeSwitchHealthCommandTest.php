@@ -35,7 +35,8 @@ class FreeSwitchHealthCommandTest extends TestCase
             lastHeartbeatAt: null,
         );
 
-        $reporter = new class ($snapshot) implements HealthReporterInterface {
+        $reporter = new class($snapshot) implements HealthReporterInterface
+        {
             public function __construct(private readonly HealthSnapshot $snapshot) {}
 
             public function forNode(int $pbxNodeId): HealthSnapshot
@@ -53,12 +54,11 @@ class FreeSwitchHealthCommandTest extends TestCase
                 return [$this->snapshot];
             }
 
-            public function record(HealthSnapshot $snapshot): void
-            {
-            }
+            public function record(HealthSnapshot $snapshot): void {}
         };
 
-        $registry = new class implements PbxRegistryInterface {
+        $registry = new class implements PbxRegistryInterface
+        {
             public function findById(int $id): PbxNode
             {
                 return $this->node($id, 'primary-fs');
@@ -137,7 +137,8 @@ class FreeSwitchHealthCommandTest extends TestCase
             lastHeartbeatAt: null,
         );
 
-        $reporter = new class ($snapshot) implements HealthReporterInterface {
+        $reporter = new class($snapshot) implements HealthReporterInterface
+        {
             public array $requestedNodeIds = [];
 
             public function __construct(private readonly HealthSnapshot $snapshot) {}
@@ -159,12 +160,11 @@ class FreeSwitchHealthCommandTest extends TestCase
                 return [];
             }
 
-            public function record(HealthSnapshot $snapshot): void
-            {
-            }
+            public function record(HealthSnapshot $snapshot): void {}
         };
 
-        $registry = new class implements PbxRegistryInterface {
+        $registry = new class implements PbxRegistryInterface
+        {
             public int $lookupCalls = 0;
 
             public function findById(int $id): PbxNode
@@ -263,7 +263,8 @@ class FreeSwitchHealthCommandTest extends TestCase
             lastHeartbeatAt: null,
         );
 
-        $reporter = new class ($healthy, $degraded) implements HealthReporterInterface {
+        $reporter = new class($healthy, $degraded) implements HealthReporterInterface
+        {
             public function __construct(
                 private readonly HealthSnapshot $healthy,
                 private readonly HealthSnapshot $degraded,
@@ -284,9 +285,7 @@ class FreeSwitchHealthCommandTest extends TestCase
                 return [$this->healthy, $this->degraded];
             }
 
-            public function record(HealthSnapshot $snapshot): void
-            {
-            }
+            public function record(HealthSnapshot $snapshot): void {}
         };
 
         $this->app->instance(HealthReporterInterface::class, $reporter);
@@ -335,7 +334,8 @@ class FreeSwitchHealthCommandTest extends TestCase
             lastHeartbeatAt: null,
         );
 
-        $reporter = new class ($snapshot) implements HealthReporterInterface {
+        $reporter = new class($snapshot) implements HealthReporterInterface
+        {
             public function __construct(private readonly HealthSnapshot $snapshot) {}
 
             public function forNode(int $pbxNodeId): HealthSnapshot
@@ -353,12 +353,11 @@ class FreeSwitchHealthCommandTest extends TestCase
                 return [$this->snapshot];
             }
 
-            public function record(HealthSnapshot $snapshot): void
-            {
-            }
+            public function record(HealthSnapshot $snapshot): void {}
         };
 
-        $registry = new class implements PbxRegistryInterface {
+        $registry = new class implements PbxRegistryInterface
+        {
             public function findById(int $id): PbxNode
             {
                 return $this->node($id, 'primary-fs');

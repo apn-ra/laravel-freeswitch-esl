@@ -4,6 +4,7 @@ namespace ApnTalk\LaravelFreeswitchEsl\Console\Commands;
 
 use ApnTalk\LaravelFreeswitchEsl\Contracts\HealthReporterInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\PbxRegistryInterface;
+use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\HealthSnapshot;
 use Illuminate\Console\Command;
 
 /**
@@ -28,9 +29,9 @@ class FreeSwitchHealthCommand extends Command
 
         try {
             $snapshots = match (true) {
-                $pbx !== null     => [$reporter->forNode($registry->findBySlug($pbx)->id)],
+                $pbx !== null => [$reporter->forNode($registry->findBySlug($pbx)->id)],
                 $cluster !== null => $reporter->forCluster($cluster),
-                default           => $reporter->forAllActive(),
+                default => $reporter->forAllActive(),
             };
             $summary = $this->summary($snapshots);
 
@@ -105,7 +106,6 @@ class FreeSwitchHealthCommand extends Command
         }
     }
 
-
     private function stringOption(string $name): ?string
     {
         $value = $this->option($name);
@@ -127,7 +127,7 @@ class FreeSwitchHealthCommand extends Command
     }
 
     /**
-     * @param  list<\ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\HealthSnapshot>  $snapshots
+     * @param  list<HealthSnapshot>  $snapshots
      * @return array<string, int>
      */
     private function summary(array $snapshots): array
@@ -142,9 +142,9 @@ class FreeSwitchHealthCommand extends Command
 
         foreach ($snapshots as $snapshot) {
             match ($snapshot->status) {
-                \ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\HealthSnapshot::STATUS_HEALTHY => $summary['healthy_count']++,
-                \ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\HealthSnapshot::STATUS_DEGRADED => $summary['degraded_count']++,
-                \ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\HealthSnapshot::STATUS_UNHEALTHY => $summary['unhealthy_count']++,
+                HealthSnapshot::STATUS_HEALTHY => $summary['healthy_count']++,
+                HealthSnapshot::STATUS_DEGRADED => $summary['degraded_count']++,
+                HealthSnapshot::STATUS_UNHEALTHY => $summary['unhealthy_count']++,
                 default => $summary['unknown_count']++,
             };
         }
@@ -158,17 +158,17 @@ class FreeSwitchHealthCommand extends Command
     private function aggregatePosture(array $summary): string
     {
         if (($summary['node_count'] ?? 0) === 0) {
-            return \ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\HealthSnapshot::STATUS_UNKNOWN;
+            return HealthSnapshot::STATUS_UNKNOWN;
         }
 
         if (($summary['unhealthy_count'] ?? 0) > 0) {
-            return \ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\HealthSnapshot::STATUS_UNHEALTHY;
+            return HealthSnapshot::STATUS_UNHEALTHY;
         }
 
         if ((($summary['degraded_count'] ?? 0) > 0) || (($summary['unknown_count'] ?? 0) > 0)) {
-            return \ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\HealthSnapshot::STATUS_DEGRADED;
+            return HealthSnapshot::STATUS_DEGRADED;
         }
 
-        return \ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\HealthSnapshot::STATUS_HEALTHY;
+        return HealthSnapshot::STATUS_HEALTHY;
     }
 }

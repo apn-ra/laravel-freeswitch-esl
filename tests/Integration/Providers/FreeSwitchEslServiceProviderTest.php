@@ -9,8 +9,8 @@ use ApnTalk\LaravelFreeswitchEsl\Contracts\ConnectionFactoryInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\ConnectionResolverInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\HealthReporterInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\PbxRegistryInterface;
-use ApnTalk\LaravelFreeswitchEsl\Contracts\RuntimeRunnerInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\ProviderDriverRegistryInterface;
+use ApnTalk\LaravelFreeswitchEsl\Contracts\RuntimeRunnerInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\SecretResolverInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\WorkerAssignmentResolverInterface;
 use ApnTalk\LaravelFreeswitchEsl\ControlPlane\Services\ConnectionProfileResolver;
@@ -78,7 +78,6 @@ class FreeSwitchEslServiceProviderTest extends TestCase
 
         $this->assertSame($a, $b);
     }
-
 
     public function test_runtime_runner_is_bound(): void
     {
@@ -207,11 +206,11 @@ class FreeSwitchEslServiceProviderTest extends TestCase
 
     public function test_migrations_are_in_expected_path(): void
     {
-        $migrationPath = realpath(__DIR__ . '/../../../database/migrations');
+        $migrationPath = realpath(__DIR__.'/../../../database/migrations');
 
         $this->assertDirectoryExists($migrationPath);
 
-        $files = glob($migrationPath . '/*.php');
+        $files = glob($migrationPath.'/*.php');
         $this->assertNotEmpty($files);
     }
 }

@@ -2,6 +2,8 @@
 
 namespace ApnTalk\LaravelFreeswitchEsl\Contracts;
 
+use ApnTalk\LaravelFreeswitchEsl\Exceptions\ConnectionResolutionException;
+
 /**
  * Resolves a secret credential from a secret reference string.
  *
@@ -17,7 +19,7 @@ interface SecretResolverInterface
     /**
      * Resolve the plaintext credential for the given secret reference.
      *
-     * @throws \ApnTalk\LaravelFreeswitchEsl\Exceptions\ConnectionResolutionException
+     * @throws ConnectionResolutionException
      */
     public function resolve(string $secretRef): string;
 }

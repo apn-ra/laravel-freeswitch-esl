@@ -2,9 +2,6 @@
 
 namespace ApnTalk\LaravelFreeswitchEsl\Facades;
 
-use ApnTalk\LaravelFreeswitchEsl\Contracts\ConnectionResolverInterface;
-use ApnTalk\LaravelFreeswitchEsl\Contracts\HealthReporterInterface;
-use ApnTalk\LaravelFreeswitchEsl\Contracts\PbxRegistryInterface;
 use Illuminate\Support\Facades\Facade;
 
 /**

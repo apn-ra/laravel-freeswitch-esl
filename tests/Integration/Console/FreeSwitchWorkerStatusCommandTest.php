@@ -2,7 +2,10 @@
 
 namespace ApnTalk\LaravelFreeswitchEsl\Tests\Integration\Console;
 
+use Apntalk\EslCore\Transport\InMemoryTransport;
+use Apntalk\EslReplay\Artifact\CapturedArtifactEnvelope;
 use Apntalk\EslReplay\Checkpoint\ReplayCheckpoint;
+use Apntalk\EslReplay\Checkpoint\ReplayCheckpointCriteria;
 use Apntalk\EslReplay\Checkpoint\ReplayCheckpointRepository;
 use Apntalk\EslReplay\Contracts\ReplayArtifactStoreInterface;
 use Apntalk\EslReplay\Contracts\ReplayCheckpointStoreInterface;
@@ -25,7 +28,6 @@ use ApnTalk\LaravelFreeswitchEsl\Integration\EslCoreConnectionHandle;
 use ApnTalk\LaravelFreeswitchEsl\Integration\EslCorePipelineFactory;
 use ApnTalk\LaravelFreeswitchEsl\Integration\Replay\WorkerReplayCheckpointManager;
 use ApnTalk\LaravelFreeswitchEsl\Tests\TestCase;
-use Apntalk\EslCore\Transport\InMemoryTransport;
 use Illuminate\Contracts\Console\Kernel;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
@@ -44,7 +46,8 @@ class FreeSwitchWorkerStatusCommandTest extends TestCase
     {
         $node = $this->makeNode(1, 'primary-fs');
         $registry = $this->registryForNodes([$node]);
-        $assignmentResolver = new class ($node) implements WorkerAssignmentResolverInterface {
+        $assignmentResolver = new class($node) implements WorkerAssignmentResolverInterface
+        {
             public function __construct(private readonly PbxNode $node) {}
 
             public function resolveNodes(WorkerAssignment $assignment): array
@@ -58,7 +61,8 @@ class FreeSwitchWorkerStatusCommandTest extends TestCase
             }
         };
 
-        $runtimeRunner = new class implements RuntimeRunnerInterface {
+        $runtimeRunner = new class implements RuntimeRunnerInterface
+        {
             public int $runCalls = 0;
 
             public function run(RuntimeHandoffInterface $handoff): void
@@ -144,7 +148,8 @@ class FreeSwitchWorkerStatusCommandTest extends TestCase
         $primary = $this->makeNode(1, 'primary-fs');
         $edge = $this->makeNode(2, 'edge-fs');
         $registry = $this->registryForNodes([$primary, $edge]);
-        $assignmentResolver = new class ($primary, $edge) implements WorkerAssignmentResolverInterface {
+        $assignmentResolver = new class($primary, $edge) implements WorkerAssignmentResolverInterface
+        {
             public function __construct(
                 private readonly PbxNode $primary,
                 private readonly PbxNode $edge,
@@ -165,7 +170,8 @@ class FreeSwitchWorkerStatusCommandTest extends TestCase
             }
         };
 
-        $runtimeRunner = new class implements RuntimeRunnerInterface {
+        $runtimeRunner = new class implements RuntimeRunnerInterface
+        {
             public int $runCalls = 0;
 
             public function run(RuntimeHandoffInterface $handoff): void
@@ -224,7 +230,8 @@ class FreeSwitchWorkerStatusCommandTest extends TestCase
      */
     private function registryForNodes(array $nodes): PbxRegistryInterface
     {
-        return new class ($nodes) implements PbxRegistryInterface {
+        return new class($nodes) implements PbxRegistryInterface
+        {
             /**
              * @param  list<PbxNode>  $nodes
              */
@@ -280,7 +287,8 @@ class FreeSwitchWorkerStatusCommandTest extends TestCase
         RuntimeRunnerInterface $runtimeRunner,
         WorkerReplayCheckpointManager $checkpointManager,
     ): void {
-        $connectionResolver = new class implements ConnectionResolverInterface {
+        $connectionResolver = new class implements ConnectionResolverInterface
+        {
             public function resolveForNode(int $pbxNodeId): ConnectionContext
             {
                 return $this->context();
@@ -313,17 +321,18 @@ class FreeSwitchWorkerStatusCommandTest extends TestCase
             }
         };
 
-        $connectionFactory = new class implements ConnectionFactoryInterface {
+        $connectionFactory = new class implements ConnectionFactoryInterface
+        {
             public function create(ConnectionContext $context): EslCoreConnectionHandle
             {
-                $commandFactory = new EslCoreCommandFactory();
+                $commandFactory = new EslCoreCommandFactory;
 
                 return new EslCoreConnectionHandle(
                     context: $context,
-                    pipeline: (new EslCorePipelineFactory())->createPipeline(),
+                    pipeline: (new EslCorePipelineFactory)->createPipeline(),
                     openingSequence: $commandFactory->buildOpeningSequence($context),
                     closingSequence: $commandFactory->buildClosingSequence(),
-                    transportOpener: fn () => new InMemoryTransport(),
+                    transportOpener: fn () => new InMemoryTransport,
                 );
             }
         };
@@ -333,7 +342,7 @@ class FreeSwitchWorkerStatusCommandTest extends TestCase
         $this->app->instance(ConnectionResolverInterface::class, $connectionResolver);
         $this->app->instance(ConnectionFactoryInterface::class, $connectionFactory);
         $this->app->instance(RuntimeRunnerInterface::class, $runtimeRunner);
-        $this->app->instance(LoggerInterface::class, new NullLogger());
+        $this->app->instance(LoggerInterface::class, new NullLogger);
         $this->app->instance(WorkerReplayCheckpointManager::class, $checkpointManager);
     }
 
@@ -344,12 +353,8 @@ class FreeSwitchWorkerStatusCommandTest extends TestCase
         string $jobUuid,
         int $nextSequence,
     ): WorkerReplayCheckpointManager {
-        $checkpointStore = new class (
-            $checkpointReason,
-            $replaySessionId,
-            $workerSessionId,
-            $jobUuid,
-        ) implements ReplayCheckpointStoreInterface {
+        $checkpointStore = new class($checkpointReason, $replaySessionId, $workerSessionId, $jobUuid) implements ReplayCheckpointStoreInterface
+        {
             public function __construct(
                 private readonly string $checkpointReason,
                 private readonly string $replaySessionId,
@@ -357,9 +362,7 @@ class FreeSwitchWorkerStatusCommandTest extends TestCase
                 private readonly string $jobUuid,
             ) {}
 
-            public function save(ReplayCheckpoint $checkpoint): void
-            {
-            }
+            public function save(ReplayCheckpoint $checkpoint): void {}
 
             public function load(string $key): ?ReplayCheckpoint
             {
@@ -382,17 +385,16 @@ class FreeSwitchWorkerStatusCommandTest extends TestCase
                 return true;
             }
 
-            public function delete(string $key): void
-            {
-            }
+            public function delete(string $key): void {}
 
-            public function find(\Apntalk\EslReplay\Checkpoint\ReplayCheckpointCriteria $criteria): array
+            public function find(ReplayCheckpointCriteria $criteria): array
             {
                 return [$this->load('worker-runtime.status-worker.freeswitch.primary-fs.default')];
             }
         };
 
-        $artifactStore = new class ($replaySessionId, $workerSessionId, $jobUuid, $nextSequence) implements ReplayArtifactStoreInterface {
+        $artifactStore = new class($replaySessionId, $workerSessionId, $jobUuid, $nextSequence) implements ReplayArtifactStoreInterface
+        {
             public function __construct(
                 private readonly string $replaySessionId,
                 private readonly string $workerSessionId,
@@ -400,7 +402,7 @@ class FreeSwitchWorkerStatusCommandTest extends TestCase
                 private readonly int $nextSequence,
             ) {}
 
-            public function write(\Apntalk\EslReplay\Artifact\CapturedArtifactEnvelope $artifact): ReplayRecordId
+            public function write(CapturedArtifactEnvelope $artifact): ReplayRecordId
             {
                 throw new \BadMethodCallException('write() should not be called in this status command test.');
             }
@@ -448,7 +450,7 @@ class FreeSwitchWorkerStatusCommandTest extends TestCase
         return new WorkerReplayCheckpointManager(
             artifactStore: $artifactStore,
             checkpointRepository: new ReplayCheckpointRepository($checkpointStore),
-            logger: new NullLogger(),
+            logger: new NullLogger,
             enabled: true,
         );
     }
@@ -456,8 +458,9 @@ class FreeSwitchWorkerStatusCommandTest extends TestCase
     private function disabledCheckpointManager(): WorkerReplayCheckpointManager
     {
         return new WorkerReplayCheckpointManager(
-            artifactStore: new class implements ReplayArtifactStoreInterface {
-                public function write(\Apntalk\EslReplay\Artifact\CapturedArtifactEnvelope $artifact): ReplayRecordId
+            artifactStore: new class implements ReplayArtifactStoreInterface
+            {
+                public function write(CapturedArtifactEnvelope $artifact): ReplayRecordId
                 {
                     throw new \BadMethodCallException('write() should not be called in this status command test.');
                 }
@@ -477,10 +480,9 @@ class FreeSwitchWorkerStatusCommandTest extends TestCase
                     return ReplayReadCursor::start();
                 }
             },
-            checkpointRepository: new ReplayCheckpointRepository(new class implements ReplayCheckpointStoreInterface {
-                public function save(ReplayCheckpoint $checkpoint): void
-                {
-                }
+            checkpointRepository: new ReplayCheckpointRepository(new class implements ReplayCheckpointStoreInterface
+            {
+                public function save(ReplayCheckpoint $checkpoint): void {}
 
                 public function load(string $key): ?ReplayCheckpoint
                 {
@@ -492,16 +494,14 @@ class FreeSwitchWorkerStatusCommandTest extends TestCase
                     return false;
                 }
 
-                public function delete(string $key): void
-                {
-                }
+                public function delete(string $key): void {}
 
-                public function find(\Apntalk\EslReplay\Checkpoint\ReplayCheckpointCriteria $criteria): array
+                public function find(ReplayCheckpointCriteria $criteria): array
                 {
                     return [];
                 }
             }),
-            logger: new NullLogger(),
+            logger: new NullLogger,
             enabled: false,
         );
     }

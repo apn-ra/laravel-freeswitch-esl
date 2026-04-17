@@ -3,11 +3,11 @@
 namespace ApnTalk\LaravelFreeswitchEsl\Integration;
 
 use Apntalk\EslReact\Contracts\RuntimeRunnerInterface as EslReactRuntimeRunnerInterface;
-use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\RuntimeRunnerFeedback;
 use Apntalk\EslReact\Runner\RuntimeRunnerHandle;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\RuntimeHandoffInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\RuntimeRunnerFeedbackProviderInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\RuntimeRunnerInterface;
+use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\RuntimeRunnerFeedback;
 
 /**
  * Laravel-owned adapter from RuntimeHandoffInterface to apntalk/esl-react.
@@ -16,9 +16,10 @@ use ApnTalk\LaravelFreeswitchEsl\Contracts\RuntimeRunnerInterface;
  * state remain owned by apntalk/esl-react. This adapter only builds the
  * prepared bootstrap input and invokes the upstream runner seam.
  */
-final class EslReactRuntimeRunnerAdapter implements RuntimeRunnerInterface, RuntimeRunnerFeedbackProviderInterface
+final class EslReactRuntimeRunnerAdapter implements RuntimeRunnerFeedbackProviderInterface, RuntimeRunnerInterface
 {
     private ?RuntimeRunnerHandle $lastHandle = null;
+
     private ?RuntimeRunnerFeedback $lastFeedback = null;
 
     public function __construct(

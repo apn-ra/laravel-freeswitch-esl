@@ -2,17 +2,20 @@
 
 namespace ApnTalk\LaravelFreeswitchEsl\Tests\Contract;
 
+use Apntalk\EslCore\Transport\InMemoryTransport;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\ConnectionFactoryInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\ConnectionResolverInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\WorkerInterface;
 use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\ConnectionContext;
 use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\PbxNode;
 use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\WorkerStatus;
+use ApnTalk\LaravelFreeswitchEsl\Integration\EslCoreCommandFactory;
 use ApnTalk\LaravelFreeswitchEsl\Integration\EslCoreConnectionHandle;
+use ApnTalk\LaravelFreeswitchEsl\Integration\EslCorePipelineFactory;
 use ApnTalk\LaravelFreeswitchEsl\Integration\NonLiveRuntimeRunner;
 use ApnTalk\LaravelFreeswitchEsl\Worker\WorkerRuntime;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
-use Apntalk\EslCore\Transport\InMemoryTransport;
 use Psr\Log\NullLogger;
 
 /**
@@ -56,7 +59,8 @@ class WorkerInterfaceContractTest extends TestCase
             connectionProfileName: 'default',
         );
 
-        $resolver = new class ($context) implements ConnectionResolverInterface {
+        $resolver = new class($context) implements ConnectionResolverInterface
+        {
             public function __construct(private readonly ConnectionContext $ctx) {}
 
             public function resolveForNode(int $pbxNodeId): ConnectionContext
@@ -75,46 +79,47 @@ class WorkerInterfaceContractTest extends TestCase
             }
         };
 
-        $connectionFactory = new class ($context) implements ConnectionFactoryInterface {
+        $connectionFactory = new class($context) implements ConnectionFactoryInterface
+        {
             public function __construct(private readonly ConnectionContext $ctx) {}
 
             public function create(ConnectionContext $context): EslCoreConnectionHandle
             {
                 return new EslCoreConnectionHandle(
                     context: $context,
-                    pipeline: new \ApnTalk\LaravelFreeswitchEsl\Integration\EslCorePipelineFactory()->createPipeline(),
-                    openingSequence: new \ApnTalk\LaravelFreeswitchEsl\Integration\EslCoreCommandFactory()->buildOpeningSequence($context),
-                    closingSequence: new \ApnTalk\LaravelFreeswitchEsl\Integration\EslCoreCommandFactory()->buildClosingSequence(),
-                    transportOpener: fn () => new InMemoryTransport(),
+                    pipeline: new EslCorePipelineFactory()->createPipeline(),
+                    openingSequence: new EslCoreCommandFactory()->buildOpeningSequence($context),
+                    closingSequence: new EslCoreCommandFactory()->buildClosingSequence(),
+                    transportOpener: fn () => new InMemoryTransport,
                 );
             }
         };
 
         return [
-            'WorkerRuntime' => [new WorkerRuntime('contract-worker', $node, $resolver, $connectionFactory, new NonLiveRuntimeRunner(), new NullLogger())],
+            'WorkerRuntime' => [new WorkerRuntime('contract-worker', $node, $resolver, $connectionFactory, new NonLiveRuntimeRunner, new NullLogger)],
         ];
     }
 
-    #[\PHPUnit\Framework\Attributes\DataProvider('workerProvider')]
+    #[DataProvider('workerProvider')]
     public function test_session_id_is_non_empty_string(WorkerInterface $worker): void
     {
         $this->assertNotEmpty($worker->sessionId());
         $this->assertIsString($worker->sessionId());
     }
 
-    #[\PHPUnit\Framework\Attributes\DataProvider('workerProvider')]
+    #[DataProvider('workerProvider')]
     public function test_session_id_is_stable(WorkerInterface $worker): void
     {
         $this->assertSame($worker->sessionId(), $worker->sessionId());
     }
 
-    #[\PHPUnit\Framework\Attributes\DataProvider('workerProvider')]
+    #[DataProvider('workerProvider')]
     public function test_status_before_boot_returns_booting_state(WorkerInterface $worker): void
     {
         $this->assertSame(WorkerStatus::STATE_BOOTING, $worker->status()->state);
     }
 
-    #[\PHPUnit\Framework\Attributes\DataProvider('workerProvider')]
+    #[DataProvider('workerProvider')]
     public function test_status_before_boot_reports_handoff_as_unprepared(WorkerInterface $worker): void
     {
         $status = $worker->status();
@@ -127,13 +132,13 @@ class WorkerInterfaceContractTest extends TestCase
         $this->assertFalse($status->meta['runtime_loop_active']);
     }
 
-    #[\PHPUnit\Framework\Attributes\DataProvider('workerProvider')]
+    #[DataProvider('workerProvider')]
     public function test_status_returns_worker_status_instance(WorkerInterface $worker): void
     {
         $this->assertInstanceOf(WorkerStatus::class, $worker->status());
     }
 
-    #[\PHPUnit\Framework\Attributes\DataProvider('workerProvider')]
+    #[DataProvider('workerProvider')]
     public function test_boot_transitions_state_to_running(WorkerInterface $worker): void
     {
         $worker->boot();
@@ -141,7 +146,7 @@ class WorkerInterfaceContractTest extends TestCase
         $this->assertSame(WorkerStatus::STATE_RUNNING, $worker->status()->state);
     }
 
-    #[\PHPUnit\Framework\Attributes\DataProvider('workerProvider')]
+    #[DataProvider('workerProvider')]
     public function test_boot_reports_handoff_as_prepared(WorkerInterface $worker): void
     {
         $worker->boot();
@@ -155,7 +160,7 @@ class WorkerInterfaceContractTest extends TestCase
         $this->assertFalse($status->meta['runtime_loop_active']);
     }
 
-    #[\PHPUnit\Framework\Attributes\DataProvider('workerProvider')]
+    #[DataProvider('workerProvider')]
     public function test_run_after_boot_does_not_throw(WorkerInterface $worker): void
     {
         $worker->boot();
@@ -165,7 +170,7 @@ class WorkerInterfaceContractTest extends TestCase
         $worker->run();
     }
 
-    #[\PHPUnit\Framework\Attributes\DataProvider('workerProvider')]
+    #[DataProvider('workerProvider')]
     public function test_drain_transitions_to_draining_state(WorkerInterface $worker): void
     {
         $worker->boot();
@@ -175,7 +180,7 @@ class WorkerInterfaceContractTest extends TestCase
         $this->assertArrayHasKey('drain_completed', $worker->status()->meta);
     }
 
-    #[\PHPUnit\Framework\Attributes\DataProvider('workerProvider')]
+    #[DataProvider('workerProvider')]
     public function test_shutdown_transitions_to_shutdown_state(WorkerInterface $worker): void
     {
         $worker->boot();
@@ -184,7 +189,7 @@ class WorkerInterfaceContractTest extends TestCase
         $this->assertTrue($worker->status()->isShutdown());
     }
 
-    #[\PHPUnit\Framework\Attributes\DataProvider('workerProvider')]
+    #[DataProvider('workerProvider')]
     public function test_session_id_present_in_status(WorkerInterface $worker): void
     {
         $this->assertSame($worker->sessionId(), $worker->status()->sessionId);

@@ -25,10 +25,10 @@ class FreeSwitchStatusCommand extends Command
 
         try {
             $nodes = match (true) {
-                $slug !== null    => [$registry->findBySlug($slug)],
+                $slug !== null => [$registry->findBySlug($slug)],
                 $cluster !== null => $registry->allByCluster($cluster),
                 $provider !== null => $registry->allByProvider($provider),
-                default           => $registry->allActive(),
+                default => $registry->allActive(),
             };
 
             if (empty($nodes)) {
@@ -63,7 +63,6 @@ class FreeSwitchStatusCommand extends Command
             return self::FAILURE;
         }
     }
-
 
     private function stringOption(string $name): ?string
     {

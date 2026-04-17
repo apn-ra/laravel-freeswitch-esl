@@ -30,9 +30,9 @@ class PbxProvider extends Model
      * @var array<string, string>
      */
     protected $casts = [
-        'is_active'         => 'boolean',
+        'is_active' => 'boolean',
         'capabilities_json' => 'array',
-        'settings_json'     => 'array',
+        'settings_json' => 'array',
     ];
 
     public function nodes(): HasMany

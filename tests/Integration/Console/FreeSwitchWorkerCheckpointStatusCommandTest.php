@@ -2,7 +2,12 @@
 
 namespace ApnTalk\LaravelFreeswitchEsl\Tests\Integration\Console;
 
+use Apntalk\EslCore\Contracts\ReplayEnvelopeInterface;
+use Apntalk\EslCore\Transport\InMemoryTransport;
+use Apntalk\EslReplay\Adapter\Filesystem\FilesystemReplayArtifactStore;
+use Apntalk\EslReplay\Artifact\CapturedArtifactEnvelope;
 use Apntalk\EslReplay\Checkpoint\ReplayCheckpoint;
+use Apntalk\EslReplay\Checkpoint\ReplayCheckpointCriteria;
 use Apntalk\EslReplay\Checkpoint\ReplayCheckpointRepository;
 use Apntalk\EslReplay\Contracts\ReplayArtifactStoreInterface;
 use Apntalk\EslReplay\Contracts\ReplayCheckpointInspectorInterface;
@@ -24,9 +29,9 @@ use ApnTalk\LaravelFreeswitchEsl\Exceptions\PbxNotFoundException;
 use ApnTalk\LaravelFreeswitchEsl\Integration\EslCoreCommandFactory;
 use ApnTalk\LaravelFreeswitchEsl\Integration\EslCoreConnectionHandle;
 use ApnTalk\LaravelFreeswitchEsl\Integration\EslCorePipelineFactory;
+use ApnTalk\LaravelFreeswitchEsl\Integration\Replay\ReplayEnvelopeArtifactAdapter;
 use ApnTalk\LaravelFreeswitchEsl\Integration\Replay\WorkerReplayCheckpointManager;
 use ApnTalk\LaravelFreeswitchEsl\Tests\TestCase;
-use Apntalk\EslCore\Transport\InMemoryTransport;
 use Illuminate\Contracts\Console\Kernel;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
@@ -48,14 +53,28 @@ class FreeSwitchWorkerCheckpointStatusCommandTest extends TestCase
         $previousSavedAt = new \DateTimeImmutable('-2 hours', new \DateTimeZone('UTC'));
         $this->bindRuntimeDependencies(
             registry: $this->registryForNodes([$node]),
-            assignmentResolver: new class ($node) implements WorkerAssignmentResolverInterface {
+            assignmentResolver: new class($node) implements WorkerAssignmentResolverInterface
+            {
                 public function __construct(private readonly PbxNode $node) {}
-                public function resolveNodes(WorkerAssignment $assignment): array { return [$this->node]; }
-                public function resolveForWorkerName(string $workerName): array { return []; }
+
+                public function resolveNodes(WorkerAssignment $assignment): array
+                {
+                    return [$this->node];
+                }
+
+                public function resolveForWorkerName(string $workerName): array
+                {
+                    return [];
+                }
             },
-            runtimeRunner: new class implements RuntimeRunnerInterface {
+            runtimeRunner: new class implements RuntimeRunnerInterface
+            {
                 public int $runCalls = 0;
-                public function run(RuntimeHandoffInterface $handoff): void { $this->runCalls++; }
+
+                public function run(RuntimeHandoffInterface $handoff): void
+                {
+                    $this->runCalls++;
+                }
             },
             checkpointManager: $this->checkpointManager($latestSavedAt, $previousSavedAt),
         );
@@ -132,12 +151,22 @@ class FreeSwitchWorkerCheckpointStatusCommandTest extends TestCase
         $previousSavedAt = new \DateTimeImmutable('-2 hours', new \DateTimeZone('UTC'));
         $this->bindRuntimeDependencies(
             registry: $this->registryForNodes([$node]),
-            assignmentResolver: new class ($node) implements WorkerAssignmentResolverInterface {
+            assignmentResolver: new class($node) implements WorkerAssignmentResolverInterface
+            {
                 public function __construct(private readonly PbxNode $node) {}
-                public function resolveNodes(WorkerAssignment $assignment): array { return [$this->node]; }
-                public function resolveForWorkerName(string $workerName): array { return []; }
+
+                public function resolveNodes(WorkerAssignment $assignment): array
+                {
+                    return [$this->node];
+                }
+
+                public function resolveForWorkerName(string $workerName): array
+                {
+                    return [];
+                }
             },
-            runtimeRunner: new class implements RuntimeRunnerInterface {
+            runtimeRunner: new class implements RuntimeRunnerInterface
+            {
                 public function run(RuntimeHandoffInterface $handoff): void {}
             },
             checkpointManager: $this->checkpointManager($latestSavedAt, $previousSavedAt),
@@ -171,13 +200,15 @@ class FreeSwitchWorkerCheckpointStatusCommandTest extends TestCase
     public function test_worker_checkpoint_status_command_reports_bounded_historical_pruning_posture_when_supported(): void
     {
         $node = $this->makeNode(1, 'primary-fs');
-        $storagePath = sys_get_temp_dir() . '/laravel-freeswitch-esl-tests/checkpoint-status-pruning-' . bin2hex(random_bytes(4));
+        $storagePath = sys_get_temp_dir().'/laravel-freeswitch-esl-tests/checkpoint-status-pruning-'.bin2hex(random_bytes(4));
         @mkdir($storagePath, 0777, true);
 
         try {
-            $artifactStore = new \Apntalk\EslReplay\Adapter\Filesystem\FilesystemReplayArtifactStore($storagePath);
-            $checkpointStore = new class implements ReplayCheckpointStoreInterface, ReplayCheckpointInspectorInterface {
+            $artifactStore = new FilesystemReplayArtifactStore($storagePath);
+            $checkpointStore = new class implements ReplayCheckpointInspectorInterface, ReplayCheckpointStoreInterface
+            {
                 public function save(ReplayCheckpoint $checkpoint): void {}
+
                 public function load(string $key): ?ReplayCheckpoint
                 {
                     return new ReplayCheckpoint(
@@ -193,9 +224,15 @@ class FreeSwitchWorkerCheckpointStatusCommandTest extends TestCase
                         ],
                     );
                 }
-                public function exists(string $key): bool { return true; }
+
+                public function exists(string $key): bool
+                {
+                    return true;
+                }
+
                 public function delete(string $key): void {}
-                public function find(\Apntalk\EslReplay\Checkpoint\ReplayCheckpointCriteria $criteria): array
+
+                public function find(ReplayCheckpointCriteria $criteria): array
                 {
                     return [
                         new ReplayCheckpoint(
@@ -214,33 +251,43 @@ class FreeSwitchWorkerCheckpointStatusCommandTest extends TestCase
                 }
             };
 
-            $artifactStore->write(new \ApnTalk\LaravelFreeswitchEsl\Integration\Replay\ReplayEnvelopeArtifactAdapter(
+            $artifactStore->write(new ReplayEnvelopeArtifactAdapter(
                 $this->fixtureEnvelope('replay-session-prune', 1_715_702_400_000_000),
                 $this->fixtureContext('primary-fs', 'worker-session-prune'),
             ));
-            $artifactStore->write(new \ApnTalk\LaravelFreeswitchEsl\Integration\Replay\ReplayEnvelopeArtifactAdapter(
+            $artifactStore->write(new ReplayEnvelopeArtifactAdapter(
                 $this->fixtureEnvelope('replay-session-prune', 1_715_788_800_000_000),
                 $this->fixtureContext('primary-fs', 'worker-session-prune'),
             ));
-            $artifactStore->write(new \ApnTalk\LaravelFreeswitchEsl\Integration\Replay\ReplayEnvelopeArtifactAdapter(
+            $artifactStore->write(new ReplayEnvelopeArtifactAdapter(
                 $this->fixtureEnvelope('replay-session-prune', 1_766_145_600_000_000),
                 $this->fixtureContext('primary-fs', 'worker-session-prune'),
             ));
 
             $this->bindRuntimeDependencies(
                 registry: $this->registryForNodes([$node]),
-                assignmentResolver: new class ($node) implements WorkerAssignmentResolverInterface {
+                assignmentResolver: new class($node) implements WorkerAssignmentResolverInterface
+                {
                     public function __construct(private readonly PbxNode $node) {}
-                    public function resolveNodes(WorkerAssignment $assignment): array { return [$this->node]; }
-                    public function resolveForWorkerName(string $workerName): array { return []; }
+
+                    public function resolveNodes(WorkerAssignment $assignment): array
+                    {
+                        return [$this->node];
+                    }
+
+                    public function resolveForWorkerName(string $workerName): array
+                    {
+                        return [];
+                    }
                 },
-                runtimeRunner: new class implements RuntimeRunnerInterface {
+                runtimeRunner: new class implements RuntimeRunnerInterface
+                {
                     public function run(RuntimeHandoffInterface $handoff): void {}
                 },
                 checkpointManager: new WorkerReplayCheckpointManager(
                     artifactStore: $artifactStore,
                     checkpointRepository: new ReplayCheckpointRepository($checkpointStore),
-                    logger: new NullLogger(),
+                    logger: new NullLogger,
                     enabled: true,
                     replayStoreDriver: 'filesystem',
                     replayStoragePath: $storagePath,
@@ -274,7 +321,7 @@ class FreeSwitchWorkerCheckpointStatusCommandTest extends TestCase
             $this->assertSame(24, $scope['historical_pruning_window_hours']);
             $this->assertSame('filesystem_retention_plan', $scope['historical_pruning_basis']);
         } finally {
-            $file = $storagePath . '/artifacts.ndjson';
+            $file = $storagePath.'/artifacts.ndjson';
             if (file_exists($file)) {
                 @unlink($file);
             }
@@ -289,9 +336,15 @@ class FreeSwitchWorkerCheckpointStatusCommandTest extends TestCase
 
         $this->bindRuntimeDependencies(
             registry: $this->registryForNodes([$primary, $edge]),
-            assignmentResolver: new class ($primary, $edge) implements WorkerAssignmentResolverInterface {
+            assignmentResolver: new class($primary, $edge) implements WorkerAssignmentResolverInterface
+            {
                 public function __construct(private readonly PbxNode $primary, private readonly PbxNode $edge) {}
-                public function resolveNodes(WorkerAssignment $assignment): array { return []; }
+
+                public function resolveNodes(WorkerAssignment $assignment): array
+                {
+                    return [];
+                }
+
                 public function resolveForWorkerName(string $workerName): array
                 {
                     return match ($workerName) {
@@ -301,7 +354,8 @@ class FreeSwitchWorkerCheckpointStatusCommandTest extends TestCase
                     };
                 }
             },
-            runtimeRunner: new class implements RuntimeRunnerInterface {
+            runtimeRunner: new class implements RuntimeRunnerInterface
+            {
                 public function run(RuntimeHandoffInterface $handoff): void {}
             },
             checkpointManager: $this->disabledCheckpointManager(),
@@ -335,9 +389,15 @@ class FreeSwitchWorkerCheckpointStatusCommandTest extends TestCase
 
         $this->bindRuntimeDependencies(
             registry: $this->registryForNodes([$primary, $edge]),
-            assignmentResolver: new class ($primary, $edge) implements WorkerAssignmentResolverInterface {
+            assignmentResolver: new class($primary, $edge) implements WorkerAssignmentResolverInterface
+            {
                 public function __construct(private readonly PbxNode $primary, private readonly PbxNode $edge) {}
-                public function resolveNodes(WorkerAssignment $assignment): array { return []; }
+
+                public function resolveNodes(WorkerAssignment $assignment): array
+                {
+                    return [];
+                }
+
                 public function resolveForWorkerName(string $workerName): array
                 {
                     return match ($workerName) {
@@ -348,7 +408,8 @@ class FreeSwitchWorkerCheckpointStatusCommandTest extends TestCase
                     };
                 }
             },
-            runtimeRunner: new class implements RuntimeRunnerInterface {
+            runtimeRunner: new class implements RuntimeRunnerInterface
+            {
                 public function run(RuntimeHandoffInterface $handoff): void {}
             },
             checkpointManager: $this->filteredCheckpointManager(),
@@ -394,8 +455,10 @@ class FreeSwitchWorkerCheckpointStatusCommandTest extends TestCase
      */
     private function registryForNodes(array $nodes): PbxRegistryInterface
     {
-        return new class ($nodes) implements PbxRegistryInterface {
+        return new class($nodes) implements PbxRegistryInterface
+        {
             public function __construct(private readonly array $nodes) {}
+
             public function findById(int $id): PbxNode
             {
                 foreach ($this->nodes as $node) {
@@ -405,6 +468,7 @@ class FreeSwitchWorkerCheckpointStatusCommandTest extends TestCase
                 }
                 throw new \RuntimeException(sprintf('Unknown node id [%d].', $id));
             }
+
             public function findBySlug(string $slug): PbxNode
             {
                 foreach ($this->nodes as $node) {
@@ -414,10 +478,26 @@ class FreeSwitchWorkerCheckpointStatusCommandTest extends TestCase
                 }
                 throw new PbxNotFoundException($slug);
             }
-            public function allActive(): array { return $this->nodes; }
-            public function allByCluster(string $cluster): array { return $this->nodes; }
-            public function allByTags(array $tags): array { return $this->nodes; }
-            public function allByProvider(string $providerCode): array { return $this->nodes; }
+
+            public function allActive(): array
+            {
+                return $this->nodes;
+            }
+
+            public function allByCluster(string $cluster): array
+            {
+                return $this->nodes;
+            }
+
+            public function allByTags(array $tags): array
+            {
+                return $this->nodes;
+            }
+
+            public function allByProvider(string $providerCode): array
+            {
+                return $this->nodes;
+            }
         };
     }
 
@@ -427,10 +507,23 @@ class FreeSwitchWorkerCheckpointStatusCommandTest extends TestCase
         RuntimeRunnerInterface $runtimeRunner,
         WorkerReplayCheckpointManager $checkpointManager,
     ): void {
-        $connectionResolver = new class implements ConnectionResolverInterface {
-            public function resolveForNode(int $pbxNodeId): ConnectionContext { return $this->context('primary-fs', $pbxNodeId); }
-            public function resolveForSlug(string $slug): ConnectionContext { return $this->context($slug, $slug === 'edge-fs' ? 2 : 1); }
-            public function resolveForPbxNode(PbxNode $node): ConnectionContext { return $this->context($node->slug, $node->id); }
+        $connectionResolver = new class implements ConnectionResolverInterface
+        {
+            public function resolveForNode(int $pbxNodeId): ConnectionContext
+            {
+                return $this->context('primary-fs', $pbxNodeId);
+            }
+
+            public function resolveForSlug(string $slug): ConnectionContext
+            {
+                return $this->context($slug, $slug === 'edge-fs' ? 2 : 1);
+            }
+
+            public function resolveForPbxNode(PbxNode $node): ConnectionContext
+            {
+                return $this->context($node->slug, $node->id);
+            }
+
             private function context(string $slug, int $id): ConnectionContext
             {
                 return new ConnectionContext(
@@ -448,16 +541,18 @@ class FreeSwitchWorkerCheckpointStatusCommandTest extends TestCase
             }
         };
 
-        $connectionFactory = new class implements ConnectionFactoryInterface {
+        $connectionFactory = new class implements ConnectionFactoryInterface
+        {
             public function create(ConnectionContext $context): EslCoreConnectionHandle
             {
-                $commandFactory = new EslCoreCommandFactory();
+                $commandFactory = new EslCoreCommandFactory;
+
                 return new EslCoreConnectionHandle(
                     context: $context,
-                    pipeline: (new EslCorePipelineFactory())->createPipeline(),
+                    pipeline: (new EslCorePipelineFactory)->createPipeline(),
                     openingSequence: $commandFactory->buildOpeningSequence($context),
                     closingSequence: $commandFactory->buildClosingSequence(),
-                    transportOpener: fn () => new InMemoryTransport(),
+                    transportOpener: fn () => new InMemoryTransport,
                 );
             }
         };
@@ -467,21 +562,23 @@ class FreeSwitchWorkerCheckpointStatusCommandTest extends TestCase
         $this->app->instance(ConnectionResolverInterface::class, $connectionResolver);
         $this->app->instance(ConnectionFactoryInterface::class, $connectionFactory);
         $this->app->instance(RuntimeRunnerInterface::class, $runtimeRunner);
-        $this->app->instance(LoggerInterface::class, new NullLogger());
+        $this->app->instance(LoggerInterface::class, new NullLogger);
         $this->app->instance(WorkerReplayCheckpointManager::class, $checkpointManager);
     }
 
     private function checkpointManager(
         \DateTimeImmutable $latestSavedAt,
         \DateTimeImmutable $previousSavedAt,
-    ): WorkerReplayCheckpointManager
-    {
-        $checkpointStore = new class ($latestSavedAt, $previousSavedAt) implements ReplayCheckpointStoreInterface, ReplayCheckpointInspectorInterface {
+    ): WorkerReplayCheckpointManager {
+        $checkpointStore = new class($latestSavedAt, $previousSavedAt) implements ReplayCheckpointInspectorInterface, ReplayCheckpointStoreInterface
+        {
             public function __construct(
                 private readonly \DateTimeImmutable $latestSavedAt,
                 private readonly \DateTimeImmutable $previousSavedAt,
             ) {}
+
             public function save(ReplayCheckpoint $checkpoint): void {}
+
             public function load(string $key): ?ReplayCheckpoint
             {
                 return new ReplayCheckpoint(
@@ -499,9 +596,15 @@ class FreeSwitchWorkerCheckpointStatusCommandTest extends TestCase
                     ],
                 );
             }
-            public function exists(string $key): bool { return true; }
+
+            public function exists(string $key): bool
+            {
+                return true;
+            }
+
             public function delete(string $key): void {}
-            public function find(\Apntalk\EslReplay\Checkpoint\ReplayCheckpointCriteria $criteria): array
+
+            public function find(ReplayCheckpointCriteria $criteria): array
             {
                 return [
                     new ReplayCheckpoint(
@@ -536,20 +639,33 @@ class FreeSwitchWorkerCheckpointStatusCommandTest extends TestCase
             }
         };
 
-        $artifactStore = new class implements ReplayArtifactStoreInterface {
-            public function write(\Apntalk\EslReplay\Artifact\CapturedArtifactEnvelope $artifact): ReplayRecordId
+        $artifactStore = new class implements ReplayArtifactStoreInterface
+        {
+            public function write(CapturedArtifactEnvelope $artifact): ReplayRecordId
             {
                 throw new \BadMethodCallException('write() should not be called in this checkpoint status command test.');
             }
-            public function readById(ReplayRecordId $id): ?StoredReplayRecord { return null; }
-            public function readFromCursor(ReplayReadCursor $cursor, int $limit = 100, ?ReplayReadCriteria $criteria = null): array { return []; }
-            public function openCursor(): ReplayReadCursor { return ReplayReadCursor::start(); }
+
+            public function readById(ReplayRecordId $id): ?StoredReplayRecord
+            {
+                return null;
+            }
+
+            public function readFromCursor(ReplayReadCursor $cursor, int $limit = 100, ?ReplayReadCriteria $criteria = null): array
+            {
+                return [];
+            }
+
+            public function openCursor(): ReplayReadCursor
+            {
+                return ReplayReadCursor::start();
+            }
         };
 
         return new WorkerReplayCheckpointManager(
             artifactStore: $artifactStore,
             checkpointRepository: new ReplayCheckpointRepository($checkpointStore),
-            logger: new NullLogger(),
+            logger: new NullLogger,
             enabled: true,
         );
     }
@@ -557,28 +673,60 @@ class FreeSwitchWorkerCheckpointStatusCommandTest extends TestCase
     private function disabledCheckpointManager(): WorkerReplayCheckpointManager
     {
         return new WorkerReplayCheckpointManager(
-            artifactStore: new class implements ReplayArtifactStoreInterface {
-                public function write(\Apntalk\EslReplay\Artifact\CapturedArtifactEnvelope $artifact): ReplayRecordId { throw new \BadMethodCallException('write() should not be called in this checkpoint status command test.'); }
-                public function readById(ReplayRecordId $id): ?StoredReplayRecord { return null; }
-                public function readFromCursor(ReplayReadCursor $cursor, int $limit = 100, ?ReplayReadCriteria $criteria = null): array { return []; }
-                public function openCursor(): ReplayReadCursor { return ReplayReadCursor::start(); }
+            artifactStore: new class implements ReplayArtifactStoreInterface
+            {
+                public function write(CapturedArtifactEnvelope $artifact): ReplayRecordId
+                {
+                    throw new \BadMethodCallException('write() should not be called in this checkpoint status command test.');
+                }
+
+                public function readById(ReplayRecordId $id): ?StoredReplayRecord
+                {
+                    return null;
+                }
+
+                public function readFromCursor(ReplayReadCursor $cursor, int $limit = 100, ?ReplayReadCriteria $criteria = null): array
+                {
+                    return [];
+                }
+
+                public function openCursor(): ReplayReadCursor
+                {
+                    return ReplayReadCursor::start();
+                }
             },
-            checkpointRepository: new ReplayCheckpointRepository(new class implements ReplayCheckpointStoreInterface {
+            checkpointRepository: new ReplayCheckpointRepository(new class implements ReplayCheckpointStoreInterface
+            {
                 public function save(ReplayCheckpoint $checkpoint): void {}
-                public function load(string $key): ?ReplayCheckpoint { return null; }
-                public function exists(string $key): bool { return false; }
+
+                public function load(string $key): ?ReplayCheckpoint
+                {
+                    return null;
+                }
+
+                public function exists(string $key): bool
+                {
+                    return false;
+                }
+
                 public function delete(string $key): void {}
-                public function find(\Apntalk\EslReplay\Checkpoint\ReplayCheckpointCriteria $criteria): array { return []; }
+
+                public function find(ReplayCheckpointCriteria $criteria): array
+                {
+                    return [];
+                }
             }),
-            logger: new NullLogger(),
+            logger: new NullLogger,
             enabled: false,
         );
     }
 
     private function filteredCheckpointManager(): WorkerReplayCheckpointManager
     {
-        $checkpointStore = new class implements ReplayCheckpointStoreInterface, ReplayCheckpointInspectorInterface {
+        $checkpointStore = new class implements ReplayCheckpointInspectorInterface, ReplayCheckpointStoreInterface
+        {
             public function save(ReplayCheckpoint $checkpoint): void {}
+
             public function load(string $key): ?ReplayCheckpoint
             {
                 $slug = str_contains($key, '.edge-fs.') ? 'edge-fs' : 'primary-fs';
@@ -597,9 +745,15 @@ class FreeSwitchWorkerCheckpointStatusCommandTest extends TestCase
                     ],
                 );
             }
-            public function exists(string $key): bool { return true; }
+
+            public function exists(string $key): bool
+            {
+                return true;
+            }
+
             public function delete(string $key): void {}
-            public function find(\Apntalk\EslReplay\Checkpoint\ReplayCheckpointCriteria $criteria): array
+
+            public function find(ReplayCheckpointCriteria $criteria): array
             {
                 $pbxNodeSlug = $criteria->pbxNodeSlug ?? 'primary-fs';
 
@@ -621,14 +775,30 @@ class FreeSwitchWorkerCheckpointStatusCommandTest extends TestCase
         };
 
         return new WorkerReplayCheckpointManager(
-            artifactStore: new class implements ReplayArtifactStoreInterface {
-                public function write(\Apntalk\EslReplay\Artifact\CapturedArtifactEnvelope $artifact): ReplayRecordId { throw new \BadMethodCallException('write() should not be called in this checkpoint status command test.'); }
-                public function readById(ReplayRecordId $id): ?StoredReplayRecord { return null; }
-                public function readFromCursor(ReplayReadCursor $cursor, int $limit = 100, ?ReplayReadCriteria $criteria = null): array { return []; }
-                public function openCursor(): ReplayReadCursor { return ReplayReadCursor::start(); }
+            artifactStore: new class implements ReplayArtifactStoreInterface
+            {
+                public function write(CapturedArtifactEnvelope $artifact): ReplayRecordId
+                {
+                    throw new \BadMethodCallException('write() should not be called in this checkpoint status command test.');
+                }
+
+                public function readById(ReplayRecordId $id): ?StoredReplayRecord
+                {
+                    return null;
+                }
+
+                public function readFromCursor(ReplayReadCursor $cursor, int $limit = 100, ?ReplayReadCriteria $criteria = null): array
+                {
+                    return [];
+                }
+
+                public function openCursor(): ReplayReadCursor
+                {
+                    return ReplayReadCursor::start();
+                }
             },
             checkpointRepository: new ReplayCheckpointRepository($checkpointStore),
-            logger: new NullLogger(),
+            logger: new NullLogger,
             enabled: true,
         );
     }
@@ -650,23 +820,60 @@ class FreeSwitchWorkerCheckpointStatusCommandTest extends TestCase
         );
     }
 
-    private function fixtureEnvelope(string $sessionId, int $capturedAtMicros): \Apntalk\EslCore\Contracts\ReplayEnvelopeInterface
+    private function fixtureEnvelope(string $sessionId, int $capturedAtMicros): ReplayEnvelopeInterface
     {
-        return new class ($sessionId, $capturedAtMicros) implements \Apntalk\EslCore\Contracts\ReplayEnvelopeInterface {
+        return new class($sessionId, $capturedAtMicros) implements ReplayEnvelopeInterface
+        {
             public function __construct(
                 private readonly string $sessionId,
                 private readonly int $capturedAtMicros,
             ) {}
 
-            public function capturedType(): string { return 'event'; }
-            public function capturedName(): string { return 'CHANNEL_CREATE'; }
-            public function sessionId(): ?string { return $this->sessionId; }
-            public function captureSequence(): int { return 1; }
-            public function capturedAtMicros(): int { return $this->capturedAtMicros; }
-            public function protocolSequence(): ?string { return '42'; }
-            public function rawPayload(): string { return 'Event-Name: CHANNEL_CREATE'; }
-            public function classifierContext(): array { return ['content-type' => 'text/event-plain']; }
-            public function protocolFacts(): array { return ['event-name' => 'CHANNEL_CREATE']; }
+            public function capturedType(): string
+            {
+                return 'event';
+            }
+
+            public function capturedName(): string
+            {
+                return 'CHANNEL_CREATE';
+            }
+
+            public function sessionId(): ?string
+            {
+                return $this->sessionId;
+            }
+
+            public function captureSequence(): int
+            {
+                return 1;
+            }
+
+            public function capturedAtMicros(): int
+            {
+                return $this->capturedAtMicros;
+            }
+
+            public function protocolSequence(): ?string
+            {
+                return '42';
+            }
+
+            public function rawPayload(): string
+            {
+                return 'Event-Name: CHANNEL_CREATE';
+            }
+
+            public function classifierContext(): array
+            {
+                return ['content-type' => 'text/event-plain'];
+            }
+
+            public function protocolFacts(): array
+            {
+                return ['event-name' => 'CHANNEL_CREATE'];
+            }
+
             public function derivedMetadata(): array
             {
                 return [

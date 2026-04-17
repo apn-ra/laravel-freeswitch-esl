@@ -2,12 +2,12 @@
 
 namespace ApnTalk\LaravelFreeswitchEsl\Tests\Replay;
 
-use Apntalk\EslReplay\Checkpoint\ReplayCheckpointRepository;
-use Apntalk\EslReplay\Contracts\ReplayCheckpointStoreInterface;
 use Apntalk\EslCore\Contracts\ReplayEnvelopeInterface;
-use Apntalk\EslReplay\Contracts\ReplayArtifactStoreInterface;
 use Apntalk\EslReplay\Adapter\Filesystem\FilesystemReplayArtifactStore;
 use Apntalk\EslReplay\Checkpoint\ReplayCheckpoint;
+use Apntalk\EslReplay\Checkpoint\ReplayCheckpointRepository;
+use Apntalk\EslReplay\Contracts\ReplayArtifactStoreInterface;
+use Apntalk\EslReplay\Contracts\ReplayCheckpointStoreInterface;
 use Apntalk\EslReplay\Read\ReplayReadCriteria;
 use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\ConnectionContext;
 use ApnTalk\LaravelFreeswitchEsl\Integration\Replay\ReplayArtifactStoreCaptureSink;
@@ -26,8 +26,8 @@ class ReplayIntegrationTest extends TestCase
     {
         parent::getEnvironmentSetUp($app);
 
-        $this->storagePath = sys_get_temp_dir() . '/laravel-freeswitch-esl-tests/replay-integration.sqlite';
-        $this->checkpointStoragePath = sys_get_temp_dir() . '/laravel-freeswitch-esl-tests/replay-checkpoints';
+        $this->storagePath = sys_get_temp_dir().'/laravel-freeswitch-esl-tests/replay-integration.sqlite';
+        $this->checkpointStoragePath = sys_get_temp_dir().'/laravel-freeswitch-esl-tests/replay-checkpoints';
 
         $app['config']->set('freeswitch-esl.replay.enabled', true);
         $app['config']->set('freeswitch-esl.replay.store_driver', 'database');
@@ -114,8 +114,8 @@ class ReplayIntegrationTest extends TestCase
 
     public function test_partitioning_by_pbx_node_slug_is_enforced(): void
     {
-        $sinkA = new ReplayArtifactStoreCaptureSink($this->store(), $this->makeContext(pbxNodeSlug: 'node-a'), new NullLogger());
-        $sinkB = new ReplayArtifactStoreCaptureSink($this->store(), $this->makeContext(pbxNodeSlug: 'node-b'), new NullLogger());
+        $sinkA = new ReplayArtifactStoreCaptureSink($this->store(), $this->makeContext(pbxNodeSlug: 'node-a'), new NullLogger);
+        $sinkB = new ReplayArtifactStoreCaptureSink($this->store(), $this->makeContext(pbxNodeSlug: 'node-b'), new NullLogger);
 
         $sinkA->capture($this->makeEnvelope(sessionId: 'replay-session-a'));
         $sinkB->capture($this->makeEnvelope(sessionId: 'replay-session-b'));
@@ -147,8 +147,8 @@ class ReplayIntegrationTest extends TestCase
 
     public function test_replay_inspect_command_reads_stored_records_for_one_pbx(): void
     {
-        $sinkA = new ReplayArtifactStoreCaptureSink($this->store(), $this->makeContext(pbxNodeSlug: 'node-a'), new NullLogger());
-        $sinkB = new ReplayArtifactStoreCaptureSink($this->store(), $this->makeContext(pbxNodeSlug: 'node-b'), new NullLogger());
+        $sinkA = new ReplayArtifactStoreCaptureSink($this->store(), $this->makeContext(pbxNodeSlug: 'node-a'), new NullLogger);
+        $sinkB = new ReplayArtifactStoreCaptureSink($this->store(), $this->makeContext(pbxNodeSlug: 'node-b'), new NullLogger);
 
         $sinkA->capture($this->makeEnvelope(
             sessionId: 'replay-session-a',
@@ -175,14 +175,14 @@ class ReplayIntegrationTest extends TestCase
         $sink = new ReplayArtifactStoreCaptureSink(
             $this->store(),
             $this->makeContext(workerSessionId: 'worker-session-a'),
-            new NullLogger(),
+            new NullLogger,
         );
         $sink->capture($this->makeEnvelope(sessionId: 'replay-session-a'));
 
         $manager = new WorkerReplayCheckpointManager(
             artifactStore: $this->store(),
             checkpointRepository: new ReplayCheckpointRepository($this->app->make(ReplayCheckpointStoreInterface::class)),
-            logger: new NullLogger(),
+            logger: new NullLogger,
             enabled: true,
         );
 
@@ -208,7 +208,7 @@ class ReplayIntegrationTest extends TestCase
     public function test_worker_checkpoint_manager_surfaces_bounded_recovery_candidate_from_checkpoint_identity(): void
     {
         $context = $this->makeContext(workerSessionId: 'worker-session-a');
-        $sink = new ReplayArtifactStoreCaptureSink($this->store(), $context, new NullLogger());
+        $sink = new ReplayArtifactStoreCaptureSink($this->store(), $context, new NullLogger);
         $sink->capture($this->makeEnvelope(
             sessionId: 'replay-session-a',
             capturedAtMicros: 1_800_000_000_000_000,
@@ -217,7 +217,7 @@ class ReplayIntegrationTest extends TestCase
         $manager = new WorkerReplayCheckpointManager(
             artifactStore: $this->store(),
             checkpointRepository: new ReplayCheckpointRepository($this->app->make(ReplayCheckpointStoreInterface::class)),
-            logger: new NullLogger(),
+            logger: new NullLogger,
             enabled: true,
         );
 
@@ -243,7 +243,7 @@ class ReplayIntegrationTest extends TestCase
     public function test_worker_checkpoint_manager_can_summarize_bounded_historical_checkpoint_posture(): void
     {
         $context = $this->makeContext(workerSessionId: 'worker-session-a');
-        $sink = new ReplayArtifactStoreCaptureSink($this->store(), $context, new NullLogger());
+        $sink = new ReplayArtifactStoreCaptureSink($this->store(), $context, new NullLogger);
         $sink->capture($this->makeEnvelope(
             sessionId: 'replay-session-a',
             capturedAtMicros: 1_800_000_000_000_000,
@@ -252,7 +252,7 @@ class ReplayIntegrationTest extends TestCase
         $manager = new WorkerReplayCheckpointManager(
             artifactStore: $this->store(),
             checkpointRepository: new ReplayCheckpointRepository($this->app->make(ReplayCheckpointStoreInterface::class)),
-            logger: new NullLogger(),
+            logger: new NullLogger,
             enabled: true,
         );
 
@@ -299,7 +299,7 @@ class ReplayIntegrationTest extends TestCase
         $manager = new WorkerReplayCheckpointManager(
             artifactStore: $this->store(),
             checkpointRepository: new ReplayCheckpointRepository($this->app->make(ReplayCheckpointStoreInterface::class)),
-            logger: new NullLogger(),
+            logger: new NullLogger,
             enabled: true,
             replayStoreDriver: 'database',
             replayStoragePath: $this->storagePath,
@@ -320,13 +320,13 @@ class ReplayIntegrationTest extends TestCase
 
     public function test_worker_checkpoint_manager_can_report_filesystem_backed_historical_pruning_posture(): void
     {
-        $storagePath = sys_get_temp_dir() . '/laravel-freeswitch-esl-tests/replay-pruning-' . bin2hex(random_bytes(4));
+        $storagePath = sys_get_temp_dir().'/laravel-freeswitch-esl-tests/replay-pruning-'.bin2hex(random_bytes(4));
         @mkdir($storagePath, 0777, true);
 
         try {
             $artifactStore = new FilesystemReplayArtifactStore($storagePath);
             $context = $this->makeContext(workerSessionId: 'worker-session-a');
-            $sink = new ReplayArtifactStoreCaptureSink($artifactStore, $context, new NullLogger());
+            $sink = new ReplayArtifactStoreCaptureSink($artifactStore, $context, new NullLogger);
             $sink->capture($this->makeEnvelope(
                 sessionId: 'replay-session-a',
                 capturedAtMicros: 1_715_702_400_000_000,
@@ -339,7 +339,7 @@ class ReplayIntegrationTest extends TestCase
             $manager = new WorkerReplayCheckpointManager(
                 artifactStore: $artifactStore,
                 checkpointRepository: new ReplayCheckpointRepository($this->app->make(ReplayCheckpointStoreInterface::class)),
-                logger: new NullLogger(),
+                logger: new NullLogger,
                 enabled: true,
                 replayStoreDriver: 'filesystem',
                 replayStoragePath: $storagePath,
@@ -367,7 +367,7 @@ class ReplayIntegrationTest extends TestCase
             $this->assertSame(24, $summary['historical_pruning_window_hours']);
             $this->assertSame('filesystem_retention_plan', $summary['historical_pruning_basis']);
         } finally {
-            $file = $storagePath . '/artifacts.ndjson';
+            $file = $storagePath.'/artifacts.ndjson';
             if (file_exists($file)) {
                 @unlink($file);
             }
@@ -387,7 +387,7 @@ class ReplayIntegrationTest extends TestCase
         }
 
         if (isset($this->checkpointStoragePath) && is_dir($this->checkpointStoragePath)) {
-            $files = glob($this->checkpointStoragePath . '/*.json');
+            $files = glob($this->checkpointStoragePath.'/*.json');
 
             if (is_array($files)) {
                 foreach ($files as $file) {
@@ -422,7 +422,8 @@ class ReplayIntegrationTest extends TestCase
         string $sessionId,
         int $capturedAtMicros = 1_800_000_000_000_000,
     ): ReplayEnvelopeInterface {
-        return new class ($sessionId, $capturedAtMicros) implements ReplayEnvelopeInterface {
+        return new class($sessionId, $capturedAtMicros) implements ReplayEnvelopeInterface
+        {
             public function __construct(
                 private readonly string $sessionId,
                 private readonly int $capturedAtMicros,

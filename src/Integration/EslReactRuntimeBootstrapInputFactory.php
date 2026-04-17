@@ -2,9 +2,9 @@
 
 namespace ApnTalk\LaravelFreeswitchEsl\Integration;
 
+use Apntalk\EslCore\Contracts\ReplayCaptureSinkInterface;
 use Apntalk\EslReact\Config\RuntimeConfig;
 use Apntalk\EslReact\Config\SubscriptionConfig;
-use Apntalk\EslCore\Contracts\ReplayCaptureSinkInterface;
 use Apntalk\EslReact\Runner\PreparedRuntimeBootstrapInput;
 use Apntalk\EslReact\Runner\RuntimeSessionContext;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\RuntimeHandoffInterface;

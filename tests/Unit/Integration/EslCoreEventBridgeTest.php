@@ -34,7 +34,7 @@ class EslCoreEventBridgeTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->laravelEvents = new Dispatcher();
+        $this->laravelEvents = new Dispatcher;
         $this->bridge = new EslCoreEventBridge($this->laravelEvents);
         $this->context = $this->makeContext();
     }

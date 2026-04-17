@@ -85,10 +85,10 @@ class FreeSwitchDriver implements ProviderDriverInterface
     private function buildDriverParameters(PbxNode $node, ConnectionProfile $profile): array
     {
         $params = [
-            'esl_host'      => $node->host,
-            'esl_port'      => $node->port,
+            'esl_host' => $node->host,
+            'esl_port' => $node->port,
             'esl_transport' => $node->transport,
-            'esl_username'  => $node->username,
+            'esl_username' => $node->username,
         ];
 
         // Merge subscription and worker profile settings from the connection profile

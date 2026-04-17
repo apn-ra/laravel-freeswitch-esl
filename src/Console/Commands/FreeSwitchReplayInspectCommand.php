@@ -45,7 +45,7 @@ class FreeSwitchReplayInspectCommand extends Command
         if (! app()->bound(ReplayArtifactStoreInterface::class)) {
             $this->error(
                 'ReplayArtifactStoreInterface is not bound in the container. '
-                . 'Ensure apntalk/esl-replay is installed and configured.'
+                .'Ensure apntalk/esl-replay is installed and configured.'
             );
 
             return self::FAILURE;
@@ -60,7 +60,7 @@ class FreeSwitchReplayInspectCommand extends Command
             : new \DateTimeImmutable('-1 hour');
         $to = $toOption !== null
             ? new \DateTimeImmutable($toOption)
-            : new \DateTimeImmutable();
+            : new \DateTimeImmutable;
         $limit = $limitOption !== null ? (int) $limitOption : 50;
         $asJson = $this->booleanOption('json');
 
@@ -157,9 +157,6 @@ class FreeSwitchReplayInspectCommand extends Command
         return $this->option($name) === true;
     }
 
-    /**
-     * @param  mixed  $value
-     */
     private function jsonString(mixed $value): string
     {
         return json_encode($value, JSON_PRETTY_PRINT) ?: '{}';

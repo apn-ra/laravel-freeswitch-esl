@@ -78,7 +78,7 @@ class FreeSwitchWorkerCheckpointStatusCommand extends Command
             $hasMore = count($filteredScopes) > ($offset + count($paginatedScopes));
 
             $this->line($this->jsonString(
-                (new WorkerCheckpointHistoryReportBuilder())->report(
+                (new WorkerCheckpointHistoryReportBuilder)->report(
                     scopes: $paginatedScopes,
                     windowHours: $windowHours,
                     historyLimit: $historyLimit,

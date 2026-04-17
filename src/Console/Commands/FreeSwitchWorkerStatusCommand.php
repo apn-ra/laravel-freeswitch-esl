@@ -98,7 +98,7 @@ class FreeSwitchWorkerStatusCommand extends Command
         try {
             $supervisor->prepare($assignment);
 
-            return (new WorkerStatusReportBuilder())->workerReport(
+            return (new WorkerStatusReportBuilder)->workerReport(
                 workerName: $assignment->workerName,
                 assignmentMode: $assignment->assignmentMode,
                 statuses: $supervisor->runtimeStatuses(),
@@ -124,7 +124,7 @@ class FreeSwitchWorkerStatusCommand extends Command
                 $reports[] = [
                     'worker_name' => $workerName,
                     'assignment_mode' => 'db-backed',
-                    'summary' => (new WorkerStatusReportBuilder())->statusSummary([]),
+                    'summary' => (new WorkerStatusReportBuilder)->statusSummary([]),
                     'nodes' => [],
                 ];
 
@@ -135,7 +135,7 @@ class FreeSwitchWorkerStatusCommand extends Command
 
             try {
                 $supervisor->prepareForNodes($workerName, 'db-backed', $nodes);
-                $reports[] = (new WorkerStatusReportBuilder())->workerReport(
+                $reports[] = (new WorkerStatusReportBuilder)->workerReport(
                     workerName: $workerName,
                     assignmentMode: 'db-backed',
                     statuses: $supervisor->runtimeStatuses(),

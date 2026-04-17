@@ -4,12 +4,12 @@ namespace ApnTalk\LaravelFreeswitchEsl\Worker;
 
 use ApnTalk\LaravelFreeswitchEsl\Contracts\ConnectionFactoryInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\ConnectionResolverInterface;
+use ApnTalk\LaravelFreeswitchEsl\Contracts\RuntimeHandoffInterface;
+use ApnTalk\LaravelFreeswitchEsl\Contracts\RuntimeRunnerInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\WorkerAssignmentResolverInterface;
 use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\PbxNode;
 use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\WorkerAssignment;
 use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\WorkerStatus;
-use ApnTalk\LaravelFreeswitchEsl\Contracts\RuntimeHandoffInterface;
-use ApnTalk\LaravelFreeswitchEsl\Contracts\RuntimeRunnerInterface;
 use ApnTalk\LaravelFreeswitchEsl\Exceptions\WorkerException;
 use ApnTalk\LaravelFreeswitchEsl\Integration\Replay\WorkerReplayCheckpointManager;
 use Psr\Log\LoggerInterface;
@@ -87,6 +87,7 @@ class WorkerSupervisor
      * The supervisor performs no additional assignment resolution.
      *
      * @param  PbxNode[]  $nodes
+     *
      * @throws WorkerException if $nodes is empty
      */
     public function runForNodes(string $workerName, string $assignmentScope, array $nodes): void
@@ -130,6 +131,7 @@ class WorkerSupervisor
      * without invoking the runtime runner.
      *
      * @param  PbxNode[]  $nodes
+     *
      * @throws WorkerException if $nodes is empty
      */
     public function prepareForNodes(string $workerName, string $assignmentScope, array $nodes): void
@@ -154,7 +156,7 @@ class WorkerSupervisor
             } catch (\Throwable $e) {
                 $this->logger->warning('Error during worker shutdown', [
                     'session_id' => $runtime->sessionId(),
-                    'error'      => $e->getMessage(),
+                    'error' => $e->getMessage(),
                 ]);
             }
         }
@@ -228,14 +230,13 @@ class WorkerSupervisor
         string $assignmentScope,
         array $nodes,
         bool $invokeRunner,
-    ): void
-    {
+    ): void {
         $this->logger->info('WorkerSupervisor starting', [
-            'worker_name'      => $workerName,
+            'worker_name' => $workerName,
             'assignment_scope' => $assignmentScope,
-            'node_count'       => count($nodes),
-            'node_slugs'       => array_map(fn (PbxNode $n) => $n->slug, $nodes),
-            'invoke_runner'    => $invokeRunner,
+            'node_count' => count($nodes),
+            'node_slugs' => array_map(fn (PbxNode $n) => $n->slug, $nodes),
+            'invoke_runner' => $invokeRunner,
         ]);
 
         foreach ($nodes as $node) {
@@ -261,9 +262,9 @@ class WorkerSupervisor
                 }
             } catch (\Throwable $e) {
                 $this->logger->error('WorkerRuntime failed for node', [
-                    'worker_name'   => $workerName,
+                    'worker_name' => $workerName,
                     'pbx_node_slug' => $node->slug,
-                    'error'         => $e->getMessage(),
+                    'error' => $e->getMessage(),
                 ]);
                 // Isolate: continue to next node rather than aborting the whole supervisor
             }

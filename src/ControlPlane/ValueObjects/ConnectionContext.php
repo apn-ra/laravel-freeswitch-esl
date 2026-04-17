@@ -45,16 +45,16 @@ final class ConnectionContext
     public function toLogContext(): array
     {
         return [
-            'pbx_node_id'           => $this->pbxNodeId,
-            'pbx_node_slug'         => $this->pbxNodeSlug,
-            'provider_code'         => $this->providerCode,
-            'host'                  => $this->host,
-            'port'                  => $this->port,
-            'username'              => $this->username,
-            'transport'             => $this->transport,
+            'pbx_node_id' => $this->pbxNodeId,
+            'pbx_node_slug' => $this->pbxNodeSlug,
+            'provider_code' => $this->providerCode,
+            'host' => $this->host,
+            'port' => $this->port,
+            'username' => $this->username,
+            'transport' => $this->transport,
             'connection_profile_id' => $this->connectionProfileId,
-            'connection_profile'    => $this->connectionProfileName,
-            'worker_session_id'     => $this->workerSessionId,
+            'connection_profile' => $this->connectionProfileName,
+            'worker_session_id' => $this->workerSessionId,
         ];
     }
 

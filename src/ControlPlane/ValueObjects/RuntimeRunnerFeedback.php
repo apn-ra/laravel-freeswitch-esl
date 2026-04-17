@@ -12,8 +12,11 @@ namespace ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects;
 final class RuntimeRunnerFeedback
 {
     public const STATE_NOT_LIVE = 'not-live';
+
     public const STATE_STARTING = 'starting';
+
     public const STATE_RUNNING = 'running';
+
     public const STATE_FAILED = 'failed';
 
     public function __construct(

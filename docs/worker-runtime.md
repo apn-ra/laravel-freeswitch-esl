@@ -36,8 +36,8 @@ ApnTalk\LaravelFreeswitchEsl\Worker\WorkerRuntime
 Lifecycle:
 1. `boot()` — resolves and **persists** the `ConnectionContext` (with worker session identity attached via `withWorkerSession()`), creates and retains the package-owned runtime handoff bundle through `ConnectionFactoryInterface`, then sets state to `running`
 2. `run()` — validates the prepared handoff state and invokes `RuntimeRunnerInterface`; by default this adapts the handoff into `apntalk/esl-react`'s prepared bootstrap input and invokes the upstream runner
-3. `drain()` — signals drain mode; current scaffolding records drain intent only
-4. `shutdown()` — cleans up resources and returns
+3. `drain()` — enters bounded drain mode, records drain start/deadline metadata, and snapshots replay-backed drain checkpoints while waiting for Laravel-owned inflight bookkeeping to settle or timeout
+4. `shutdown()` — persists the conservative terminal checkpoint state when needed, then cleans up and returns
 
 Each `WorkerRuntime` carries a stable `sessionId` for log correlation and health reporting.
 

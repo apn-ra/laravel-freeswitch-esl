@@ -2,7 +2,10 @@
 
 namespace ApnTalk\LaravelFreeswitchEsl\Tests\Integration\Console;
 
+use Apntalk\EslCore\Transport\InMemoryTransport;
+use Apntalk\EslReplay\Artifact\CapturedArtifactEnvelope;
 use Apntalk\EslReplay\Checkpoint\ReplayCheckpoint;
+use Apntalk\EslReplay\Checkpoint\ReplayCheckpointCriteria;
 use Apntalk\EslReplay\Checkpoint\ReplayCheckpointRepository;
 use Apntalk\EslReplay\Contracts\ReplayArtifactStoreInterface;
 use Apntalk\EslReplay\Contracts\ReplayCheckpointStoreInterface;
@@ -10,13 +13,13 @@ use Apntalk\EslReplay\Cursor\ReplayReadCursor;
 use Apntalk\EslReplay\Read\ReplayReadCriteria;
 use Apntalk\EslReplay\Storage\ReplayRecordId;
 use Apntalk\EslReplay\Storage\StoredReplayRecord;
+use ApnTalk\LaravelFreeswitchEsl\Console\Support\WorkerStatusReportBuilder;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\ConnectionFactoryInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\ConnectionResolverInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\PbxRegistryInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\RuntimeHandoffInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\RuntimeRunnerInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\WorkerAssignmentResolverInterface;
-use ApnTalk\LaravelFreeswitchEsl\Console\Support\WorkerStatusReportBuilder;
 use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\ConnectionContext;
 use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\PbxNode;
 use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\WorkerAssignment;
@@ -27,7 +30,6 @@ use ApnTalk\LaravelFreeswitchEsl\Integration\EslCoreConnectionHandle;
 use ApnTalk\LaravelFreeswitchEsl\Integration\EslCorePipelineFactory;
 use ApnTalk\LaravelFreeswitchEsl\Integration\Replay\WorkerReplayCheckpointManager;
 use ApnTalk\LaravelFreeswitchEsl\Tests\TestCase;
-use Apntalk\EslCore\Transport\InMemoryTransport;
 use Illuminate\Contracts\Console\Kernel;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
@@ -45,7 +47,8 @@ class FreeSwitchWorkerCommandTest extends TestCase
     public function test_worker_command_ephemeral_pbx_path_prepares_runtime_handoff(): void
     {
         $node = $this->makeNode(1, 'primary-fs');
-        $registry = new class ($node) implements PbxRegistryInterface {
+        $registry = new class($node) implements PbxRegistryInterface
+        {
             public int $findBySlugCalls = 0;
 
             public function __construct(private readonly PbxNode $node) {}
@@ -87,9 +90,12 @@ class FreeSwitchWorkerCommandTest extends TestCase
             }
         };
 
-        $assignmentResolver = new class ($node) implements WorkerAssignmentResolverInterface {
+        $assignmentResolver = new class($node) implements WorkerAssignmentResolverInterface
+        {
             public int $resolveNodesCalls = 0;
+
             public int $resolveForWorkerNameCalls = 0;
+
             public ?WorkerAssignment $lastAssignment = null;
 
             public function __construct(private readonly PbxNode $node) {}
@@ -110,7 +116,8 @@ class FreeSwitchWorkerCommandTest extends TestCase
             }
         };
 
-        $connectionResolver = new class implements ConnectionResolverInterface {
+        $connectionResolver = new class implements ConnectionResolverInterface
+        {
             /** @var list<string> */
             public array $resolvedNodeSlugs = [];
 
@@ -148,7 +155,8 @@ class FreeSwitchWorkerCommandTest extends TestCase
             }
         };
 
-        $connectionFactory = new class implements ConnectionFactoryInterface {
+        $connectionFactory = new class implements ConnectionFactoryInterface
+        {
             public int $createCalls = 0;
 
             /** @var list<ConnectionContext> */
@@ -159,19 +167,20 @@ class FreeSwitchWorkerCommandTest extends TestCase
                 $this->createCalls++;
                 $this->contexts[] = $context;
 
-                $commandFactory = new EslCoreCommandFactory();
+                $commandFactory = new EslCoreCommandFactory;
 
                 return new EslCoreConnectionHandle(
                     context: $context,
-                    pipeline: (new EslCorePipelineFactory())->createPipeline(),
+                    pipeline: (new EslCorePipelineFactory)->createPipeline(),
                     openingSequence: $commandFactory->buildOpeningSequence($context),
                     closingSequence: $commandFactory->buildClosingSequence(),
-                    transportOpener: fn () => new InMemoryTransport(),
+                    transportOpener: fn () => new InMemoryTransport,
                 );
             }
         };
 
-        $runtimeRunner = new class implements RuntimeRunnerInterface {
+        $runtimeRunner = new class implements RuntimeRunnerInterface
+        {
             public int $runCalls = 0;
 
             public function run(RuntimeHandoffInterface $handoff): void
@@ -185,7 +194,7 @@ class FreeSwitchWorkerCommandTest extends TestCase
         $this->app->instance(ConnectionResolverInterface::class, $connectionResolver);
         $this->app->instance(ConnectionFactoryInterface::class, $connectionFactory);
         $this->app->instance(RuntimeRunnerInterface::class, $runtimeRunner);
-        $this->app->instance(LoggerInterface::class, new NullLogger());
+        $this->app->instance(LoggerInterface::class, new NullLogger);
 
         $this->artisan('freeswitch:worker', [
             '--worker' => 'ingest-worker',
@@ -214,7 +223,8 @@ class FreeSwitchWorkerCommandTest extends TestCase
         $nodeA = $this->makeNode(1, 'db-node-a');
         $nodeB = $this->makeNode(2, 'db-node-b');
 
-        $registry = new class implements PbxRegistryInterface {
+        $registry = new class implements PbxRegistryInterface
+        {
             public function findById(int $id): PbxNode
             {
                 throw new \BadMethodCallException('Registry should not be used in --db path.');
@@ -246,8 +256,10 @@ class FreeSwitchWorkerCommandTest extends TestCase
             }
         };
 
-        $assignmentResolver = new class ($nodeA, $nodeB) implements WorkerAssignmentResolverInterface {
+        $assignmentResolver = new class($nodeA, $nodeB) implements WorkerAssignmentResolverInterface
+        {
             public int $resolveNodesCalls = 0;
+
             public int $resolveForWorkerNameCalls = 0;
 
             public function __construct(
@@ -270,7 +282,8 @@ class FreeSwitchWorkerCommandTest extends TestCase
             }
         };
 
-        $connectionResolver = new class implements ConnectionResolverInterface {
+        $connectionResolver = new class implements ConnectionResolverInterface
+        {
             /** @var list<string> */
             public array $resolvedNodeSlugs = [];
 
@@ -308,7 +321,8 @@ class FreeSwitchWorkerCommandTest extends TestCase
             }
         };
 
-        $connectionFactory = new class implements ConnectionFactoryInterface {
+        $connectionFactory = new class implements ConnectionFactoryInterface
+        {
             public int $createCalls = 0;
 
             /** @var list<ConnectionContext> */
@@ -319,19 +333,20 @@ class FreeSwitchWorkerCommandTest extends TestCase
                 $this->createCalls++;
                 $this->contexts[] = $context;
 
-                $commandFactory = new EslCoreCommandFactory();
+                $commandFactory = new EslCoreCommandFactory;
 
                 return new EslCoreConnectionHandle(
                     context: $context,
-                    pipeline: (new EslCorePipelineFactory())->createPipeline(),
+                    pipeline: (new EslCorePipelineFactory)->createPipeline(),
                     openingSequence: $commandFactory->buildOpeningSequence($context),
                     closingSequence: $commandFactory->buildClosingSequence(),
-                    transportOpener: fn () => new InMemoryTransport(),
+                    transportOpener: fn () => new InMemoryTransport,
                 );
             }
         };
 
-        $runtimeRunner = new class implements RuntimeRunnerInterface {
+        $runtimeRunner = new class implements RuntimeRunnerInterface
+        {
             public int $runCalls = 0;
 
             public function run(RuntimeHandoffInterface $handoff): void
@@ -345,7 +360,7 @@ class FreeSwitchWorkerCommandTest extends TestCase
         $this->app->instance(ConnectionResolverInterface::class, $connectionResolver);
         $this->app->instance(ConnectionFactoryInterface::class, $connectionFactory);
         $this->app->instance(RuntimeRunnerInterface::class, $runtimeRunner);
-        $this->app->instance(LoggerInterface::class, new NullLogger());
+        $this->app->instance(LoggerInterface::class, new NullLogger);
 
         $this->artisan('freeswitch:worker', [
             '--worker' => 'db-worker',
@@ -369,7 +384,8 @@ class FreeSwitchWorkerCommandTest extends TestCase
     public function test_worker_command_surfaces_bounded_replay_recovery_posture_when_checkpoint_exists(): void
     {
         $node = $this->makeNode(1, 'primary-fs');
-        $registry = new class ($node) implements PbxRegistryInterface {
+        $registry = new class($node) implements PbxRegistryInterface
+        {
             public function __construct(private readonly PbxNode $node) {}
 
             public function findById(int $id): PbxNode
@@ -403,7 +419,8 @@ class FreeSwitchWorkerCommandTest extends TestCase
             }
         };
 
-        $assignmentResolver = new class ($node) implements WorkerAssignmentResolverInterface {
+        $assignmentResolver = new class($node) implements WorkerAssignmentResolverInterface
+        {
             public function __construct(private readonly PbxNode $node) {}
 
             public function resolveNodes(WorkerAssignment $assignment): array
@@ -417,7 +434,8 @@ class FreeSwitchWorkerCommandTest extends TestCase
             }
         };
 
-        $connectionResolver = new class implements ConnectionResolverInterface {
+        $connectionResolver = new class implements ConnectionResolverInterface
+        {
             public function resolveForNode(int $pbxNodeId): ConnectionContext
             {
                 return $this->makeContext();
@@ -450,31 +468,30 @@ class FreeSwitchWorkerCommandTest extends TestCase
             }
         };
 
-        $connectionFactory = new class implements ConnectionFactoryInterface {
+        $connectionFactory = new class implements ConnectionFactoryInterface
+        {
             public function create(ConnectionContext $context): EslCoreConnectionHandle
             {
-                $commandFactory = new EslCoreCommandFactory();
+                $commandFactory = new EslCoreCommandFactory;
 
                 return new EslCoreConnectionHandle(
                     context: $context,
-                    pipeline: (new EslCorePipelineFactory())->createPipeline(),
+                    pipeline: (new EslCorePipelineFactory)->createPipeline(),
                     openingSequence: $commandFactory->buildOpeningSequence($context),
                     closingSequence: $commandFactory->buildClosingSequence(),
-                    transportOpener: fn () => new InMemoryTransport(),
+                    transportOpener: fn () => new InMemoryTransport,
                 );
             }
         };
 
-        $runtimeRunner = new class implements RuntimeRunnerInterface {
-            public function run(RuntimeHandoffInterface $handoff): void
-            {
-            }
+        $runtimeRunner = new class implements RuntimeRunnerInterface
+        {
+            public function run(RuntimeHandoffInterface $handoff): void {}
         };
 
-        $checkpointStore = new class implements ReplayCheckpointStoreInterface {
-            public function save(ReplayCheckpoint $checkpoint): void
-            {
-            }
+        $checkpointStore = new class implements ReplayCheckpointStoreInterface
+        {
+            public function save(ReplayCheckpoint $checkpoint): void {}
 
             public function load(string $key): ?ReplayCheckpoint
             {
@@ -497,18 +514,17 @@ class FreeSwitchWorkerCommandTest extends TestCase
                 return true;
             }
 
-            public function delete(string $key): void
-            {
-            }
+            public function delete(string $key): void {}
 
-            public function find(\Apntalk\EslReplay\Checkpoint\ReplayCheckpointCriteria $criteria): array
+            public function find(ReplayCheckpointCriteria $criteria): array
             {
                 return [$this->load('worker-runtime.ingest-worker.freeswitch.primary-fs.default')];
             }
         };
 
-        $artifactStore = new class implements ReplayArtifactStoreInterface {
-            public function write(\Apntalk\EslReplay\Artifact\CapturedArtifactEnvelope $artifact): ReplayRecordId
+        $artifactStore = new class implements ReplayArtifactStoreInterface
+        {
+            public function write(CapturedArtifactEnvelope $artifact): ReplayRecordId
             {
                 throw new \BadMethodCallException('write() should not be called in this command test.');
             }
@@ -562,13 +578,13 @@ class FreeSwitchWorkerCommandTest extends TestCase
         $this->app->instance(ConnectionResolverInterface::class, $connectionResolver);
         $this->app->instance(ConnectionFactoryInterface::class, $connectionFactory);
         $this->app->instance(RuntimeRunnerInterface::class, $runtimeRunner);
-        $this->app->instance(LoggerInterface::class, new NullLogger());
+        $this->app->instance(LoggerInterface::class, new NullLogger);
         $this->app->instance(
             WorkerReplayCheckpointManager::class,
             new WorkerReplayCheckpointManager(
                 artifactStore: $artifactStore,
                 checkpointRepository: new ReplayCheckpointRepository($checkpointStore),
-                logger: new NullLogger(),
+                logger: new NullLogger,
                 enabled: true,
             ),
         );
@@ -584,7 +600,8 @@ class FreeSwitchWorkerCommandTest extends TestCase
     public function test_worker_command_can_emit_machine_readable_json_recovery_surface(): void
     {
         $node = $this->makeNode(1, 'primary-fs');
-        $registry = new class ($node) implements PbxRegistryInterface {
+        $registry = new class($node) implements PbxRegistryInterface
+        {
             public function __construct(private readonly PbxNode $node) {}
 
             public function findById(int $id): PbxNode
@@ -618,7 +635,8 @@ class FreeSwitchWorkerCommandTest extends TestCase
             }
         };
 
-        $assignmentResolver = new class ($node) implements WorkerAssignmentResolverInterface {
+        $assignmentResolver = new class($node) implements WorkerAssignmentResolverInterface
+        {
             public function __construct(private readonly PbxNode $node) {}
 
             public function resolveNodes(WorkerAssignment $assignment): array
@@ -632,7 +650,8 @@ class FreeSwitchWorkerCommandTest extends TestCase
             }
         };
 
-        $connectionResolver = new class implements ConnectionResolverInterface {
+        $connectionResolver = new class implements ConnectionResolverInterface
+        {
             public function resolveForNode(int $pbxNodeId): ConnectionContext
             {
                 return $this->context();
@@ -665,31 +684,30 @@ class FreeSwitchWorkerCommandTest extends TestCase
             }
         };
 
-        $connectionFactory = new class implements ConnectionFactoryInterface {
+        $connectionFactory = new class implements ConnectionFactoryInterface
+        {
             public function create(ConnectionContext $context): EslCoreConnectionHandle
             {
-                $commandFactory = new EslCoreCommandFactory();
+                $commandFactory = new EslCoreCommandFactory;
 
                 return new EslCoreConnectionHandle(
                     context: $context,
-                    pipeline: (new EslCorePipelineFactory())->createPipeline(),
+                    pipeline: (new EslCorePipelineFactory)->createPipeline(),
                     openingSequence: $commandFactory->buildOpeningSequence($context),
                     closingSequence: $commandFactory->buildClosingSequence(),
-                    transportOpener: fn () => new InMemoryTransport(),
+                    transportOpener: fn () => new InMemoryTransport,
                 );
             }
         };
 
-        $runtimeRunner = new class implements RuntimeRunnerInterface {
-            public function run(RuntimeHandoffInterface $handoff): void
-            {
-            }
+        $runtimeRunner = new class implements RuntimeRunnerInterface
+        {
+            public function run(RuntimeHandoffInterface $handoff): void {}
         };
 
-        $checkpointStore = new class implements ReplayCheckpointStoreInterface {
-            public function save(ReplayCheckpoint $checkpoint): void
-            {
-            }
+        $checkpointStore = new class implements ReplayCheckpointStoreInterface
+        {
+            public function save(ReplayCheckpoint $checkpoint): void {}
 
             public function load(string $key): ?ReplayCheckpoint
             {
@@ -712,18 +730,17 @@ class FreeSwitchWorkerCommandTest extends TestCase
                 return true;
             }
 
-            public function delete(string $key): void
-            {
-            }
+            public function delete(string $key): void {}
 
-            public function find(\Apntalk\EslReplay\Checkpoint\ReplayCheckpointCriteria $criteria): array
+            public function find(ReplayCheckpointCriteria $criteria): array
             {
                 return [$this->load('worker-runtime.json-worker.freeswitch.primary-fs.default')];
             }
         };
 
-        $artifactStore = new class implements ReplayArtifactStoreInterface {
-            public function write(\Apntalk\EslReplay\Artifact\CapturedArtifactEnvelope $artifact): ReplayRecordId
+        $artifactStore = new class implements ReplayArtifactStoreInterface
+        {
+            public function write(CapturedArtifactEnvelope $artifact): ReplayRecordId
             {
                 throw new \BadMethodCallException('write() should not be called in this command test.');
             }
@@ -773,13 +790,13 @@ class FreeSwitchWorkerCommandTest extends TestCase
         $this->app->instance(ConnectionResolverInterface::class, $connectionResolver);
         $this->app->instance(ConnectionFactoryInterface::class, $connectionFactory);
         $this->app->instance(RuntimeRunnerInterface::class, $runtimeRunner);
-        $this->app->instance(LoggerInterface::class, new NullLogger());
+        $this->app->instance(LoggerInterface::class, new NullLogger);
         $this->app->instance(
             WorkerReplayCheckpointManager::class,
             new WorkerReplayCheckpointManager(
                 artifactStore: $artifactStore,
                 checkpointRepository: new ReplayCheckpointRepository($checkpointStore),
-                logger: new NullLogger(),
+                logger: new NullLogger,
                 enabled: true,
             ),
         );
@@ -885,7 +902,7 @@ class FreeSwitchWorkerCommandTest extends TestCase
             ],
         );
 
-        $result = (new WorkerStatusReportBuilder())->machineReadableNodeStatus('primary-fs', $status);
+        $result = (new WorkerStatusReportBuilder)->machineReadableNodeStatus('primary-fs', $status);
 
         $this->assertSame('primary-fs', $result['pbx_node_slug']);
         $this->assertSame(WorkerStatus::STATE_RUNNING, $result['worker_runtime_state']);

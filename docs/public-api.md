@@ -49,7 +49,7 @@ All value objects are stable public API:
 | `FreeSwitchEslServiceProvider` | Service provider class name is stable |
 | All registered container bindings | Stable (interface → implementation map) |
 | Config key `freeswitch-esl` | Config shape is stable; see `config/freeswitch-esl.php` |
-| All artisan command signatures | `freeswitch:ping`, `freeswitch:status`, `freeswitch:worker`, `freeswitch:health`, `freeswitch:replay:inspect` |
+| All artisan command signatures | `freeswitch:ping`, `freeswitch:status`, `freeswitch:worker`, `freeswitch:worker:status`, `freeswitch:worker:checkpoint-status`, `freeswitch:health`, `freeswitch:replay:inspect` |
 | DB migration table names | `pbx_providers`, `pbx_nodes`, `pbx_connection_profiles`, `worker_assignments` |
 | DB column names | Stable; see `database/migrations/` |
 

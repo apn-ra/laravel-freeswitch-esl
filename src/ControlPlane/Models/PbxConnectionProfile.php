@@ -2,6 +2,7 @@
 
 namespace ApnTalk\LaravelFreeswitchEsl\ControlPlane\Models;
 
+use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\ConnectionProfile;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -28,13 +29,13 @@ class PbxConnectionProfile extends Model
      * @var array<string, string>
      */
     protected $casts = [
-        'retry_policy_json'          => 'array',
-        'drain_policy_json'          => 'array',
-        'subscription_profile_json'  => 'array',
-        'replay_policy_json'         => 'array',
+        'retry_policy_json' => 'array',
+        'drain_policy_json' => 'array',
+        'subscription_profile_json' => 'array',
+        'replay_policy_json' => 'array',
         'normalization_profile_json' => 'array',
-        'worker_profile_json'        => 'array',
-        'settings_json'              => 'array',
+        'worker_profile_json' => 'array',
+        'settings_json' => 'array',
     ];
 
     public function provider(): BelongsTo
@@ -45,7 +46,7 @@ class PbxConnectionProfile extends Model
     /**
      * Convert to the VO used throughout the control plane.
      */
-    public function toValueObject(): \ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\ConnectionProfile
+    public function toValueObject(): ConnectionProfile
     {
         $record = $this->toArray();
 
@@ -66,6 +67,6 @@ class PbxConnectionProfile extends Model
             }
         }
 
-        return \ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\ConnectionProfile::fromRecord($record);
+        return ConnectionProfile::fromRecord($record);
     }
 }

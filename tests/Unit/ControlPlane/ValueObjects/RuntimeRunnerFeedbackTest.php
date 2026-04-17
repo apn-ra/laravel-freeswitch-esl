@@ -12,7 +12,8 @@ class RuntimeRunnerFeedbackTest extends TestCase
 {
     public function test_from_esl_react_lifecycle_snapshot_maps_observed_runtime_truth(): void
     {
-        $snapshot = new class {
+        $snapshot = new class
+        {
             public string $endpoint = 'tcp://127.0.0.1:8021';
 
             public RuntimeRunnerState $runnerState = RuntimeRunnerState::Running;
@@ -25,7 +26,8 @@ class RuntimeRunnerFeedbackTest extends TestCase
 
             public function __construct()
             {
-                $this->sessionContext = new class {
+                $this->sessionContext = new class
+                {
                     public function sessionId(): string
                     {
                         return 'worker-session-1';
@@ -120,7 +122,8 @@ class RuntimeRunnerFeedbackTest extends TestCase
 
     public function test_running_runner_state_does_not_mean_live_when_lifecycle_reports_not_live(): void
     {
-        $snapshot = new class {
+        $snapshot = new class
+        {
             public string $endpoint = 'tcp://127.0.0.1:8021';
 
             public RuntimeRunnerState $runnerState = RuntimeRunnerState::Running;
@@ -168,7 +171,8 @@ class RuntimeRunnerFeedbackTest extends TestCase
 
     public function test_failed_lifecycle_snapshot_maps_startup_and_runtime_errors(): void
     {
-        $snapshot = new class {
+        $snapshot = new class
+        {
             public string $endpoint = 'tcp://127.0.0.1:8021';
 
             public RuntimeRunnerState $runnerState = RuntimeRunnerState::Failed;

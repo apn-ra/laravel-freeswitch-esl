@@ -2,16 +2,16 @@
 
 namespace ApnTalk\LaravelFreeswitchEsl\Tests\Unit\Integration;
 
-use Apntalk\EslReplay\Contracts\ReplayArtifactStoreInterface;
 use Apntalk\EslReact\Runner\PreparedRuntimeBootstrapInput;
+use Apntalk\EslReplay\Contracts\ReplayArtifactStoreInterface;
 use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\ConnectionContext;
 use ApnTalk\LaravelFreeswitchEsl\Integration\EslCoreConnectionHandle;
 use ApnTalk\LaravelFreeswitchEsl\Integration\EslCorePipelineFactory;
 use ApnTalk\LaravelFreeswitchEsl\Integration\EslReactRuntimeBootstrapInputFactory;
 use ApnTalk\LaravelFreeswitchEsl\Integration\Replay\ReplayCaptureSinkFactory;
 use PHPUnit\Framework\TestCase;
-use React\Socket\ConnectorInterface;
 use Psr\Log\NullLogger;
+use React\Socket\ConnectorInterface;
 
 class EslReactRuntimeBootstrapInputFactoryTest extends TestCase
 {
@@ -99,7 +99,7 @@ class EslReactRuntimeBootstrapInputFactoryTest extends TestCase
         $store = $this->createMock(ReplayArtifactStoreInterface::class);
         $factory = new EslReactRuntimeBootstrapInputFactory(
             connector: $this->createMock(ConnectorInterface::class),
-            replayCaptureSinkFactory: new ReplayCaptureSinkFactory($store, new NullLogger()),
+            replayCaptureSinkFactory: new ReplayCaptureSinkFactory($store, new NullLogger),
             replayCaptureEnabled: true,
         );
 
@@ -113,7 +113,7 @@ class EslReactRuntimeBootstrapInputFactoryTest extends TestCase
     {
         return new EslCoreConnectionHandle(
             context: $context,
-            pipeline: (new EslCorePipelineFactory())->createPipeline(),
+            pipeline: (new EslCorePipelineFactory)->createPipeline(),
             openingSequence: [],
             closingSequence: [],
             transportOpener: fn () => throw new \LogicException('Transport opener must not be called by esl-react input mapping.'),

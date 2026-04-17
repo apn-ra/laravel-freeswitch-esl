@@ -25,10 +25,10 @@ class WorkerAssignmentResolver implements WorkerAssignmentResolverInterface
     public function resolveNodes(WorkerAssignment $assignment): array
     {
         return match ($assignment->assignmentMode) {
-            WorkerAssignment::MODE_NODE       => $this->resolveNodeMode($assignment),
-            WorkerAssignment::MODE_CLUSTER    => $this->resolveClusterMode($assignment),
-            WorkerAssignment::MODE_TAG        => $this->resolveTagMode($assignment),
-            WorkerAssignment::MODE_PROVIDER   => $this->resolveProviderMode($assignment),
+            WorkerAssignment::MODE_NODE => $this->resolveNodeMode($assignment),
+            WorkerAssignment::MODE_CLUSTER => $this->resolveClusterMode($assignment),
+            WorkerAssignment::MODE_TAG => $this->resolveTagMode($assignment),
+            WorkerAssignment::MODE_PROVIDER => $this->resolveProviderMode($assignment),
             WorkerAssignment::MODE_ALL_ACTIVE => $this->pbxRegistry->allActive(),
             default => [],
         };

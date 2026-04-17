@@ -2,13 +2,14 @@
 
 namespace ApnTalk\LaravelFreeswitchEsl\Console\Commands;
 
+use ApnTalk\LaravelFreeswitchEsl\Console\Support\WorkerStatusReportBuilder;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\ConnectionFactoryInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\ConnectionResolverInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\PbxRegistryInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\RuntimeRunnerInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\WorkerAssignmentResolverInterface;
-use ApnTalk\LaravelFreeswitchEsl\Console\Support\WorkerStatusReportBuilder;
 use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\WorkerAssignment;
+use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\WorkerStatus;
 use ApnTalk\LaravelFreeswitchEsl\Exceptions\PbxNotFoundException;
 use ApnTalk\LaravelFreeswitchEsl\Integration\Replay\WorkerReplayCheckpointManager;
 use ApnTalk\LaravelFreeswitchEsl\Worker\WorkerSupervisor;
@@ -121,8 +122,8 @@ class FreeSwitchWorkerCommand extends Command
         if ($assignment === null) {
             $this->error(
                 'Provide exactly one targeting flag: --pbx=<slug>, --cluster=<name>, '
-                . '--tag=<name>, --provider=<code>, or --all-active. '
-                . 'Use --db to load assignment from the worker_assignments table instead.'
+                .'--tag=<name>, --provider=<code>, or --all-active. '
+                .'Use --db to load assignment from the worker_assignments table instead.'
             );
 
             return self::FAILURE;
@@ -142,7 +143,7 @@ class FreeSwitchWorkerCommand extends Command
 
             return self::SUCCESS;
         } catch (\Throwable $e) {
-            $this->error('Worker failed: ' . $e->getMessage());
+            $this->error('Worker failed: '.$e->getMessage());
 
             return self::FAILURE;
         }
@@ -228,7 +229,7 @@ class FreeSwitchWorkerCommand extends Command
         if (empty($nodes)) {
             $this->error(sprintf(
                 'No active worker_assignments found for worker [%s]. '
-                . 'Seed the worker_assignments table or use a targeting flag instead.',
+                .'Seed the worker_assignments table or use a targeting flag instead.',
                 $workerName,
             ));
 
@@ -249,7 +250,7 @@ class FreeSwitchWorkerCommand extends Command
 
             return self::SUCCESS;
         } catch (\Throwable $e) {
-            $this->error('Worker failed: ' . $e->getMessage());
+            $this->error('Worker failed: '.$e->getMessage());
 
             return self::FAILURE;
         }
@@ -258,7 +259,7 @@ class FreeSwitchWorkerCommand extends Command
     private function reportPreparedHandoffs(WorkerSupervisor $supervisor): void
     {
         $statuses = $supervisor->runtimeStatuses();
-        $reportBuilder = new WorkerStatusReportBuilder();
+        $reportBuilder = new WorkerStatusReportBuilder;
         $summary = $reportBuilder->statusSummary($statuses);
 
         if ($this->booleanOption('json')) {
@@ -312,7 +313,7 @@ class FreeSwitchWorkerCommand extends Command
         }
     }
 
-    private function checkpointVisibility(\ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\WorkerStatus $status): string
+    private function checkpointVisibility(WorkerStatus $status): string
     {
         if (($status->meta['checkpoint_enabled'] ?? false) !== true) {
             return 'disabled';
@@ -327,7 +328,7 @@ class FreeSwitchWorkerCommand extends Command
         return sprintf('scope=%s, reason=%s, saved_at=%s', $scope, $reason, $savedAt);
     }
 
-    private function recoveryHint(\ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\WorkerStatus $status): string
+    private function recoveryHint(WorkerStatus $status): string
     {
         if (($status->meta['checkpoint_enabled'] ?? false) !== true) {
             return 'disabled';
@@ -346,23 +347,23 @@ class FreeSwitchWorkerCommand extends Command
         return 'bounded-check-no-candidate';
     }
 
-    private function recoveryAnchors(\ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\WorkerStatus $status): string
+    private function recoveryAnchors(WorkerStatus $status): string
     {
         if (($status->meta['checkpoint_enabled'] ?? false) !== true) {
             return '-';
         }
 
         $anchors = array_filter([
-            'replay=' . ($this->metaString($status->meta, 'checkpoint_recovery_replay_session_id') ?? ''),
-            'worker=' . ($this->metaString($status->meta, 'checkpoint_recovery_worker_session_id') ?? ''),
-            'job=' . ($this->metaString($status->meta, 'checkpoint_recovery_job_uuid') ?? ''),
-            'pbx=' . ($this->metaString($status->meta, 'checkpoint_recovery_pbx_node_slug') ?? ''),
+            'replay='.($this->metaString($status->meta, 'checkpoint_recovery_replay_session_id') ?? ''),
+            'worker='.($this->metaString($status->meta, 'checkpoint_recovery_worker_session_id') ?? ''),
+            'job='.($this->metaString($status->meta, 'checkpoint_recovery_job_uuid') ?? ''),
+            'pbx='.($this->metaString($status->meta, 'checkpoint_recovery_pbx_node_slug') ?? ''),
         ], static fn (string $value): bool => ! str_ends_with($value, '='));
 
         return $anchors === [] ? '-' : implode(', ', $anchors);
     }
 
-    private function drainPosture(\ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\WorkerStatus $status): string
+    private function drainPosture(WorkerStatus $status): string
     {
         if (($status->meta['drain_timed_out'] ?? false) === true) {
             return 'timed-out';
@@ -396,7 +397,6 @@ class FreeSwitchWorkerCommand extends Command
     {
         return json_encode($value, JSON_PRETTY_PRINT) ?: '{}';
     }
-
 
     private function stringOption(string $name): ?string
     {

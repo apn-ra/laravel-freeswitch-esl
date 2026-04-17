@@ -2,28 +2,32 @@
 
 namespace ApnTalk\LaravelFreeswitchEsl\Tests\Unit\Worker;
 
-use Apntalk\EslReplay\Checkpoint\ReplayCheckpointRepository;
+use Apntalk\EslCore\Transport\InMemoryTransport;
+use Apntalk\EslReplay\Artifact\CapturedArtifactEnvelope;
 use Apntalk\EslReplay\Checkpoint\ReplayCheckpoint;
+use Apntalk\EslReplay\Checkpoint\ReplayCheckpointRepository;
 use Apntalk\EslReplay\Contracts\ReplayArtifactStoreInterface;
 use Apntalk\EslReplay\Contracts\ReplayCheckpointStoreInterface;
 use Apntalk\EslReplay\Cursor\ReplayReadCursor;
+use Apntalk\EslReplay\Read\ReplayReadCriteria;
+use Apntalk\EslReplay\Storage\ReplayRecordId;
+use Apntalk\EslReplay\Storage\StoredReplayRecord;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\ConnectionFactoryInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\ConnectionResolverInterface;
+use ApnTalk\LaravelFreeswitchEsl\Contracts\RuntimeHandoffInterface;
+use ApnTalk\LaravelFreeswitchEsl\Contracts\RuntimeRunnerFeedbackProviderInterface;
+use ApnTalk\LaravelFreeswitchEsl\Contracts\RuntimeRunnerInterface;
 use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\ConnectionContext;
 use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\PbxNode;
 use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\RuntimeRunnerFeedback;
 use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\WorkerStatus;
 use ApnTalk\LaravelFreeswitchEsl\Exceptions\WorkerException;
-use ApnTalk\LaravelFreeswitchEsl\Contracts\RuntimeHandoffInterface;
-use ApnTalk\LaravelFreeswitchEsl\Contracts\RuntimeRunnerFeedbackProviderInterface;
-use ApnTalk\LaravelFreeswitchEsl\Contracts\RuntimeRunnerInterface;
+use ApnTalk\LaravelFreeswitchEsl\Integration\EslCoreCommandFactory;
 use ApnTalk\LaravelFreeswitchEsl\Integration\EslCoreConnectionHandle;
 use ApnTalk\LaravelFreeswitchEsl\Integration\EslCorePipelineFactory;
-use ApnTalk\LaravelFreeswitchEsl\Integration\EslCoreCommandFactory;
 use ApnTalk\LaravelFreeswitchEsl\Integration\NonLiveRuntimeRunner;
 use ApnTalk\LaravelFreeswitchEsl\Integration\Replay\WorkerReplayCheckpointManager;
 use ApnTalk\LaravelFreeswitchEsl\Worker\WorkerRuntime;
-use Apntalk\EslCore\Transport\InMemoryTransport;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
 
@@ -113,10 +117,9 @@ class WorkerRuntimeTest extends TestCase
 
     public function test_boot_surfaces_resuming_checkpoint_state_when_existing_checkpoint_loaded(): void
     {
-        $checkpointStore = new class implements ReplayCheckpointStoreInterface {
-            public function save(ReplayCheckpoint $checkpoint): void
-            {
-            }
+        $checkpointStore = new class implements ReplayCheckpointStoreInterface
+        {
+            public function save(ReplayCheckpoint $checkpoint): void {}
 
             public function load(string $key): ?ReplayCheckpoint
             {
@@ -133,16 +136,14 @@ class WorkerRuntimeTest extends TestCase
                 return true;
             }
 
-            public function delete(string $key): void
-            {
-            }
+            public function delete(string $key): void {}
         };
 
         $runtime = $this->makeRuntime(
             checkpointManager: new WorkerReplayCheckpointManager(
                 artifactStore: $this->emptyArtifactStore(),
                 checkpointRepository: new ReplayCheckpointRepository($checkpointStore),
-                logger: new NullLogger(),
+                logger: new NullLogger,
                 enabled: true,
             ),
         );
@@ -214,7 +215,8 @@ class WorkerRuntimeTest extends TestCase
 
     public function test_run_after_boot_marks_runtime_active_when_runner_feedback_reports_running(): void
     {
-        $runtime = $this->makeRuntime(new class implements RuntimeRunnerInterface, RuntimeRunnerFeedbackProviderInterface {
+        $runtime = $this->makeRuntime(new class implements RuntimeRunnerFeedbackProviderInterface, RuntimeRunnerInterface
+        {
             private ?RuntimeRunnerFeedback $feedback = null;
 
             public function run(RuntimeHandoffInterface $handoff): void
@@ -252,7 +254,8 @@ class WorkerRuntimeTest extends TestCase
     public function test_drain_records_checkpoint_and_completes_immediately_when_no_inflight(): void
     {
         $savedCheckpoint = null;
-        $checkpointStore = new class ($savedCheckpoint) implements ReplayCheckpointStoreInterface {
+        $checkpointStore = new class($savedCheckpoint) implements ReplayCheckpointStoreInterface
+        {
             public ?ReplayCheckpoint $savedCheckpoint = null;
 
             public function __construct(?ReplayCheckpoint $savedCheckpoint)
@@ -275,16 +278,14 @@ class WorkerRuntimeTest extends TestCase
                 return false;
             }
 
-            public function delete(string $key): void
-            {
-            }
+            public function delete(string $key): void {}
         };
 
         $runtime = $this->makeRuntime(
             checkpointManager: new WorkerReplayCheckpointManager(
                 artifactStore: $this->emptyArtifactStore(),
                 checkpointRepository: new ReplayCheckpointRepository($checkpointStore),
-                logger: new NullLogger(),
+                logger: new NullLogger,
                 enabled: true,
             ),
         );
@@ -340,7 +341,8 @@ class WorkerRuntimeTest extends TestCase
 
     public function test_periodic_checkpoint_saves_only_after_interval_elapses_and_tracks_last_periodic_timestamp(): void
     {
-        $checkpointStore = new class implements ReplayCheckpointStoreInterface {
+        $checkpointStore = new class implements ReplayCheckpointStoreInterface
+        {
             /** @var list<ReplayCheckpoint> */
             public array $saved = [];
 
@@ -359,9 +361,7 @@ class WorkerRuntimeTest extends TestCase
                 return false;
             }
 
-            public function delete(string $key): void
-            {
-            }
+            public function delete(string $key): void {}
         };
 
         $clock = new TestClock('2026-04-18T12:00:00+00:00');
@@ -370,7 +370,7 @@ class WorkerRuntimeTest extends TestCase
             checkpointManager: new WorkerReplayCheckpointManager(
                 artifactStore: $this->emptyArtifactStore(),
                 checkpointRepository: new ReplayCheckpointRepository($checkpointStore),
-                logger: new NullLogger(),
+                logger: new NullLogger,
                 enabled: true,
             ),
             checkpointIntervalSeconds: 60,
@@ -399,7 +399,8 @@ class WorkerRuntimeTest extends TestCase
 
     public function test_periodic_checkpoint_is_not_saved_before_runtime_runner_invocation(): void
     {
-        $checkpointStore = new class implements ReplayCheckpointStoreInterface {
+        $checkpointStore = new class implements ReplayCheckpointStoreInterface
+        {
             /** @var list<ReplayCheckpoint> */
             public array $saved = [];
 
@@ -418,9 +419,7 @@ class WorkerRuntimeTest extends TestCase
                 return false;
             }
 
-            public function delete(string $key): void
-            {
-            }
+            public function delete(string $key): void {}
         };
 
         $clock = new TestClock('2026-04-18T12:00:00+00:00');
@@ -429,7 +428,7 @@ class WorkerRuntimeTest extends TestCase
             checkpointManager: new WorkerReplayCheckpointManager(
                 artifactStore: $this->emptyArtifactStore(),
                 checkpointRepository: new ReplayCheckpointRepository($checkpointStore),
-                logger: new NullLogger(),
+                logger: new NullLogger,
                 enabled: true,
             ),
             checkpointIntervalSeconds: 60,
@@ -446,7 +445,8 @@ class WorkerRuntimeTest extends TestCase
 
     public function test_periodic_checkpoint_does_not_override_terminal_drain_checkpoint_reason(): void
     {
-        $checkpointStore = new class implements ReplayCheckpointStoreInterface {
+        $checkpointStore = new class implements ReplayCheckpointStoreInterface
+        {
             /** @var list<ReplayCheckpoint> */
             public array $saved = [];
 
@@ -465,9 +465,7 @@ class WorkerRuntimeTest extends TestCase
                 return false;
             }
 
-            public function delete(string $key): void
-            {
-            }
+            public function delete(string $key): void {}
         };
 
         $clock = new TestClock('2026-04-18T12:00:00+00:00');
@@ -476,7 +474,7 @@ class WorkerRuntimeTest extends TestCase
             checkpointManager: new WorkerReplayCheckpointManager(
                 artifactStore: $this->emptyArtifactStore(),
                 checkpointRepository: new ReplayCheckpointRepository($checkpointStore),
-                logger: new NullLogger(),
+                logger: new NullLogger,
                 enabled: true,
             ),
             checkpointIntervalSeconds: 60,
@@ -507,8 +505,7 @@ class WorkerRuntimeTest extends TestCase
         int $drainTimeoutMilliseconds = 30000,
         int $checkpointIntervalSeconds = 60,
         ?TestClock $clock = null,
-    ): WorkerRuntime
-    {
+    ): WorkerRuntime {
         $node = new PbxNode(
             id: 1,
             providerId: 1,
@@ -523,7 +520,8 @@ class WorkerRuntimeTest extends TestCase
             isActive: true,
         );
 
-        $resolver = new class implements ConnectionResolverInterface {
+        $resolver = new class implements ConnectionResolverInterface
+        {
             public function resolveForNode(int $pbxNodeId): ConnectionContext
             {
                 return $this->context();
@@ -556,32 +554,25 @@ class WorkerRuntimeTest extends TestCase
             }
         };
 
-        $connectionFactory = new class implements ConnectionFactoryInterface {
+        $connectionFactory = new class implements ConnectionFactoryInterface
+        {
             public function create(ConnectionContext $context): EslCoreConnectionHandle
             {
-                $commandFactory = new EslCoreCommandFactory();
+                $commandFactory = new EslCoreCommandFactory;
 
                 return new EslCoreConnectionHandle(
                     context: $context,
-                    pipeline: (new EslCorePipelineFactory())->createPipeline(),
+                    pipeline: (new EslCorePipelineFactory)->createPipeline(),
                     openingSequence: $commandFactory->buildOpeningSequence($context),
                     closingSequence: $commandFactory->buildClosingSequence(),
-                    transportOpener: fn () => new InMemoryTransport(),
+                    transportOpener: fn () => new InMemoryTransport,
                 );
             }
         };
 
         if ($clock !== null) {
-            return new class (
-                $node,
-                $resolver,
-                $connectionFactory,
-                $runtimeRunner ?? new NonLiveRuntimeRunner(),
-                $checkpointManager,
-                $drainTimeoutMilliseconds,
-                $checkpointIntervalSeconds,
-                $clock,
-            ) extends WorkerRuntime {
+            return new class($node, $resolver, $connectionFactory, $runtimeRunner ?? new NonLiveRuntimeRunner, $checkpointManager, $drainTimeoutMilliseconds, $checkpointIntervalSeconds, $clock) extends WorkerRuntime
+            {
                 public function __construct(
                     PbxNode $node,
                     ConnectionResolverInterface $connectionResolver,
@@ -598,7 +589,7 @@ class WorkerRuntimeTest extends TestCase
                         connectionResolver: $connectionResolver,
                         connectionFactory: $connectionFactory,
                         runtimeRunner: $runtimeRunner,
-                        logger: new NullLogger(),
+                        logger: new NullLogger,
                         checkpointManager: $checkpointManager,
                         drainTimeoutMilliseconds: $drainTimeoutMilliseconds,
                         checkpointIntervalSeconds: $checkpointIntervalSeconds,
@@ -617,8 +608,8 @@ class WorkerRuntimeTest extends TestCase
             node: $node,
             connectionResolver: $resolver,
             connectionFactory: $connectionFactory,
-            runtimeRunner: $runtimeRunner ?? new NonLiveRuntimeRunner(),
-            logger: new NullLogger(),
+            runtimeRunner: $runtimeRunner ?? new NonLiveRuntimeRunner,
+            logger: new NullLogger,
             checkpointManager: $checkpointManager,
             drainTimeoutMilliseconds: $drainTimeoutMilliseconds,
             checkpointIntervalSeconds: $checkpointIntervalSeconds,
@@ -627,18 +618,19 @@ class WorkerRuntimeTest extends TestCase
 
     private function emptyArtifactStore(): ReplayArtifactStoreInterface
     {
-        return new class implements ReplayArtifactStoreInterface {
-            public function write(\Apntalk\EslReplay\Artifact\CapturedArtifactEnvelope $artifact): \Apntalk\EslReplay\Storage\ReplayRecordId
+        return new class implements ReplayArtifactStoreInterface
+        {
+            public function write(CapturedArtifactEnvelope $artifact): ReplayRecordId
             {
                 throw new \BadMethodCallException('write() should not be called in this unit test.');
             }
 
-            public function readById(\Apntalk\EslReplay\Storage\ReplayRecordId $id): ?\Apntalk\EslReplay\Storage\StoredReplayRecord
+            public function readById(ReplayRecordId $id): ?StoredReplayRecord
             {
                 return null;
             }
 
-            public function readFromCursor(ReplayReadCursor $cursor, int $limit = 100, ?\Apntalk\EslReplay\Read\ReplayReadCriteria $criteria = null): array
+            public function readFromCursor(ReplayReadCursor $cursor, int $limit = 100, ?ReplayReadCriteria $criteria = null): array
             {
                 return [];
             }

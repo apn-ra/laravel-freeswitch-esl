@@ -13,7 +13,7 @@ use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\RuntimeRunnerFeedback
  * It marks the adapter seam as invokable without taking ownership of any live
  * async runtime loop, reconnect lifecycle, or heartbeat behavior.
  */
-final class NonLiveRuntimeRunner implements RuntimeRunnerInterface, RuntimeRunnerFeedbackProviderInterface
+final class NonLiveRuntimeRunner implements RuntimeRunnerFeedbackProviderInterface, RuntimeRunnerInterface
 {
     private ?RuntimeRunnerFeedback $feedback = null;
 

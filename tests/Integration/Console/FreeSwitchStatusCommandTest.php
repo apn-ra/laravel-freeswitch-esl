@@ -19,7 +19,8 @@ class FreeSwitchStatusCommandTest extends TestCase
 
     public function test_status_command_renders_inventory_and_notes_runtime_recovery_visibility_scope(): void
     {
-        $registry = new class implements PbxRegistryInterface {
+        $registry = new class implements PbxRegistryInterface
+        {
             public function findById(int $id): PbxNode
             {
                 return $this->node();

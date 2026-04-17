@@ -47,12 +47,11 @@ class FreeSwitchPingCommand extends Command
 
             return self::SUCCESS;
         } catch (\Throwable $e) {
-            $this->error('Resolution failed: ' . $e->getMessage());
+            $this->error('Resolution failed: '.$e->getMessage());
 
             return self::FAILURE;
         }
     }
-
 
     private function stringOption(string $name): ?string
     {

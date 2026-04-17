@@ -20,13 +20,14 @@ class FreeSwitchPingCommandTest extends TestCase
 
     public function test_ping_command_reports_resolved_connection_context(): void
     {
-        $resolver = new class implements ConnectionResolverInterface {
+        $resolver = new class implements ConnectionResolverInterface
+        {
             /** @var list<string> */
             public array $resolvedSlugs = [];
 
             public function resolveForNode(int $pbxNodeId): ConnectionContext
             {
-                return $this->context('node-' . $pbxNodeId);
+                return $this->context('node-'.$pbxNodeId);
             }
 
             public function resolveForSlug(string $slug): ConnectionContext

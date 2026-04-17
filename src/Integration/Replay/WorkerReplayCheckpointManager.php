@@ -2,7 +2,6 @@
 
 namespace ApnTalk\LaravelFreeswitchEsl\Integration\Replay;
 
-use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\ConnectionContext;
 use Apntalk\EslReplay\Checkpoint\ReplayCheckpoint;
 use Apntalk\EslReplay\Checkpoint\ReplayCheckpointCriteria;
 use Apntalk\EslReplay\Checkpoint\ReplayCheckpointReference;
@@ -13,6 +12,7 @@ use Apntalk\EslReplay\Read\ReplayReadCriteria;
 use Apntalk\EslReplay\Retention\CheckpointAwarePruner;
 use Apntalk\EslReplay\Retention\PrunePolicy;
 use Apntalk\EslReplay\Storage\StoredReplayRecord;
+use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\ConnectionContext;
 use Psr\Log\LoggerInterface;
 
 final class WorkerReplayCheckpointManager
@@ -63,8 +63,8 @@ final class WorkerReplayCheckpointManager
     }
 
     /**
-     * @return array<string, mixed>
      * @param  array<string, mixed>|null  $extraMetadata
+     * @return array<string, mixed>
      */
     public function save(
         string $workerName,
@@ -472,8 +472,8 @@ final class WorkerReplayCheckpointManager
     }
 
     /**
-     * @return list<ReplayCheckpoint>
      * @param  list<ReplayCheckpoint>  $checkpoints
+     * @return list<ReplayCheckpoint>
      */
     private function filterCheckpointWindow(array $checkpoints, ?\DateTimeImmutable $savedFrom): array
     {

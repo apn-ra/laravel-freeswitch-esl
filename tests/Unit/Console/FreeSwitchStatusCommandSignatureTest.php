@@ -9,7 +9,7 @@ class FreeSwitchStatusCommandSignatureTest extends TestCase
 {
     public function test_status_command_signature_does_not_advertise_unsupported_all_flag(): void
     {
-        $command = new FreeSwitchStatusCommand();
+        $command = new FreeSwitchStatusCommand;
         $signature = $this->commandSignature($command);
 
         $this->assertStringNotContainsString('{--all', $signature);
@@ -17,7 +17,7 @@ class FreeSwitchStatusCommandSignatureTest extends TestCase
 
     public function test_status_command_signature_keeps_supported_filters(): void
     {
-        $command = new FreeSwitchStatusCommand();
+        $command = new FreeSwitchStatusCommand;
         $signature = $this->commandSignature($command);
 
         $this->assertStringContainsString('{--pbx=', $signature);

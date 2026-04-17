@@ -2,6 +2,7 @@
 
 namespace ApnTalk\LaravelFreeswitchEsl\Tests;
 
+use ApnTalk\LaravelFreeswitchEsl\Drivers\FreeSwitchDriver;
 use ApnTalk\LaravelFreeswitchEsl\Providers\FreeSwitchEslServiceProvider;
 use Orchestra\Testbench\TestCase as BaseTestCase;
 
@@ -20,18 +21,18 @@ abstract class TestCase extends BaseTestCase
 
         $app['config']->set('database.default', 'testing');
         $app['config']->set('database.connections.testing', [
-            'driver'   => 'sqlite',
+            'driver' => 'sqlite',
             'database' => ':memory:',
-            'prefix'   => '',
+            'prefix' => '',
         ]);
 
         $app['config']->set('freeswitch-esl.drivers', [
-            'freeswitch' => \ApnTalk\LaravelFreeswitchEsl\Drivers\FreeSwitchDriver::class,
+            'freeswitch' => FreeSwitchDriver::class,
         ]);
 
         $app['config']->set('freeswitch-esl.secret_resolver.mode', 'plaintext');
-        $app['config']->set('freeswitch-esl.replay.storage_path', sys_get_temp_dir() . '/laravel-freeswitch-esl-testbench-' . $replayToken . '.sqlite');
-        $app['config']->set('freeswitch-esl.replay.checkpoint_storage_path', sys_get_temp_dir() . '/laravel-freeswitch-esl-testbench-checkpoints-' . $replayToken);
+        $app['config']->set('freeswitch-esl.replay.storage_path', sys_get_temp_dir().'/laravel-freeswitch-esl-testbench-'.$replayToken.'.sqlite');
+        $app['config']->set('freeswitch-esl.replay.checkpoint_storage_path', sys_get_temp_dir().'/laravel-freeswitch-esl-testbench-checkpoints-'.$replayToken);
     }
 
     protected function setUp(): void
@@ -42,6 +43,6 @@ abstract class TestCase extends BaseTestCase
 
     protected function runMigrations(): void
     {
-        $this->loadMigrationsFrom(__DIR__ . '/../database/migrations');
+        $this->loadMigrationsFrom(__DIR__.'/../database/migrations');
     }
 }

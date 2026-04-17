@@ -6,6 +6,7 @@ use ApnTalk\LaravelFreeswitchEsl\Contracts\PbxRegistryInterface;
 use ApnTalk\LaravelFreeswitchEsl\ControlPlane\Models\PbxNode as PbxNodeModel;
 use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\PbxNode;
 use ApnTalk\LaravelFreeswitchEsl\Exceptions\PbxNotFoundException;
+use Illuminate\Database\Eloquent\Builder;
 
 /**
  * Database-backed PBX node registry.
@@ -89,7 +90,7 @@ class DatabasePbxRegistry implements PbxRegistryInterface
     {
         return PbxNodeModel::query()->with('provider')
             ->where('is_active', true)
-            ->whereHas('provider', fn (\Illuminate\Database\Eloquent\Builder $q) => $q->where('code', $providerCode))
+            ->whereHas('provider', fn (Builder $q) => $q->where('code', $providerCode))
             ->get()
             ->map(fn (PbxNodeModel $m) => $m->toValueObject())
             ->all();

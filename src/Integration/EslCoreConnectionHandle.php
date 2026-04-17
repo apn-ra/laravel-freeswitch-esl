@@ -5,8 +5,8 @@ namespace ApnTalk\LaravelFreeswitchEsl\Integration;
 use Apntalk\EslCore\Contracts\CommandInterface;
 use Apntalk\EslCore\Contracts\InboundPipelineInterface;
 use Apntalk\EslCore\Contracts\TransportInterface;
-use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\ConnectionContext;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\RuntimeHandoffInterface;
+use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\ConnectionContext;
 
 /**
  * Package-owned connection handle for the current esl-core integration seam.

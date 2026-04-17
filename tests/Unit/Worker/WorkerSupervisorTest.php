@@ -2,19 +2,19 @@
 
 namespace ApnTalk\LaravelFreeswitchEsl\Tests\Unit\Worker;
 
+use Apntalk\EslCore\Transport\InMemoryTransport;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\ConnectionFactoryInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\ConnectionResolverInterface;
+use ApnTalk\LaravelFreeswitchEsl\Contracts\RuntimeHandoffInterface;
+use ApnTalk\LaravelFreeswitchEsl\Contracts\RuntimeRunnerInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\WorkerAssignmentResolverInterface;
 use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\ConnectionContext;
 use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\PbxNode;
 use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\WorkerStatus;
-use ApnTalk\LaravelFreeswitchEsl\Contracts\RuntimeHandoffInterface;
-use ApnTalk\LaravelFreeswitchEsl\Contracts\RuntimeRunnerInterface;
 use ApnTalk\LaravelFreeswitchEsl\Integration\EslCoreCommandFactory;
 use ApnTalk\LaravelFreeswitchEsl\Integration\EslCoreConnectionHandle;
 use ApnTalk\LaravelFreeswitchEsl\Integration\EslCorePipelineFactory;
 use ApnTalk\LaravelFreeswitchEsl\Worker\WorkerSupervisor;
-use Apntalk\EslCore\Transport\InMemoryTransport;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
 
@@ -24,7 +24,8 @@ class WorkerSupervisorTest extends TestCase
     {
         $node = $this->makeNode(1, 'node-a');
         $assignmentResolver = $this->createStub(WorkerAssignmentResolverInterface::class);
-        $connectionResolver = new class implements ConnectionResolverInterface {
+        $connectionResolver = new class implements ConnectionResolverInterface
+        {
             public function resolveForNode(int $pbxNodeId): ConnectionContext
             {
                 return $this->context('node-a');
@@ -57,25 +58,25 @@ class WorkerSupervisorTest extends TestCase
             }
         };
 
-        $connectionFactory = new class implements ConnectionFactoryInterface {
+        $connectionFactory = new class implements ConnectionFactoryInterface
+        {
             public function create(ConnectionContext $context): EslCoreConnectionHandle
             {
-                $commandFactory = new EslCoreCommandFactory();
+                $commandFactory = new EslCoreCommandFactory;
 
                 return new EslCoreConnectionHandle(
                     context: $context,
-                    pipeline: (new EslCorePipelineFactory())->createPipeline(),
+                    pipeline: (new EslCorePipelineFactory)->createPipeline(),
                     openingSequence: $commandFactory->buildOpeningSequence($context),
                     closingSequence: $commandFactory->buildClosingSequence(),
-                    transportOpener: fn () => new InMemoryTransport(),
+                    transportOpener: fn () => new InMemoryTransport,
                 );
             }
         };
 
-        $runtimeRunner = new class implements RuntimeRunnerInterface {
-            public function run(RuntimeHandoffInterface $handoff): void
-            {
-            }
+        $runtimeRunner = new class implements RuntimeRunnerInterface
+        {
+            public function run(RuntimeHandoffInterface $handoff): void {}
         };
 
         $supervisor = new WorkerSupervisor(
@@ -83,7 +84,7 @@ class WorkerSupervisorTest extends TestCase
             connectionResolver: $connectionResolver,
             connectionFactory: $connectionFactory,
             runtimeRunner: $runtimeRunner,
-            logger: new NullLogger(),
+            logger: new NullLogger,
         );
 
         $supervisor->runForNodes('worker-a', 'db-backed', [$node]);
@@ -108,7 +109,8 @@ class WorkerSupervisorTest extends TestCase
     {
         $node = $this->makeNode(1, 'node-a');
         $assignmentResolver = $this->createStub(WorkerAssignmentResolverInterface::class);
-        $connectionResolver = new class implements ConnectionResolverInterface {
+        $connectionResolver = new class implements ConnectionResolverInterface
+        {
             public function resolveForNode(int $pbxNodeId): ConnectionContext
             {
                 return $this->context('node-a');
@@ -141,25 +143,25 @@ class WorkerSupervisorTest extends TestCase
             }
         };
 
-        $connectionFactory = new class implements ConnectionFactoryInterface {
+        $connectionFactory = new class implements ConnectionFactoryInterface
+        {
             public function create(ConnectionContext $context): EslCoreConnectionHandle
             {
-                $commandFactory = new EslCoreCommandFactory();
+                $commandFactory = new EslCoreCommandFactory;
 
                 return new EslCoreConnectionHandle(
                     context: $context,
-                    pipeline: (new EslCorePipelineFactory())->createPipeline(),
+                    pipeline: (new EslCorePipelineFactory)->createPipeline(),
                     openingSequence: $commandFactory->buildOpeningSequence($context),
                     closingSequence: $commandFactory->buildClosingSequence(),
-                    transportOpener: fn () => new InMemoryTransport(),
+                    transportOpener: fn () => new InMemoryTransport,
                 );
             }
         };
 
-        $runtimeRunner = new class implements RuntimeRunnerInterface {
-            public function run(RuntimeHandoffInterface $handoff): void
-            {
-            }
+        $runtimeRunner = new class implements RuntimeRunnerInterface
+        {
+            public function run(RuntimeHandoffInterface $handoff): void {}
         };
 
         $supervisor = new WorkerSupervisor(
@@ -167,7 +169,7 @@ class WorkerSupervisorTest extends TestCase
             connectionResolver: $connectionResolver,
             connectionFactory: $connectionFactory,
             runtimeRunner: $runtimeRunner,
-            logger: new NullLogger(),
+            logger: new NullLogger,
         );
 
         $supervisor->runForNodes('worker-a', 'db-backed', [$node]);
@@ -182,7 +184,8 @@ class WorkerSupervisorTest extends TestCase
     {
         $node = $this->makeNode(1, 'node-a');
         $assignmentResolver = $this->createStub(WorkerAssignmentResolverInterface::class);
-        $connectionResolver = new class implements ConnectionResolverInterface {
+        $connectionResolver = new class implements ConnectionResolverInterface
+        {
             public function resolveForNode(int $pbxNodeId): ConnectionContext
             {
                 return $this->context('node-a');
@@ -215,22 +218,24 @@ class WorkerSupervisorTest extends TestCase
             }
         };
 
-        $connectionFactory = new class implements ConnectionFactoryInterface {
+        $connectionFactory = new class implements ConnectionFactoryInterface
+        {
             public function create(ConnectionContext $context): EslCoreConnectionHandle
             {
-                $commandFactory = new EslCoreCommandFactory();
+                $commandFactory = new EslCoreCommandFactory;
 
                 return new EslCoreConnectionHandle(
                     context: $context,
-                    pipeline: (new EslCorePipelineFactory())->createPipeline(),
+                    pipeline: (new EslCorePipelineFactory)->createPipeline(),
                     openingSequence: $commandFactory->buildOpeningSequence($context),
                     closingSequence: $commandFactory->buildClosingSequence(),
-                    transportOpener: fn () => new InMemoryTransport(),
+                    transportOpener: fn () => new InMemoryTransport,
                 );
             }
         };
 
-        $runtimeRunner = new class implements RuntimeRunnerInterface {
+        $runtimeRunner = new class implements RuntimeRunnerInterface
+        {
             public int $runCalls = 0;
 
             public function run(RuntimeHandoffInterface $handoff): void
@@ -244,7 +249,7 @@ class WorkerSupervisorTest extends TestCase
             connectionResolver: $connectionResolver,
             connectionFactory: $connectionFactory,
             runtimeRunner: $runtimeRunner,
-            logger: new NullLogger(),
+            logger: new NullLogger,
         );
 
         $supervisor->prepareForNodes('worker-a', 'db-backed', [$node]);

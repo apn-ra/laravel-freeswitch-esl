@@ -2,6 +2,8 @@
 
 namespace ApnTalk\LaravelFreeswitchEsl\Contracts;
 
+use ApnTalk\LaravelFreeswitchEsl\Exceptions\ProviderDriverException;
+
 /**
  * Resolves registered provider driver implementations by provider code.
  *
@@ -19,7 +21,7 @@ interface ProviderDriverRegistryInterface
     /**
      * Resolve the driver instance for the given provider code.
      *
-     * @throws \ApnTalk\LaravelFreeswitchEsl\Exceptions\ProviderDriverException
+     * @throws ProviderDriverException
      */
     public function resolve(string $providerCode): ProviderDriverInterface;
 

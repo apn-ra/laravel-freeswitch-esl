@@ -6,6 +6,7 @@ use ApnTalk\LaravelFreeswitchEsl\Contracts\HealthReporterInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\PbxRegistryInterface;
 use ApnTalk\LaravelFreeswitchEsl\ControlPlane\Models\PbxNode as PbxNodeModel;
 use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\HealthSnapshot;
+use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\PbxNode;
 
 /**
  * Produces structured health snapshots from the DB-backed control plane.
@@ -48,13 +49,13 @@ class HealthReporter implements HealthReporterInterface
     public function record(HealthSnapshot $snapshot): void
     {
         PbxNodeModel::query()->where('id', $snapshot->pbxNodeId)->update([
-            'health_status'    => $snapshot->status,
+            'health_status' => $snapshot->status,
             'last_heartbeat_at' => $snapshot->lastHeartbeatAt,
         ]);
     }
 
     private function snapshotFromNode(
-        \ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\PbxNode $node,
+        PbxNode $node,
     ): HealthSnapshot {
         $status = $this->deriveStatus(
             storedStatus: $node->healthStatus,
@@ -75,7 +76,7 @@ class HealthReporter implements HealthReporterInterface
             lastHeartbeatAt: $node->lastHeartbeatAt,
             recentFailures: [],
             meta: [],
-            capturedAt: new \DateTimeImmutable(),
+            capturedAt: new \DateTimeImmutable,
         );
     }
 

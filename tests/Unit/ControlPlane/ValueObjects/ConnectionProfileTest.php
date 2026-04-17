@@ -10,16 +10,16 @@ class ConnectionProfileTest extends TestCase
     public function test_from_record_decodes_json_fields(): void
     {
         $profile = ConnectionProfile::fromRecord([
-            'id'                         => 1,
-            'provider_id'                => 1,
-            'name'                       => 'default',
-            'retry_policy_json'          => '{"max_attempts":5,"initial_delay_ms":1000}',
-            'drain_policy_json'          => null,
-            'subscription_profile_json'  => null,
-            'replay_policy_json'         => null,
+            'id' => 1,
+            'provider_id' => 1,
+            'name' => 'default',
+            'retry_policy_json' => '{"max_attempts":5,"initial_delay_ms":1000}',
+            'drain_policy_json' => null,
+            'subscription_profile_json' => null,
+            'replay_policy_json' => null,
             'normalization_profile_json' => null,
-            'worker_profile_json'        => null,
-            'settings_json'              => null,
+            'worker_profile_json' => null,
+            'settings_json' => null,
         ]);
 
         $this->assertSame(5, $profile->retryPolicy['max_attempts']);
@@ -53,16 +53,16 @@ class ConnectionProfileTest extends TestCase
     public function test_handles_null_json_gracefully(): void
     {
         $profile = ConnectionProfile::fromRecord([
-            'id'                         => null,
-            'provider_id'                => null,
-            'name'                       => 'fallback',
-            'retry_policy_json'          => null,
-            'drain_policy_json'          => null,
-            'subscription_profile_json'  => null,
-            'replay_policy_json'         => null,
+            'id' => null,
+            'provider_id' => null,
+            'name' => 'fallback',
+            'retry_policy_json' => null,
+            'drain_policy_json' => null,
+            'subscription_profile_json' => null,
+            'replay_policy_json' => null,
             'normalization_profile_json' => null,
-            'worker_profile_json'        => null,
-            'settings_json'              => null,
+            'worker_profile_json' => null,
+            'settings_json' => null,
         ]);
 
         $this->assertSame([], $profile->retryPolicy);

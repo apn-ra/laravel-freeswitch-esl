@@ -2,15 +2,28 @@
 
 namespace ApnTalk\LaravelFreeswitchEsl\Providers;
 
+use Apntalk\EslCore\Contracts\InboundConnectionFactoryInterface;
+use Apntalk\EslCore\Contracts\TransportFactoryInterface;
+use Apntalk\EslCore\Inbound\InboundConnectionFactory;
+use Apntalk\EslCore\Transport\SocketTransportFactory;
+use Apntalk\EslReact\AsyncEslRuntime;
+use Apntalk\EslReact\Contracts\RuntimeRunnerInterface as EslReactRuntimeRunnerInterface;
 use Apntalk\EslReplay\Checkpoint\ReplayCheckpointRepository;
 use Apntalk\EslReplay\Contracts\ReplayArtifactStoreInterface;
 use Apntalk\EslReplay\Contracts\ReplayCheckpointStoreInterface;
+use ApnTalk\LaravelFreeswitchEsl\Console\Commands\FreeSwitchHealthCommand;
+use ApnTalk\LaravelFreeswitchEsl\Console\Commands\FreeSwitchPingCommand;
+use ApnTalk\LaravelFreeswitchEsl\Console\Commands\FreeSwitchReplayInspectCommand;
+use ApnTalk\LaravelFreeswitchEsl\Console\Commands\FreeSwitchStatusCommand;
+use ApnTalk\LaravelFreeswitchEsl\Console\Commands\FreeSwitchWorkerCheckpointStatusCommand;
+use ApnTalk\LaravelFreeswitchEsl\Console\Commands\FreeSwitchWorkerCommand;
+use ApnTalk\LaravelFreeswitchEsl\Console\Commands\FreeSwitchWorkerStatusCommand;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\ConnectionFactoryInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\ConnectionResolverInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\HealthReporterInterface;
-use ApnTalk\LaravelFreeswitchEsl\Contracts\RuntimeRunnerInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\PbxRegistryInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\ProviderDriverRegistryInterface;
+use ApnTalk\LaravelFreeswitchEsl\Contracts\RuntimeRunnerInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\SecretResolverInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\WorkerAssignmentResolverInterface;
 use ApnTalk\LaravelFreeswitchEsl\ControlPlane\Services\ConnectionProfileResolver;
@@ -19,6 +32,7 @@ use ApnTalk\LaravelFreeswitchEsl\ControlPlane\Services\DatabasePbxRegistry;
 use ApnTalk\LaravelFreeswitchEsl\ControlPlane\Services\ProviderDriverRegistry;
 use ApnTalk\LaravelFreeswitchEsl\ControlPlane\Services\SecretResolver;
 use ApnTalk\LaravelFreeswitchEsl\ControlPlane\Services\WorkerAssignmentResolver;
+use ApnTalk\LaravelFreeswitchEsl\Facades\FreeSwitchEslManager;
 use ApnTalk\LaravelFreeswitchEsl\Health\HealthReporter;
 use ApnTalk\LaravelFreeswitchEsl\Integration\EslCoreCommandFactory;
 use ApnTalk\LaravelFreeswitchEsl\Integration\EslCoreConnectionFactory;
@@ -31,14 +45,9 @@ use ApnTalk\LaravelFreeswitchEsl\Integration\Replay\ReplayCaptureSinkFactory;
 use ApnTalk\LaravelFreeswitchEsl\Integration\Replay\ReplayCheckpointStoreFactory;
 use ApnTalk\LaravelFreeswitchEsl\Integration\Replay\ReplayStoreFactory;
 use ApnTalk\LaravelFreeswitchEsl\Integration\Replay\WorkerReplayCheckpointManager;
-use Apntalk\EslReact\AsyncEslRuntime;
-use Apntalk\EslReact\Contracts\RuntimeRunnerInterface as EslReactRuntimeRunnerInterface;
-use Apntalk\EslCore\Contracts\InboundConnectionFactoryInterface;
-use Apntalk\EslCore\Contracts\TransportFactoryInterface;
-use Apntalk\EslCore\Inbound\InboundConnectionFactory;
-use Apntalk\EslCore\Transport\SocketTransportFactory;
 use Illuminate\Contracts\Events\Dispatcher;
 use Illuminate\Support\ServiceProvider;
+use Psr\Log\LoggerInterface;
 
 /**
  * Main Laravel service provider for apntalk/laravel-freeswitch-esl.
@@ -60,7 +69,7 @@ class FreeSwitchEslServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->mergeConfigFrom(
-            __DIR__ . '/../../config/freeswitch-esl.php',
+            __DIR__.'/../../config/freeswitch-esl.php',
             'freeswitch-esl'
         );
 
@@ -157,7 +166,6 @@ class FreeSwitchEslServiceProvider extends ServiceProvider
         });
     }
 
-
     private function registerRuntimeRunner(): void
     {
         $this->app->singleton(EslReactRuntimeBootstrapInputFactory::class, function ($app) {
@@ -182,7 +190,7 @@ class FreeSwitchEslServiceProvider extends ServiceProvider
                     runner: $app->make(EslReactRuntimeRunnerInterface::class),
                     inputFactory: $app->make(EslReactRuntimeBootstrapInputFactory::class),
                 ),
-                'non-live', 'non_live' => new NonLiveRuntimeRunner(),
+                'non-live', 'non_live' => new NonLiveRuntimeRunner,
                 default => throw new \InvalidArgumentException(sprintf(
                     'Unsupported freeswitch-esl.runtime.runner [%s]. Supported values are [esl-react] and [non-live].',
                     is_scalar($runner) ? (string) $runner : get_debug_type($runner),
@@ -213,8 +221,8 @@ class FreeSwitchEslServiceProvider extends ServiceProvider
 
     private function registerManager(): void
     {
-        $this->app->singleton(\ApnTalk\LaravelFreeswitchEsl\Facades\FreeSwitchEslManager::class, function ($app) {
-            return new \ApnTalk\LaravelFreeswitchEsl\Facades\FreeSwitchEslManager(
+        $this->app->singleton(FreeSwitchEslManager::class, function ($app) {
+            return new FreeSwitchEslManager(
                 registry: $app->make(PbxRegistryInterface::class),
                 resolver: $app->make(ConnectionResolverInterface::class),
                 healthReporter: $app->make(HealthReporterInterface::class),
@@ -246,7 +254,7 @@ class FreeSwitchEslServiceProvider extends ServiceProvider
         $this->app->singleton(ReplayCaptureSinkFactory::class, function ($app) {
             return new ReplayCaptureSinkFactory(
                 store: $app->make(ReplayArtifactStoreInterface::class),
-                logger: $app->make(\Psr\Log\LoggerInterface::class),
+                logger: $app->make(LoggerInterface::class),
             );
         });
 
@@ -256,7 +264,7 @@ class FreeSwitchEslServiceProvider extends ServiceProvider
             return new WorkerReplayCheckpointManager(
                 artifactStore: $app->make(ReplayArtifactStoreInterface::class),
                 checkpointRepository: $app->make(ReplayCheckpointRepository::class),
-                logger: $app->make(\Psr\Log\LoggerInterface::class),
+                logger: $app->make(LoggerInterface::class),
                 enabled: (bool) $app['config']->get('freeswitch-esl.replay.enabled', false),
                 replayStoreDriver: is_string($replayConfig['store_driver'] ?? null) ? $replayConfig['store_driver'] : null,
                 replayStoragePath: is_string($replayConfig['storage_path'] ?? null) ? $replayConfig['storage_path'] : null,
@@ -309,27 +317,27 @@ class FreeSwitchEslServiceProvider extends ServiceProvider
     private function publishConfig(): void
     {
         $this->publishes([
-            __DIR__ . '/../../config/freeswitch-esl.php' => config_path('freeswitch-esl.php'),
+            __DIR__.'/../../config/freeswitch-esl.php' => config_path('freeswitch-esl.php'),
         ], 'freeswitch-esl-config');
     }
 
     private function publishMigrations(): void
     {
         $this->publishes([
-            __DIR__ . '/../../database/migrations' => database_path('migrations'),
+            __DIR__.'/../../database/migrations' => database_path('migrations'),
         ], 'freeswitch-esl-migrations');
     }
 
     private function registerCommands(): void
     {
         $this->commands([
-            \ApnTalk\LaravelFreeswitchEsl\Console\Commands\FreeSwitchPingCommand::class,
-            \ApnTalk\LaravelFreeswitchEsl\Console\Commands\FreeSwitchStatusCommand::class,
-            \ApnTalk\LaravelFreeswitchEsl\Console\Commands\FreeSwitchWorkerCommand::class,
-            \ApnTalk\LaravelFreeswitchEsl\Console\Commands\FreeSwitchWorkerStatusCommand::class,
-            \ApnTalk\LaravelFreeswitchEsl\Console\Commands\FreeSwitchWorkerCheckpointStatusCommand::class,
-            \ApnTalk\LaravelFreeswitchEsl\Console\Commands\FreeSwitchHealthCommand::class,
-            \ApnTalk\LaravelFreeswitchEsl\Console\Commands\FreeSwitchReplayInspectCommand::class,
+            FreeSwitchPingCommand::class,
+            FreeSwitchStatusCommand::class,
+            FreeSwitchWorkerCommand::class,
+            FreeSwitchWorkerStatusCommand::class,
+            FreeSwitchWorkerCheckpointStatusCommand::class,
+            FreeSwitchHealthCommand::class,
+            FreeSwitchReplayInspectCommand::class,
         ]);
     }
 }

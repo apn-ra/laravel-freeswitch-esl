@@ -20,7 +20,7 @@ class HealthSnapshotTest extends TestCase
             inflightCount: 5,
             retryAttempt: 0,
             isDraining: false,
-            lastHeartbeatAt: new \DateTimeImmutable(),
+            lastHeartbeatAt: new \DateTimeImmutable,
         );
     }
 

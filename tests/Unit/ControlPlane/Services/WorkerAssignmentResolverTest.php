@@ -19,7 +19,7 @@ class WorkerAssignmentResolverTest extends TestCase
             providerCode: 'freeswitch',
             name: "Node {$id}",
             slug: $slug,
-            host: '10.0.0.' . $id,
+            host: '10.0.0.'.$id,
             port: 8021,
             username: '',
             passwordSecretRef: 'secret',

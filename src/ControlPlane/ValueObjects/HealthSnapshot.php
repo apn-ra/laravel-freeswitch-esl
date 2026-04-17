@@ -11,8 +11,11 @@ namespace ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects;
 final class HealthSnapshot
 {
     public const STATUS_HEALTHY = 'healthy';
+
     public const STATUS_DEGRADED = 'degraded';
+
     public const STATUS_UNHEALTHY = 'unhealthy';
+
     public const STATUS_UNKNOWN = 'unknown';
 
     /**
@@ -57,20 +60,20 @@ final class HealthSnapshot
     public function toArray(): array
     {
         return [
-            'pbx_node_id'             => $this->pbxNodeId,
-            'pbx_node_slug'           => $this->pbxNodeSlug,
-            'provider_code'           => $this->providerCode,
-            'status'                  => $this->status,
-            'connection_state'        => $this->connectionState,
-            'subscription_state'      => $this->subscriptionState,
+            'pbx_node_id' => $this->pbxNodeId,
+            'pbx_node_slug' => $this->pbxNodeSlug,
+            'provider_code' => $this->providerCode,
+            'status' => $this->status,
+            'connection_state' => $this->connectionState,
+            'subscription_state' => $this->subscriptionState,
             'worker_assignment_scope' => $this->workerAssignmentScope,
-            'inflight_count'          => $this->inflightCount,
-            'retry_attempt'           => $this->retryAttempt,
-            'is_draining'             => $this->isDraining,
-            'last_heartbeat_at'       => $this->lastHeartbeatAt?->format(\DateTimeInterface::ATOM),
-            'recent_failures'         => $this->recentFailures,
-            'meta'                    => $this->meta,
-            'captured_at'             => ($this->capturedAt ?? new \DateTimeImmutable())->format(\DateTimeInterface::ATOM),
+            'inflight_count' => $this->inflightCount,
+            'retry_attempt' => $this->retryAttempt,
+            'is_draining' => $this->isDraining,
+            'last_heartbeat_at' => $this->lastHeartbeatAt?->format(\DateTimeInterface::ATOM),
+            'recent_failures' => $this->recentFailures,
+            'meta' => $this->meta,
+            'captured_at' => ($this->capturedAt ?? new \DateTimeImmutable)->format(\DateTimeInterface::ATOM),
         ];
     }
 }

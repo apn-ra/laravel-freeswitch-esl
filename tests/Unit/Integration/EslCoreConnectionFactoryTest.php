@@ -8,10 +8,10 @@ use Apntalk\EslCore\Commands\EventSubscriptionCommand;
 use Apntalk\EslCore\Contracts\TransportFactoryInterface;
 use Apntalk\EslCore\Contracts\TransportInterface;
 use Apntalk\EslCore\Exceptions\TransportException;
-use Apntalk\EslCore\Transport\SocketEndpoint;
 use Apntalk\EslCore\Transport\InMemoryTransport;
-use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\ConnectionContext;
+use Apntalk\EslCore\Transport\SocketEndpoint;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\RuntimeHandoffInterface;
+use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\ConnectionContext;
 use ApnTalk\LaravelFreeswitchEsl\Integration\EslCoreCommandFactory;
 use ApnTalk\LaravelFreeswitchEsl\Integration\EslCoreConnectionFactory;
 use ApnTalk\LaravelFreeswitchEsl\Integration\EslCoreConnectionHandle;
@@ -92,8 +92,9 @@ class EslCoreConnectionFactoryTest extends TestCase
 
     public function test_open_transport_uses_injected_transport_opener_and_caches_transport(): void
     {
-        $transport = new InMemoryTransport();
-        $transportFactory = new class ($transport) implements TransportFactoryInterface {
+        $transport = new InMemoryTransport;
+        $transportFactory = new class($transport) implements TransportFactoryInterface
+        {
             public int $connectCalls = 0;
 
             public function __construct(private readonly TransportInterface $transport) {}
@@ -124,8 +125,9 @@ class EslCoreConnectionFactoryTest extends TestCase
 
     public function test_close_transport_closes_and_clears_cached_transport(): void
     {
-        $transport = new InMemoryTransport();
-        $transportFactory = new class ($transport) implements TransportFactoryInterface {
+        $transport = new InMemoryTransport;
+        $transportFactory = new class($transport) implements TransportFactoryInterface
+        {
             public function __construct(private readonly TransportInterface $transport) {}
 
             public function connect(SocketEndpoint $endpoint): TransportInterface
@@ -159,8 +161,9 @@ class EslCoreConnectionFactoryTest extends TestCase
 
     public function test_open_transport_uses_public_socket_endpoint_construction_for_tcp(): void
     {
-        $transport = new InMemoryTransport();
-        $transportFactory = new class ($transport) implements TransportFactoryInterface {
+        $transport = new InMemoryTransport;
+        $transportFactory = new class($transport) implements TransportFactoryInterface
+        {
             public ?SocketEndpoint $endpoint = null;
 
             public function __construct(private readonly TransportInterface $transport) {}
@@ -189,8 +192,9 @@ class EslCoreConnectionFactoryTest extends TestCase
 
     public function test_open_transport_uses_public_socket_endpoint_construction_for_tls(): void
     {
-        $transport = new InMemoryTransport();
-        $transportFactory = new class ($transport) implements TransportFactoryInterface {
+        $transport = new InMemoryTransport;
+        $transportFactory = new class($transport) implements TransportFactoryInterface
+        {
             public ?SocketEndpoint $endpoint = null;
 
             public function __construct(private readonly TransportInterface $transport) {}
@@ -233,22 +237,21 @@ class EslCoreConnectionFactoryTest extends TestCase
         $handle->openTransport();
     }
 
-    /**
-     */
     private function makeFactory(?TransportFactoryInterface $transportFactory = null): EslCoreConnectionFactory
     {
         return new EslCoreConnectionFactory(
-            commandFactory: new EslCoreCommandFactory(),
-            pipelineFactory: new EslCorePipelineFactory(),
-            transportFactory: $transportFactory ?? new class implements TransportFactoryInterface {
+            commandFactory: new EslCoreCommandFactory,
+            pipelineFactory: new EslCorePipelineFactory,
+            transportFactory: $transportFactory ?? new class implements TransportFactoryInterface
+            {
                 public function connect(SocketEndpoint $endpoint): TransportInterface
                 {
-                    return new InMemoryTransport();
+                    return new InMemoryTransport;
                 }
 
                 public function fromStream($stream): TransportInterface
                 {
-                    return new InMemoryTransport();
+                    return new InMemoryTransport;
                 }
             },
         );

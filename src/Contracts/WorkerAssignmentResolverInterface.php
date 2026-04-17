@@ -4,6 +4,7 @@ namespace ApnTalk\LaravelFreeswitchEsl\Contracts;
 
 use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\PbxNode;
 use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\WorkerAssignment;
+use ApnTalk\LaravelFreeswitchEsl\Exceptions\PbxNotFoundException;
 
 /**
  * Resolves which PBX nodes a given worker assignment scope should target.
@@ -21,7 +22,8 @@ interface WorkerAssignmentResolverInterface
      * Resolve the set of PBX nodes for the given worker assignment.
      *
      * @return PbxNode[]
-     * @throws \ApnTalk\LaravelFreeswitchEsl\Exceptions\PbxNotFoundException
+     *
+     * @throws PbxNotFoundException
      */
     public function resolveNodes(WorkerAssignment $assignment): array;
 

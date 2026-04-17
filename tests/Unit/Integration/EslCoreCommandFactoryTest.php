@@ -28,7 +28,7 @@ class EslCoreCommandFactoryTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->factory = new EslCoreCommandFactory();
+        $this->factory = new EslCoreCommandFactory;
     }
 
     public function test_build_auth_command_returns_auth_command(): void

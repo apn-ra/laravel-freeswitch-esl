@@ -7,6 +7,7 @@ use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\ConnectionContext;
 use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\ConnectionProfile;
 use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\PbxNode;
 use ApnTalk\LaravelFreeswitchEsl\Drivers\FreeSwitchDriver;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -26,24 +27,24 @@ class ProviderDriverContractTest extends TestCase
     public static function driverProvider(): array
     {
         return [
-            'FreeSwitchDriver' => [new FreeSwitchDriver()],
+            'FreeSwitchDriver' => [new FreeSwitchDriver],
         ];
     }
 
-    #[\PHPUnit\Framework\Attributes\DataProvider('driverProvider')]
+    #[DataProvider('driverProvider')]
     public function test_provider_code_is_non_empty_string(ProviderDriverInterface $driver): void
     {
         $this->assertNotEmpty($driver->providerCode());
         $this->assertIsString($driver->providerCode());
     }
 
-    #[\PHPUnit\Framework\Attributes\DataProvider('driverProvider')]
+    #[DataProvider('driverProvider')]
     public function test_provider_code_contains_no_whitespace(ProviderDriverInterface $driver): void
     {
         $this->assertMatchesRegularExpression('/^\S+$/', $driver->providerCode());
     }
 
-    #[\PHPUnit\Framework\Attributes\DataProvider('driverProvider')]
+    #[DataProvider('driverProvider')]
     public function test_build_connection_context_returns_context_instance(ProviderDriverInterface $driver): void
     {
         $context = $driver->buildConnectionContext($this->makeNode(), $this->makeProfile());
@@ -51,7 +52,7 @@ class ProviderDriverContractTest extends TestCase
         $this->assertInstanceOf(ConnectionContext::class, $context);
     }
 
-    #[\PHPUnit\Framework\Attributes\DataProvider('driverProvider')]
+    #[DataProvider('driverProvider')]
     public function test_build_connection_context_preserves_node_identity(ProviderDriverInterface $driver): void
     {
         $node = $this->makeNode(id: 42, slug: 'contract-test-node');
@@ -61,7 +62,7 @@ class ProviderDriverContractTest extends TestCase
         $this->assertSame('contract-test-node', $context->pbxNodeSlug);
     }
 
-    #[\PHPUnit\Framework\Attributes\DataProvider('driverProvider')]
+    #[DataProvider('driverProvider')]
     public function test_build_connection_context_preserves_provider_code(ProviderDriverInterface $driver): void
     {
         $context = $driver->buildConnectionContext($this->makeNode(), $this->makeProfile());
@@ -69,7 +70,7 @@ class ProviderDriverContractTest extends TestCase
         $this->assertSame($driver->providerCode(), $context->providerCode);
     }
 
-    #[\PHPUnit\Framework\Attributes\DataProvider('driverProvider')]
+    #[DataProvider('driverProvider')]
     public function test_build_connection_context_preserves_connection_coordinates(ProviderDriverInterface $driver): void
     {
         $node = $this->makeNode(host: '192.168.1.100', port: 8022, transport: 'tls');
@@ -80,7 +81,7 @@ class ProviderDriverContractTest extends TestCase
         $this->assertSame('tls', $context->transport);
     }
 
-    #[\PHPUnit\Framework\Attributes\DataProvider('driverProvider')]
+    #[DataProvider('driverProvider')]
     public function test_build_connection_context_does_not_inject_credential(ProviderDriverInterface $driver): void
     {
         // Drivers must NOT call the secret resolver — ConnectionResolver does that.
@@ -94,13 +95,13 @@ class ProviderDriverContractTest extends TestCase
         );
     }
 
-    #[\PHPUnit\Framework\Attributes\DataProvider('driverProvider')]
+    #[DataProvider('driverProvider')]
     public function test_supports_capability_returns_bool(ProviderDriverInterface $driver): void
     {
         $this->assertIsBool($driver->supportsCapability('any-capability'));
     }
 
-    #[\PHPUnit\Framework\Attributes\DataProvider('driverProvider')]
+    #[DataProvider('driverProvider')]
     public function test_to_log_context_omits_credential(ProviderDriverInterface $driver): void
     {
         $context = $driver->buildConnectionContext($this->makeNode(), $this->makeProfile());

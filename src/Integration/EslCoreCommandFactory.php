@@ -99,7 +99,7 @@ final class EslCoreCommandFactory
      */
     public function buildExitCommand(): ExitCommand
     {
-        return new ExitCommand();
+        return new ExitCommand;
     }
 
     /**
@@ -109,7 +109,7 @@ final class EslCoreCommandFactory
      */
     public function buildNoEventsCommand(): NoEventsCommand
     {
-        return new NoEventsCommand();
+        return new NoEventsCommand;
     }
 
     /**

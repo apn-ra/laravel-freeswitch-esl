@@ -60,6 +60,6 @@ final class ReplayStoreFactory
             return $path;
         }
 
-        return rtrim($path, '/\\') . DIRECTORY_SEPARATOR . 'replay.sqlite';
+        return rtrim($path, '/\\').DIRECTORY_SEPARATOR.'replay.sqlite';
     }
 }

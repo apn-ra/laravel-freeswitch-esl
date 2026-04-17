@@ -27,9 +27,9 @@ class SecretResolver implements SecretResolverInterface
     {
         return match ($this->mode) {
             'plaintext' => $secretRef,
-            'env'       => $this->resolveFromEnv($secretRef),
-            'custom'    => $this->resolveFromCustom($secretRef),
-            default     => throw ConnectionResolutionException::unknownSecretMode($this->mode),
+            'env' => $this->resolveFromEnv($secretRef),
+            'custom' => $this->resolveFromCustom($secretRef),
+            default => throw ConnectionResolutionException::unknownSecretMode($this->mode),
         };
     }
 

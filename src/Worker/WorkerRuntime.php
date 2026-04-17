@@ -465,6 +465,6 @@ class WorkerRuntime implements WorkerInterface
 
     protected function now(): \DateTimeImmutable
     {
-        return new \DateTimeImmutable();
+        return new \DateTimeImmutable;
     }
 }

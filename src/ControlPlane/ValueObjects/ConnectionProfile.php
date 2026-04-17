@@ -93,7 +93,6 @@ final class ConnectionProfile
     }
 
     /**
-     * @param  mixed  $json
      * @return array<string, mixed>
      */
     private static function decodeJson(mixed $json): array

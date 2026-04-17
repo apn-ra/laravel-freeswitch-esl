@@ -3,6 +3,7 @@
 namespace ApnTalk\LaravelFreeswitchEsl\Contracts;
 
 use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\PbxNode;
+use ApnTalk\LaravelFreeswitchEsl\Exceptions\PbxNotFoundException;
 
 /**
  * Resolves live PBX node inventory from the database-backed control plane.
@@ -16,14 +17,14 @@ interface PbxRegistryInterface
     /**
      * Resolve a single PBX node by its database ID.
      *
-     * @throws \ApnTalk\LaravelFreeswitchEsl\Exceptions\PbxNotFoundException
+     * @throws PbxNotFoundException
      */
     public function findById(int $id): PbxNode;
 
     /**
      * Resolve a single PBX node by its slug.
      *
-     * @throws \ApnTalk\LaravelFreeswitchEsl\Exceptions\PbxNotFoundException
+     * @throws PbxNotFoundException
      */
     public function findBySlug(string $slug): PbxNode;
 

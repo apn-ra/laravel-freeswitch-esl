@@ -15,9 +15,13 @@ namespace ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects;
 final class WorkerAssignment
 {
     public const MODE_NODE = 'node';
+
     public const MODE_CLUSTER = 'cluster';
+
     public const MODE_TAG = 'tag';
+
     public const MODE_PROVIDER = 'provider';
+
     public const MODE_ALL_ACTIVE = 'all-active';
 
     public const VALID_MODES = [
@@ -40,7 +44,7 @@ final class WorkerAssignment
     ) {
         if (! in_array($assignmentMode, self::VALID_MODES, true)) {
             throw new \InvalidArgumentException(
-                "Invalid assignment mode '{$assignmentMode}'. Valid modes: " . implode(', ', self::VALID_MODES)
+                "Invalid assignment mode '{$assignmentMode}'. Valid modes: ".implode(', ', self::VALID_MODES)
             );
         }
     }

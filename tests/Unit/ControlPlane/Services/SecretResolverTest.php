@@ -2,6 +2,7 @@
 
 namespace ApnTalk\LaravelFreeswitchEsl\Tests\Unit\ControlPlane\Services;
 
+use ApnTalk\LaravelFreeswitchEsl\Contracts\SecretResolverInterface;
 use ApnTalk\LaravelFreeswitchEsl\ControlPlane\Services\SecretResolver;
 use ApnTalk\LaravelFreeswitchEsl\Exceptions\ConnectionResolutionException;
 use PHPUnit\Framework\TestCase;
@@ -60,10 +61,11 @@ class SecretResolverTest extends TestCase
 
     public function test_custom_mode_delegates_to_custom_resolver(): void
     {
-        $custom = new class implements \ApnTalk\LaravelFreeswitchEsl\Contracts\SecretResolverInterface {
+        $custom = new class implements SecretResolverInterface
+        {
             public function resolve(string $secretRef): string
             {
-                return 'resolved-' . $secretRef;
+                return 'resolved-'.$secretRef;
             }
         };
 

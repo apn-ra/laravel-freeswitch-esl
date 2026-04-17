@@ -23,7 +23,7 @@ class EslCorePipelineFactoryTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->factory = new EslCorePipelineFactory();
+        $this->factory = new EslCorePipelineFactory;
     }
 
     public function test_create_pipeline_returns_inbound_pipeline_interface(): void
@@ -121,7 +121,7 @@ class EslCorePipelineFactoryTest extends TestCase
         $pipeline = $this->factory->createPipeline();
 
         // Push a partial frame
-        $pipeline->push("Content-Type: auth/request");
+        $pipeline->push('Content-Type: auth/request');
         $this->assertGreaterThan(0, $pipeline->bufferedByteCount());
 
         // Reset clears the buffer

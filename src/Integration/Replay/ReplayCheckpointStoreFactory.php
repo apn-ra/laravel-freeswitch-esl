@@ -41,9 +41,9 @@ final class ReplayCheckpointStoreFactory
         }
 
         if (str_ends_with($storagePath, '.sqlite') || str_ends_with($storagePath, '.db')) {
-            return dirname($storagePath) . DIRECTORY_SEPARATOR . 'checkpoints';
+            return dirname($storagePath).DIRECTORY_SEPARATOR.'checkpoints';
         }
 
-        return rtrim($storagePath, '/\\') . DIRECTORY_SEPARATOR . 'checkpoints';
+        return rtrim($storagePath, '/\\').DIRECTORY_SEPARATOR.'checkpoints';
     }
 }

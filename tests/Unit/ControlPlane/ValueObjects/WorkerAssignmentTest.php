@@ -50,7 +50,7 @@ class WorkerAssignmentTest extends TestCase
     public function test_invalid_mode_throws(): void
     {
         $this->expectException(\InvalidArgumentException::class);
-        $this->expectExceptionMessage("Invalid assignment mode");
+        $this->expectExceptionMessage('Invalid assignment mode');
 
         new WorkerAssignment(
             id: null,
@@ -62,14 +62,14 @@ class WorkerAssignmentTest extends TestCase
     public function test_from_record_maps_fields(): void
     {
         $assignment = WorkerAssignment::fromRecord([
-            'id'              => 1,
-            'worker_name'     => 'my-worker',
+            'id' => 1,
+            'worker_name' => 'my-worker',
             'assignment_mode' => 'cluster',
-            'pbx_node_id'     => null,
-            'provider_code'   => null,
-            'cluster'         => 'us-east',
-            'tag'             => null,
-            'is_active'       => true,
+            'pbx_node_id' => null,
+            'provider_code' => null,
+            'cluster' => 'us-east',
+            'tag' => null,
+            'is_active' => true,
         ]);
 
         $this->assertSame('my-worker', $assignment->workerName);

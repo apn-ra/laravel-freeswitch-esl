@@ -1,5 +1,7 @@
 <?php
 
+use ApnTalk\LaravelFreeswitchEsl\Drivers\FreeSwitchDriver;
+
 return [
 
     /*
@@ -22,7 +24,7 @@ return [
     | which drivers are available to the package.
     */
     'drivers' => [
-        'freeswitch' => \ApnTalk\LaravelFreeswitchEsl\Drivers\FreeSwitchDriver::class,
+        'freeswitch' => FreeSwitchDriver::class,
     ],
 
     /*
@@ -38,10 +40,10 @@ return [
     'fallback' => [
         'enabled' => env('FREESWITCH_ESL_FALLBACK_ENABLED', false),
         'provider' => 'freeswitch',
-        'host'     => env('FREESWITCH_ESL_HOST', '127.0.0.1'),
-        'port'     => (int) env('FREESWITCH_ESL_PORT', 8021),
+        'host' => env('FREESWITCH_ESL_HOST', '127.0.0.1'),
+        'port' => (int) env('FREESWITCH_ESL_PORT', 8021),
         'password' => env('FREESWITCH_ESL_PASSWORD', 'ClueCon'),
-        'timeout'  => (int) env('FREESWITCH_ESL_TIMEOUT', 10),
+        'timeout' => (int) env('FREESWITCH_ESL_TIMEOUT', 10),
     ],
 
     /*
@@ -57,7 +59,7 @@ return [
     |   'custom'     - password_secret_ref is resolved by a custom resolver class
     */
     'secret_resolver' => [
-        'mode'           => env('FREESWITCH_ESL_SECRET_MODE', 'plaintext'),
+        'mode' => env('FREESWITCH_ESL_SECRET_MODE', 'plaintext'),
         'resolver_class' => null,
     ],
 
@@ -69,11 +71,11 @@ return [
     | specify their own policy.
     */
     'retry_defaults' => [
-        'max_attempts'    => (int) env('FREESWITCH_ESL_MAX_RETRY', 5),
+        'max_attempts' => (int) env('FREESWITCH_ESL_MAX_RETRY', 5),
         'initial_delay_ms' => (int) env('FREESWITCH_ESL_RETRY_INITIAL_MS', 1000),
-        'backoff_factor'  => (float) env('FREESWITCH_ESL_RETRY_BACKOFF', 2.0),
-        'max_delay_ms'    => (int) env('FREESWITCH_ESL_RETRY_MAX_MS', 60000),
-        'jitter'          => true,
+        'backoff_factor' => (float) env('FREESWITCH_ESL_RETRY_BACKOFF', 2.0),
+        'max_delay_ms' => (int) env('FREESWITCH_ESL_RETRY_MAX_MS', 60000),
+        'jitter' => true,
     ],
 
     /*
@@ -83,8 +85,8 @@ return [
     | Default graceful drain settings for workers.
     */
     'drain_defaults' => [
-        'timeout_ms'       => (int) env('FREESWITCH_ESL_DRAIN_TIMEOUT_MS', 30000),
-        'max_inflight'     => (int) env('FREESWITCH_ESL_MAX_INFLIGHT', 100),
+        'timeout_ms' => (int) env('FREESWITCH_ESL_DRAIN_TIMEOUT_MS', 30000),
+        'max_inflight' => (int) env('FREESWITCH_ESL_MAX_INFLIGHT', 100),
         'check_interval_ms' => 500,
     ],
 
@@ -96,8 +98,8 @@ return [
     */
     'health' => [
         'heartbeat_timeout_seconds' => (int) env('FREESWITCH_ESL_HEARTBEAT_TIMEOUT', 60),
-        'failure_threshold'          => (int) env('FREESWITCH_ESL_FAILURE_THRESHOLD', 3),
-        'recovery_threshold'         => (int) env('FREESWITCH_ESL_RECOVERY_THRESHOLD', 1),
+        'failure_threshold' => (int) env('FREESWITCH_ESL_FAILURE_THRESHOLD', 3),
+        'recovery_threshold' => (int) env('FREESWITCH_ESL_RECOVERY_THRESHOLD', 1),
     ],
 
     /*
@@ -108,7 +110,7 @@ return [
     */
     'worker_defaults' => [
         'heartbeat_interval_seconds' => (int) env('FREESWITCH_ESL_HEARTBEAT_INTERVAL', 30),
-        'shutdown_timeout_seconds'   => (int) env('FREESWITCH_ESL_SHUTDOWN_TIMEOUT', 30),
+        'shutdown_timeout_seconds' => (int) env('FREESWITCH_ESL_SHUTDOWN_TIMEOUT', 30),
         'checkpoint_interval_seconds' => (int) env('FREESWITCH_ESL_CHECKPOINT_INTERVAL', 60),
     ],
 
@@ -139,11 +141,11 @@ return [
     | Capture is disabled by default and must be explicitly enabled.
     */
     'replay' => [
-        'enabled'          => env('FREESWITCH_ESL_REPLAY_ENABLED', false),
-        'store_driver'     => env('FREESWITCH_ESL_REPLAY_STORE', 'database'),
-        'storage_path'     => env('FREESWITCH_ESL_REPLAY_STORAGE_PATH', storage_path('app/freeswitch-esl/replay')),
+        'enabled' => env('FREESWITCH_ESL_REPLAY_ENABLED', false),
+        'store_driver' => env('FREESWITCH_ESL_REPLAY_STORE', 'database'),
+        'storage_path' => env('FREESWITCH_ESL_REPLAY_STORAGE_PATH', storage_path('app/freeswitch-esl/replay')),
         'checkpoint_storage_path' => env('FREESWITCH_ESL_REPLAY_CHECKPOINT_STORAGE_PATH', ''),
-        'retention_days'   => (int) env('FREESWITCH_ESL_REPLAY_RETENTION_DAYS', 7),
+        'retention_days' => (int) env('FREESWITCH_ESL_REPLAY_RETENTION_DAYS', 7),
     ],
 
 ];

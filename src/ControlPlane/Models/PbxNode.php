@@ -39,10 +39,10 @@ class PbxNode extends Model
      * @var array<string, string>
      */
     protected $casts = [
-        'port'              => 'integer',
-        'is_active'         => 'boolean',
-        'tags_json'         => 'array',
-        'settings_json'     => 'array',
+        'port' => 'integer',
+        'is_active' => 'boolean',
+        'tags_json' => 'array',
+        'settings_json' => 'array',
         'last_heartbeat_at' => 'datetime',
     ];
 

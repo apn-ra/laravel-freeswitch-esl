@@ -2,9 +2,9 @@
 
 namespace ApnTalk\LaravelFreeswitchEsl\Integration\Replay;
 
-use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\ConnectionContext;
 use Apntalk\EslCore\Contracts\ReplayEnvelopeInterface;
 use Apntalk\EslReplay\Artifact\CapturedArtifactEnvelope;
+use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\ConnectionContext;
 
 final class ReplayEnvelopeArtifactAdapter implements CapturedArtifactEnvelope
 {

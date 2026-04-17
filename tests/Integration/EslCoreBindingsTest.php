@@ -7,9 +7,12 @@ use Apntalk\EslCore\Contracts\InboundPipelineInterface;
 use Apntalk\EslCore\Contracts\TransportFactoryInterface;
 use Apntalk\EslCore\Correlation\ConnectionSessionId;
 use Apntalk\EslCore\Inbound\PreparedInboundConnection;
+use Apntalk\EslCore\Transport\SocketTransportFactory;
+use Apntalk\EslReact\Contracts\RuntimeRunnerInterface as EslReactRuntimeRunnerInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\ConnectionFactoryInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\RuntimeHandoffInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\RuntimeRunnerInterface;
+use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\ConnectionContext;
 use ApnTalk\LaravelFreeswitchEsl\Integration\EslCoreCommandFactory;
 use ApnTalk\LaravelFreeswitchEsl\Integration\EslCoreConnectionHandle;
 use ApnTalk\LaravelFreeswitchEsl\Integration\EslCoreEventBridge;
@@ -17,8 +20,6 @@ use ApnTalk\LaravelFreeswitchEsl\Integration\EslCorePipelineFactory;
 use ApnTalk\LaravelFreeswitchEsl\Integration\EslReactRuntimeBootstrapInputFactory;
 use ApnTalk\LaravelFreeswitchEsl\Integration\EslReactRuntimeRunnerAdapter;
 use ApnTalk\LaravelFreeswitchEsl\Integration\NonLiveRuntimeRunner;
-use Apntalk\EslReact\Contracts\RuntimeRunnerInterface as EslReactRuntimeRunnerInterface;
-use Apntalk\EslCore\Transport\SocketTransportFactory;
 use ApnTalk\LaravelFreeswitchEsl\Tests\TestCase;
 
 /**
@@ -29,7 +30,6 @@ use ApnTalk\LaravelFreeswitchEsl\Tests\TestCase;
  */
 class EslCoreBindingsTest extends TestCase
 {
-
     public function test_runtime_runner_resolves_from_container(): void
     {
         $runner = $this->app->make(RuntimeRunnerInterface::class);
@@ -178,7 +178,7 @@ class EslCoreBindingsTest extends TestCase
     {
         $factory = $this->app->make(ConnectionFactoryInterface::class);
 
-        $handle = $factory->create(new \ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\ConnectionContext(
+        $handle = $factory->create(new ConnectionContext(
             pbxNodeId: 1,
             pbxNodeSlug: 'test-node',
             providerCode: 'freeswitch',
