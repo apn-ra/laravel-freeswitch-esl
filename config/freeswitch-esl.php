@@ -114,6 +114,25 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Runtime Runner Binding
+    |--------------------------------------------------------------------------
+    | Selects the Laravel-owned runtime runner binding.
+    |
+    | Supported values:
+    |   'esl-react' - adapt RuntimeHandoffInterface into apntalk/esl-react's
+    |                 prepared bootstrap input and invoke its runner seam
+    |   'non-live'  - retain the truthful no-op runner for dry-run/fallback use
+    */
+    'runtime' => [
+        'runner' => env('FREESWITCH_ESL_RUNTIME_RUNNER', 'esl-react'),
+
+        'react' => [
+            'connector_options' => [],
+        ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Replay Integration
     |--------------------------------------------------------------------------
     | Settings governing replay capture wiring via apntalk/esl-replay.

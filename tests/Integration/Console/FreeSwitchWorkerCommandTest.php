@@ -181,7 +181,7 @@ class FreeSwitchWorkerCommandTest extends TestCase
             '--pbx' => 'primary-fs',
         ])
             ->expectsOutputToContain('Starting worker [ingest-worker] in [node] mode')
-            ->expectsOutputToContain('Prepared runtime handoff for 1/1 node(s); runtime runner invoked for 1/1 node(s); live apntalk/esl-react runtime not started in this scaffolding pass.')
+            ->expectsOutputToContain('Prepared runtime handoff for 1/1 node(s); runtime runner invoked for 1/1 node(s); live runtime observed for 0/1 node(s).')
             ->assertExitCode(0);
 
         $this->assertSame(1, $registry->findBySlugCalls);
@@ -339,7 +339,7 @@ class FreeSwitchWorkerCommandTest extends TestCase
             '--db' => true,
         ])
             ->expectsOutputToContain('Starting worker [db-worker] from DB assignment (worker_assignments table) — 2 node(s).')
-            ->expectsOutputToContain('Prepared runtime handoff for 2/2 node(s); runtime runner invoked for 2/2 node(s); live apntalk/esl-react runtime not started in this scaffolding pass.')
+            ->expectsOutputToContain('Prepared runtime handoff for 2/2 node(s); runtime runner invoked for 2/2 node(s); live runtime observed for 0/2 node(s).')
             ->assertExitCode(0);
 
         $this->assertSame(0, $assignmentResolver->resolveNodesCalls);

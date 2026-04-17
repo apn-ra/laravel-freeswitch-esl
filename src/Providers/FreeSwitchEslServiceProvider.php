@@ -21,7 +21,11 @@ use ApnTalk\LaravelFreeswitchEsl\Integration\EslCoreCommandFactory;
 use ApnTalk\LaravelFreeswitchEsl\Integration\EslCoreConnectionFactory;
 use ApnTalk\LaravelFreeswitchEsl\Integration\EslCoreEventBridge;
 use ApnTalk\LaravelFreeswitchEsl\Integration\EslCorePipelineFactory;
+use ApnTalk\LaravelFreeswitchEsl\Integration\EslReactRuntimeBootstrapInputFactory;
+use ApnTalk\LaravelFreeswitchEsl\Integration\EslReactRuntimeRunnerAdapter;
 use ApnTalk\LaravelFreeswitchEsl\Integration\NonLiveRuntimeRunner;
+use Apntalk\EslReact\AsyncEslRuntime;
+use Apntalk\EslReact\Contracts\RuntimeRunnerInterface as EslReactRuntimeRunnerInterface;
 use Apntalk\EslCore\Contracts\InboundConnectionFactoryInterface;
 use Apntalk\EslCore\Contracts\TransportFactoryInterface;
 use Apntalk\EslCore\Inbound\InboundConnectionFactory;
@@ -148,7 +152,31 @@ class FreeSwitchEslServiceProvider extends ServiceProvider
 
     private function registerRuntimeRunner(): void
     {
-        $this->app->singleton(RuntimeRunnerInterface::class, NonLiveRuntimeRunner::class);
+        $this->app->singleton(EslReactRuntimeBootstrapInputFactory::class, function ($app) {
+            return new EslReactRuntimeBootstrapInputFactory(
+                connectorOptions: $app['config']->get('freeswitch-esl.runtime.react.connector_options', []),
+            );
+        });
+
+        $this->app->singleton(EslReactRuntimeRunnerInterface::class, function () {
+            return AsyncEslRuntime::runner();
+        });
+
+        $this->app->singleton(RuntimeRunnerInterface::class, function ($app) {
+            $runner = $app['config']->get('freeswitch-esl.runtime.runner', 'esl-react');
+
+            return match ($runner) {
+                'esl-react', 'esl_react' => new EslReactRuntimeRunnerAdapter(
+                    runner: $app->make(EslReactRuntimeRunnerInterface::class),
+                    inputFactory: $app->make(EslReactRuntimeBootstrapInputFactory::class),
+                ),
+                'non-live', 'non_live' => new NonLiveRuntimeRunner(),
+                default => throw new \InvalidArgumentException(sprintf(
+                    'Unsupported freeswitch-esl.runtime.runner [%s]. Supported values are [esl-react] and [non-live].',
+                    is_scalar($runner) ? (string) $runner : get_debug_type($runner),
+                )),
+            };
+        });
     }
 
     private function registerWorkerAssignmentResolver(): void

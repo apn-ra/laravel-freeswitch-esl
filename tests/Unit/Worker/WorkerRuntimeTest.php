@@ -6,9 +6,11 @@ use ApnTalk\LaravelFreeswitchEsl\Contracts\ConnectionFactoryInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\ConnectionResolverInterface;
 use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\ConnectionContext;
 use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\PbxNode;
+use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\RuntimeRunnerFeedback;
 use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\WorkerStatus;
 use ApnTalk\LaravelFreeswitchEsl\Exceptions\WorkerException;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\RuntimeHandoffInterface;
+use ApnTalk\LaravelFreeswitchEsl\Contracts\RuntimeRunnerFeedbackProviderInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\RuntimeRunnerInterface;
 use ApnTalk\LaravelFreeswitchEsl\Integration\EslCoreConnectionHandle;
 use ApnTalk\LaravelFreeswitchEsl\Integration\EslCorePipelineFactory;
@@ -60,8 +62,12 @@ class WorkerRuntimeTest extends TestCase
         $this->assertSame(RuntimeRunnerInterface::class, $status->meta['runtime_runner_contract']);
         $this->assertSame(NonLiveRuntimeRunner::class, $status->meta['runtime_runner_class']);
         $this->assertFalse($status->meta['runtime_loop_active']);
+        $this->assertSame('not-observed-by-laravel', $status->meta['runtime_loop_active_source']);
+        $this->assertFalse($status->meta['runtime_feedback_observed']);
+        $this->assertNull($status->meta['runtime_runner_state']);
         $this->assertFalse($status->isHandoffPrepared());
         $this->assertFalse($status->isRuntimeRunnerInvoked());
+        $this->assertFalse($status->isRuntimeFeedbackObserved());
         $this->assertFalse($status->isRuntimeLoopActive());
     }
 
@@ -83,8 +89,12 @@ class WorkerRuntimeTest extends TestCase
         $this->assertSame(RuntimeRunnerInterface::class, $status->meta['runtime_runner_contract']);
         $this->assertSame(NonLiveRuntimeRunner::class, $status->meta['runtime_runner_class']);
         $this->assertFalse($status->meta['runtime_loop_active']);
+        $this->assertSame('not-observed-by-laravel', $status->meta['runtime_loop_active_source']);
+        $this->assertFalse($status->meta['runtime_feedback_observed']);
+        $this->assertNull($status->meta['runtime_runner_state']);
         $this->assertTrue($status->isHandoffPrepared());
         $this->assertFalse($status->isRuntimeRunnerInvoked());
+        $this->assertFalse($status->isRuntimeFeedbackObserved());
         $this->assertFalse($status->isRuntimeLoopActive());
     }
 
@@ -120,7 +130,7 @@ class WorkerRuntimeTest extends TestCase
         $this->assertSame($handle, $runtime->connectionHandle());
     }
 
-    public function test_run_after_boot_marks_runtime_runner_invoked_without_marking_runtime_active(): void
+    public function test_run_after_boot_marks_non_live_runner_feedback_without_marking_runtime_active(): void
     {
         $runtime = $this->makeRuntime();
 
@@ -130,11 +140,49 @@ class WorkerRuntimeTest extends TestCase
 
         $this->assertTrue($status->meta['runtime_runner_invoked']);
         $this->assertTrue($status->isRuntimeRunnerInvoked());
+        $this->assertTrue($status->meta['runtime_feedback_observed']);
+        $this->assertTrue($status->isRuntimeFeedbackObserved());
+        $this->assertSame(RuntimeRunnerFeedback::STATE_NOT_LIVE, $status->meta['runtime_runner_state']);
+        $this->assertSame('non-live-runtime-runner', $status->meta['runtime_feedback_source']);
+        $this->assertSame('non-live-runtime-runner', $status->meta['runtime_loop_active_source']);
         $this->assertFalse($status->meta['runtime_loop_active']);
         $this->assertFalse($status->isRuntimeLoopActive());
     }
 
-    private function makeRuntime(): WorkerRuntime
+    public function test_run_after_boot_marks_runtime_active_when_runner_feedback_reports_running(): void
+    {
+        $runtime = $this->makeRuntime(new class implements RuntimeRunnerInterface, RuntimeRunnerFeedbackProviderInterface {
+            private ?RuntimeRunnerFeedback $feedback = null;
+
+            public function run(RuntimeHandoffInterface $handoff): void
+            {
+                $this->feedback = new RuntimeRunnerFeedback(
+                    state: RuntimeRunnerFeedback::STATE_RUNNING,
+                    source: 'test-runner-handle',
+                    endpoint: $handoff->endpoint(),
+                    sessionId: $handoff->context()->workerSessionId,
+                );
+            }
+
+            public function runtimeFeedback(): ?RuntimeRunnerFeedback
+            {
+                return $this->feedback;
+            }
+        });
+
+        $runtime->boot();
+        $runtime->run();
+        $status = $runtime->status();
+
+        $this->assertTrue($status->meta['runtime_feedback_observed']);
+        $this->assertSame(RuntimeRunnerFeedback::STATE_RUNNING, $status->meta['runtime_runner_state']);
+        $this->assertSame('test-runner-handle', $status->meta['runtime_feedback_source']);
+        $this->assertTrue($status->meta['runtime_loop_active']);
+        $this->assertTrue($status->isRuntimeLoopActive());
+        $this->assertSame($status->sessionId, $status->meta['runtime_runner_session_id']);
+    }
+
+    private function makeRuntime(?RuntimeRunnerInterface $runtimeRunner = null): WorkerRuntime
     {
         $node = new PbxNode(
             id: 1,
@@ -203,7 +251,7 @@ class WorkerRuntimeTest extends TestCase
             node: $node,
             connectionResolver: $resolver,
             connectionFactory: $connectionFactory,
-            runtimeRunner: new NonLiveRuntimeRunner(),
+            runtimeRunner: $runtimeRunner ?? new NonLiveRuntimeRunner(),
             logger: new NullLogger(),
         );
     }

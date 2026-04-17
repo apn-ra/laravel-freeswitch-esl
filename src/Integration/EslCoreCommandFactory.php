@@ -23,7 +23,7 @@ use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\ConnectionContext;
  * Ownership model:
  *   - This factory is owned by this Laravel package.
  *   - The command types (AuthCommand, ApiCommand, etc.) are owned by apntalk/esl-core.
- *   - Transport and dispatch are owned by apntalk/esl-react (not yet wired).
+ *   - Transport and dispatch are owned by apntalk/esl-react.
  *
  * Boundary: do NOT add ESL frame parsing, transport I/O, or reconnect logic here.
  */
@@ -123,7 +123,7 @@ final class EslCoreCommandFactory
      * connection. The auth command must be sent first; only after the
      * auth-accepted reply may other commands be dispatched.
      *
-     * The actual transport send is owned by apntalk/esl-react (not yet wired).
+     * The actual transport send is owned by apntalk/esl-react.
      * This method produces the typed objects; dispatch is the caller's concern.
      *
      * @param  list<string>  $eventNames  Empty means subscribe to all events.

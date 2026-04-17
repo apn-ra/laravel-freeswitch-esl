@@ -17,9 +17,8 @@ use Apntalk\EslCore\Inbound\InboundPipeline;
  *   - The InboundPipeline implementation is owned by apntalk/esl-core.
  *   - The byte source (transport read loop) is owned by apntalk/esl-react.
  *
- * When apntalk/esl-react is wired (0.3.x), the runtime will call
- * createPipeline() to obtain a fresh pipeline per worker session, then
- * feed raw bytes from the transport into it via push().
+ * Runtime adapters call createPipeline() to obtain a fresh pipeline per worker
+ * session, then feed raw bytes from the transport into it via push().
  *
  * Preferred upstream construction path:
  *   InboundPipeline::withDefaults()

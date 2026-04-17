@@ -37,7 +37,7 @@ use Psr\Log\LoggerInterface;
  *     does not perform additional resolution. Used when --db is passed on the CLI.
  *
  * This is the package-level orchestration layer. The underlying runtime
- * loop per node is delegated to WorkerRuntime (and eventually apntalk/esl-react).
+ * loop per node is delegated through WorkerRuntime to the bound runtime runner.
  */
 class WorkerSupervisor
 {
@@ -132,7 +132,8 @@ class WorkerSupervisor
      * Return per-node runtime status snapshots keyed by PBX node slug.
      *
      * This is a Laravel-scaffolding inspection surface only. It reports
-     * retained handoff-prepared state; it does not imply a live async runtime.
+     * retained handoff-prepared and runner-invoked state. Live async runtime
+     * state remains owned by the bound runner.
      *
      * @return array<string, WorkerStatus>
      */
@@ -151,7 +152,7 @@ class WorkerSupervisor
      * Return prepared adapter-facing runtime handoffs keyed by PBX node slug.
      *
      * Only runtimes that have completed boot() contribute a handoff here. The
-     * returned bundles are prepared for future adapter consumption, not live sessions.
+     * returned bundles are prepared for adapter consumption, not live sessions.
      *
      * @return array<string, RuntimeHandoffInterface>
      */

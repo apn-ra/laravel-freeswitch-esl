@@ -13,7 +13,7 @@ use ApnTalk\LaravelFreeswitchEsl\Contracts\RuntimeHandoffInterface;
  *
  * This handle does not own reconnects, supervision, or event loops. It simply
  * packages the resolved Laravel control-plane context together with the esl-core
- * protocol primitives the future runtime will consume.
+ * protocol primitives runtime adapters consume.
  */
 final class EslCoreConnectionHandle implements RuntimeHandoffInterface
 {

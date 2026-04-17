@@ -16,16 +16,17 @@ Support for PHP 8.2 and below, and Laravel 10, is not planned.
 |---|---|
 | `0.1.x` | Repo foundation, control-plane contracts, DB schema, worker lifecycle scaffolding |
 | `0.2.x` | Integrate `apntalk/esl-core` (typed events, command dispatch, event normalizer, stable transport/bootstrap seams) |
-| `0.3.x` | Runtime-prep milestone: explicit handoff bundles, runner seams, interface-first worker/runtime boundaries, truthful non-live status/reporting |
-| `0.4.x` | Integrate `apntalk/esl-react` (real async runtime runner binding and lifecycle ownership) |
+| `0.3.x` | Runtime-prep milestone: explicit handoff bundles, runner seams, interface-first worker/runtime boundaries, truthful runner/status reporting |
+| `0.4.x` | Deepen `apntalk/esl-react` integration around observable runtime lifecycle, reconnect, and heartbeat state |
 | `0.5.x` | Integrate `apntalk/esl-replay` (capture wiring, retention, replay inspection) |
 | `0.6.x` | Observability + hardening |
 | `1.0.0` | Only after runtime and multi-PBX behavior are stable |
 
-**Current repo posture:** `0.1.x` control-plane scope is complete, `0.2.x` `apntalk/esl-core` integration is in place, and the repository has now landed the intended `0.3.x` runtime-prep seams: `RuntimeHandoffInterface`, `RuntimeRunnerInterface`, a truthful default non-live runner, and interface-first worker/runtime scaffolding. Live ESL runtime behavior still requires a later `apntalk/esl-react` integration phase.
+**Current repo posture:** `0.1.x` control-plane scope is complete, `0.2.x` `apntalk/esl-core` integration is in place, and the repository has now landed the intended `0.3.x` runtime-prep seams plus the first Laravel-to-`apntalk/esl-react` binding: `RuntimeHandoffInterface`, `RuntimeRunnerInterface`, a non-live fallback runner, interface-first worker/runtime scaffolding, and default adaptation into `PreparedRuntimeBootstrapInput`. Live runtime lifecycle observation, reconnect, and heartbeat status still require later `apntalk/esl-react` integration work.
 
 Current worker/runtime truth:
-- `WorkerRuntime::run()` invokes the Laravel-owned runtime runner seam and may return immediately when the bound runner is non-live
+- `WorkerRuntime::run()` invokes the Laravel-owned runtime runner seam; the default binding calls `apntalk/esl-react`, and the `non-live` fallback may return immediately
+- Laravel consumes only coarse runner-handle feedback (`starting`, `running`, `failed`, or `not-live`) for status reporting
 - `WorkerStatus::state = running` currently means handoff prepared, not live async session active
 - reconnecting/failed worker states remain reserved for future `apntalk/esl-react` integration
 

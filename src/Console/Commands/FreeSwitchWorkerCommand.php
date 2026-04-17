@@ -247,6 +247,7 @@ class FreeSwitchWorkerCommand extends Command
         $statuses = $supervisor->runtimeStatuses();
         $preparedCount = 0;
         $runnerInvokedCount = 0;
+        $runtimeObservedCount = 0;
 
         foreach ($statuses as $status) {
             if (($status->meta['connection_handoff_prepared'] ?? false) === true) {
@@ -256,13 +257,19 @@ class FreeSwitchWorkerCommand extends Command
             if (($status->meta['runtime_runner_invoked'] ?? false) === true) {
                 $runnerInvokedCount++;
             }
+
+            if ($status->isRuntimeLoopActive()) {
+                $runtimeObservedCount++;
+            }
         }
 
         $this->info(sprintf(
-            'Prepared runtime handoff for %d/%d node(s); runtime runner invoked for %d/%d node(s); live apntalk/esl-react runtime not started in this scaffolding pass.',
+            'Prepared runtime handoff for %d/%d node(s); runtime runner invoked for %d/%d node(s); live runtime observed for %d/%d node(s).',
             $preparedCount,
             count($statuses),
             $runnerInvokedCount,
+            count($statuses),
+            $runtimeObservedCount,
             count($statuses),
         ));
     }

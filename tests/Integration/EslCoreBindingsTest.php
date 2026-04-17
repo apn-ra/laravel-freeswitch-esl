@@ -14,7 +14,10 @@ use ApnTalk\LaravelFreeswitchEsl\Integration\EslCoreCommandFactory;
 use ApnTalk\LaravelFreeswitchEsl\Integration\EslCoreConnectionHandle;
 use ApnTalk\LaravelFreeswitchEsl\Integration\EslCoreEventBridge;
 use ApnTalk\LaravelFreeswitchEsl\Integration\EslCorePipelineFactory;
+use ApnTalk\LaravelFreeswitchEsl\Integration\EslReactRuntimeBootstrapInputFactory;
+use ApnTalk\LaravelFreeswitchEsl\Integration\EslReactRuntimeRunnerAdapter;
 use ApnTalk\LaravelFreeswitchEsl\Integration\NonLiveRuntimeRunner;
+use Apntalk\EslReact\Contracts\RuntimeRunnerInterface as EslReactRuntimeRunnerInterface;
 use Apntalk\EslCore\Transport\SocketTransportFactory;
 use ApnTalk\LaravelFreeswitchEsl\Tests\TestCase;
 
@@ -29,6 +32,30 @@ class EslCoreBindingsTest extends TestCase
 
     public function test_runtime_runner_resolves_from_container(): void
     {
+        $runner = $this->app->make(RuntimeRunnerInterface::class);
+
+        $this->assertInstanceOf(EslReactRuntimeRunnerAdapter::class, $runner);
+    }
+
+    public function test_esl_react_runner_resolves_from_container(): void
+    {
+        $runner = $this->app->make(EslReactRuntimeRunnerInterface::class);
+
+        $this->assertInstanceOf(EslReactRuntimeRunnerInterface::class, $runner);
+    }
+
+    public function test_esl_react_bootstrap_input_factory_resolves_from_container(): void
+    {
+        $factory = $this->app->make(EslReactRuntimeBootstrapInputFactory::class);
+
+        $this->assertInstanceOf(EslReactRuntimeBootstrapInputFactory::class, $factory);
+    }
+
+    public function test_non_live_runtime_runner_fallback_can_be_selected(): void
+    {
+        $this->app['config']->set('freeswitch-esl.runtime.runner', 'non-live');
+        $this->app->forgetInstance(RuntimeRunnerInterface::class);
+
         $runner = $this->app->make(RuntimeRunnerInterface::class);
 
         $this->assertInstanceOf(NonLiveRuntimeRunner::class, $runner);

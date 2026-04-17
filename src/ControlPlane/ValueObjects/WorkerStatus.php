@@ -69,6 +69,11 @@ final class WorkerStatus
         return ($this->meta['runtime_runner_invoked'] ?? false) === true;
     }
 
+    public function isRuntimeFeedbackObserved(): bool
+    {
+        return ($this->meta['runtime_feedback_observed'] ?? false) === true;
+    }
+
     /**
      * @return array<string, mixed>
      */

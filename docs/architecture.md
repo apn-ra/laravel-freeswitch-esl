@@ -98,11 +98,13 @@ PbxNode
   → ConnectionFactoryInterface
   → RuntimeHandoffInterface
   → EslCoreConnectionHandle (current implementation)
+  → RuntimeRunnerInterface
+  → apntalk/esl-react PreparedRuntimeBootstrapInput
 ```
 
 The prepared handoff bundle is retained by the worker scaffolding for later runtime-adapter consumption. The current implementation is `EslCoreConnectionHandle`, but runtime adapters should target the Laravel-owned `RuntimeHandoffInterface`. It is not itself a long-lived runtime loop.
 
-`WorkerRuntime::status()` surfaces this seam via `WorkerStatus::meta` and helper methods so operator-facing Laravel scaffolding can distinguish “handoff prepared,” “adapter-ready,” “adapter invoked,” and “live runtime connected.” In the current scaffolding posture, `WorkerStatus::state = running` means boot completed and handoff prepared, `meta.runtime_adapter_ready` is the adapter-consumable seam flag, `meta.runtime_runner_invoked` means the Laravel-owned runtime runner seam was called, `meta.runtime_handoff_contract` identifies the adapter contract, `meta.runtime_runner_contract` identifies the runner contract, `meta.runtime_runner_class` identifies the bound runner implementation, and `meta.runtime_loop_active` remains `false`. `WorkerSupervisor::runtimeStatuses()` aggregates those snapshots per PBX node slug, while `runtimeHandoffs()` exposes the prepared adapter-facing bundles without taking ownership of session supervision.
+`WorkerRuntime::status()` surfaces this seam via `WorkerStatus::meta` and helper methods so operator-facing Laravel scaffolding can distinguish “handoff prepared,” “adapter-ready,” “adapter invoked,” “runner feedback observed,” and “live runtime connected.” In the current posture, `WorkerStatus::state = running` means boot completed and handoff prepared, `meta.runtime_adapter_ready` is the adapter-consumable seam flag, `meta.runtime_runner_invoked` means the Laravel-owned runtime runner seam was called, `meta.runtime_feedback_observed` means the bound runner exposed a coarse lifecycle snapshot, and `meta.runtime_loop_active` is true only when that snapshot reports `running`. `WorkerSupervisor::runtimeStatuses()` aggregates those snapshots per PBX node slug, while `runtimeHandoffs()` exposes the prepared adapter-facing bundles without taking ownership of session supervision.
 
 ### esl-core integration
 
@@ -130,7 +132,7 @@ It now uses `apntalk/esl-core`'s stable public construction seams:
 - `InboundPipeline::withDefaults()` for the preferred default ingress path
 - `InboundConnectionFactory` as the accepted-stream bootstrap seam available for future runtime adapters
 
-This package still does not own listener/runtime behavior. The accepted-stream factory is only bound as an upstream seam for later integration work. The Laravel-owned `RuntimeRunnerInterface` is only an invocation seam; a real long-lived implementation still belongs in `apntalk/esl-react`.
+This package still does not own listener/runtime behavior. The accepted-stream factory is only bound as an upstream seam for later integration work. The Laravel-owned `RuntimeRunnerInterface` is an invocation seam; the default binding now adapts `RuntimeHandoffInterface` into `apntalk/esl-react`'s `PreparedRuntimeBootstrapInput`, while live loop, reconnect, heartbeat, and session lifecycle behavior remain owned by `apntalk/esl-react`.
 
 ### Health and observability
 

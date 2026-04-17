@@ -10,10 +10,9 @@ use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\ConnectionContext;
 /**
  * Adapter-facing prepared runtime bundle owned by this Laravel package.
  *
- * This contract represents the handoff state that a future runtime adapter
- * (for example one backed by apntalk/esl-react) can consume without re-running
- * control-plane resolution. It is prepared by this package, but it does not
- * itself own a live async runtime loop.
+ * This contract represents the handoff state that runtime adapters can consume
+ * without re-running control-plane resolution. It is prepared by this package,
+ * but it does not itself own a live async runtime loop.
  */
 interface RuntimeHandoffInterface
 {

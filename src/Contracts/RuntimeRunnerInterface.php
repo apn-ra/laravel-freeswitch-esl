@@ -7,8 +7,9 @@ namespace ApnTalk\LaravelFreeswitchEsl\Contracts;
  *
  * This contract is the adapter invocation point that WorkerRuntime::run() uses
  * once boot() has prepared a RuntimeHandoffInterface bundle. Implementations in
- * this package may remain non-live; a future apntalk/esl-react-backed adapter
- * will implement the actual long-lived runtime behavior.
+ * this package may remain non-live; the default production binding adapts the
+ * prepared handoff into apntalk/esl-react and leaves live runtime ownership
+ * with that package.
  */
 interface RuntimeRunnerInterface
 {

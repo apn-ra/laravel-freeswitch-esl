@@ -13,6 +13,8 @@ use ApnTalk\LaravelFreeswitchEsl\Contracts\WorkerAssignmentResolverInterface;
 use ApnTalk\LaravelFreeswitchEsl\ControlPlane\Services\ConnectionProfileResolver;
 use ApnTalk\LaravelFreeswitchEsl\Facades\FreeSwitchEslManager;
 use ApnTalk\LaravelFreeswitchEsl\Integration\EslCoreConnectionFactory;
+use ApnTalk\LaravelFreeswitchEsl\Integration\EslReactRuntimeBootstrapInputFactory;
+use ApnTalk\LaravelFreeswitchEsl\Integration\EslReactRuntimeRunnerAdapter;
 use ApnTalk\LaravelFreeswitchEsl\Integration\NonLiveRuntimeRunner;
 use ApnTalk\LaravelFreeswitchEsl\Tests\TestCase;
 
@@ -82,11 +84,29 @@ class FreeSwitchEslServiceProviderTest extends TestCase
         );
     }
 
-    public function test_runtime_runner_binding_uses_default_non_live_runner(): void
+    public function test_runtime_runner_binding_uses_esl_react_adapter_by_default(): void
     {
         $runner = $this->app->make(RuntimeRunnerInterface::class);
 
+        $this->assertInstanceOf(EslReactRuntimeRunnerAdapter::class, $runner);
+    }
+
+    public function test_runtime_runner_binding_can_use_non_live_fallback(): void
+    {
+        $this->app['config']->set('freeswitch-esl.runtime.runner', 'non-live');
+        $this->app->forgetInstance(RuntimeRunnerInterface::class);
+
+        $runner = $this->app->make(RuntimeRunnerInterface::class);
+
         $this->assertInstanceOf(NonLiveRuntimeRunner::class, $runner);
+    }
+
+    public function test_esl_react_runtime_bootstrap_input_factory_is_bound(): void
+    {
+        $this->assertInstanceOf(
+            EslReactRuntimeBootstrapInputFactory::class,
+            $this->app->make(EslReactRuntimeBootstrapInputFactory::class)
+        );
     }
 
     public function test_runtime_runner_is_singleton(): void
