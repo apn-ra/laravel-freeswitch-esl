@@ -3,7 +3,6 @@
 namespace ApnTalk\LaravelFreeswitchEsl\Integration;
 
 use Apntalk\EslReact\Contracts\RuntimeRunnerInterface as EslReactRuntimeRunnerInterface;
-use Apntalk\EslReact\Runner\RuntimeRunnerState;
 use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\RuntimeRunnerFeedback;
 use Apntalk\EslReact\Runner\RuntimeRunnerHandle;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\RuntimeHandoffInterface;
@@ -42,33 +41,8 @@ final class EslReactRuntimeRunnerAdapter implements RuntimeRunnerInterface, Runt
             return null;
         }
 
-        $lifecycleSnapshot = $this->lifecycleSnapshot($this->lastHandle);
-
-        if ($lifecycleSnapshot !== null) {
-            return RuntimeRunnerFeedback::fromEslReactLifecycleSnapshot($lifecycleSnapshot);
-        }
-
-        return new RuntimeRunnerFeedback(
-            state: match ($this->lastHandle->state()) {
-                RuntimeRunnerState::Starting => RuntimeRunnerFeedback::STATE_STARTING,
-                RuntimeRunnerState::Running => RuntimeRunnerFeedback::STATE_RUNNING,
-                RuntimeRunnerState::Failed => RuntimeRunnerFeedback::STATE_FAILED,
-            },
-            source: 'apntalk/esl-react-runtime-runner-handle',
-            endpoint: $this->lastHandle->endpoint(),
-            sessionId: $this->lastHandle->sessionContext()?->sessionId(),
-            startupError: $this->lastHandle->startupError()?->getMessage(),
+        return RuntimeRunnerFeedback::fromEslReactLifecycleSnapshot(
+            $this->lastHandle->lifecycleSnapshot()
         );
-    }
-
-    private function lifecycleSnapshot(object $handle): ?object
-    {
-        if (! method_exists($handle, 'lifecycleSnapshot')) {
-            return null;
-        }
-
-        $snapshot = $handle->lifecycleSnapshot();
-
-        return is_object($snapshot) ? $snapshot : null;
     }
 }

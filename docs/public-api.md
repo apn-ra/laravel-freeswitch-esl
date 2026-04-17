@@ -5,7 +5,7 @@ For the full compatibility and deprecation policy, see `docs/compatibility-polic
 
 ---
 
-## Stable public surfaces (current 0.3.x runtime-prep checkpoint)
+## Stable public surfaces (current 0.4.x lifecycle observation checkpoint)
 
 ### Contracts (`src/Contracts/`)
 
@@ -21,7 +21,7 @@ which is explicitly `@internal`.
 | `ConnectionFactoryInterface` | Runtime handoff factory returning the Laravel-owned `RuntimeHandoffInterface` boundary |
 | `RuntimeHandoffInterface` | Adapter-facing prepared runtime bundle contract for runtime integrations |
 | `RuntimeRunnerInterface` | Laravel-owned runtime runner contract that `WorkerRuntime::run()` invokes |
-| `RuntimeRunnerFeedbackProviderInterface` | Optional observation seam for runners that expose coarse lifecycle feedback |
+| `RuntimeRunnerFeedbackProviderInterface` | Observation seam for runners that expose Laravel-consumable lifecycle feedback |
 | `WorkerInterface` | Worker boot/run/drain/shutdown lifecycle |
 | `WorkerAssignmentResolverInterface` | Assignment scope resolution |
 | `HealthReporterInterface` | Structured health snapshot contract |
@@ -38,7 +38,7 @@ All value objects are stable public API:
 | `ConnectionProfile` | Immutable operational policy VO |
 | `WorkerAssignment` | Immutable worker targeting scope (5 modes) |
 | `ConnectionContext` | Fully resolved connection parameters (use `toLogContext()` for safe logging) |
-| `RuntimeRunnerFeedback` | Runner feedback snapshot consumed by `WorkerStatus::meta`; uses upstream lifecycle snapshots when available without owning runtime lifecycle |
+| `RuntimeRunnerFeedback` | Runner feedback snapshot consumed by `WorkerStatus::meta`; maps the upstream `RuntimeRunnerHandle::lifecycleSnapshot()` without owning runtime lifecycle |
 | `WorkerStatus` | Worker operational state snapshot; helper methods and `meta` distinguish handoff-prepared, adapter-ready, runner-invoked, and runtime-active state |
 | `HealthSnapshot` | PBX node health at a point in time |
 
