@@ -202,13 +202,14 @@ The package is currently usable for:
 - stable upstream transport and accepted-stream bootstrap seams bound for future runtime adapters
 - a Laravel-owned runtime handoff contract that adapters can consume without re-resolving control-plane state, with `ConnectionFactoryInterface` now typed to that boundary
 - a Laravel-owned runtime runner seam that `WorkerRuntime::run()` invokes; the default binding adapts to `apntalk/esl-react`, while `non-live` remains available as a fallback/dry-run runner
-- real upstream lifecycle snapshot observation on the supported `apntalk/esl-react` `^0.2` line for live connection/session/liveness/reconnect/drain status reporting
+- real upstream lifecycle snapshot observation on the supported `apntalk/esl-react` `^0.2.1` line for live connection/session/liveness/reconnect/drain status reporting
+- richer prepared dial-target handoff into `apntalk/esl-react`, including explicit TLS-style dial URIs when the resolved `ConnectionContext` requires them
 
 Still deferred:
 - Laravel-owned runtime supervision, reconnect/backoff ownership, and heartbeat/session lifecycle ownership
 - Replay capture/store integration via `apntalk/esl-replay`
 
-`WorkerRuntime::run()` now invokes the Laravel-owned `RuntimeRunnerInterface` seam. By default, the package maps `RuntimeHandoffInterface` into `apntalk/esl-react`'s `PreparedRuntimeBootstrapInput` and calls the upstream runner. On the supported `apntalk/esl-react` `^0.2` line, Laravel consumes `RuntimeRunnerHandle::lifecycleSnapshot()` end to end for status reporting; reconnect, heartbeat, and session lifecycle remain owned by the bound runner.
+`WorkerRuntime::run()` now invokes the Laravel-owned `RuntimeRunnerInterface` seam. By default, the package maps `RuntimeHandoffInterface` into `apntalk/esl-react`'s `PreparedRuntimeBootstrapInput` and calls the upstream runner. On the supported `apntalk/esl-react` `^0.2.1` line, Laravel consumes `RuntimeRunnerHandle::lifecycleSnapshot()` end to end for status reporting and can pass an explicit prepared dial URI when the resolved transport requires it. Reconnect, heartbeat, and session lifecycle remain owned by the bound runner.
 
 Current worker status semantics:
 - `booting` means handoff state is not yet prepared

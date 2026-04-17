@@ -5,7 +5,7 @@ For the full compatibility and deprecation policy, see `docs/compatibility-polic
 
 ---
 
-## Stable public surfaces (current 0.4.x lifecycle observation checkpoint)
+## Stable public surfaces (current 0.4.x runtime observation checkpoint)
 
 ### Contracts (`src/Contracts/`)
 
@@ -64,7 +64,7 @@ These surfaces are now shipped and should be treated as public package surfaces 
 | `EslCoreCommandFactory` | Builds typed `apntalk/esl-core` command objects from Laravel-owned inputs |
 | `EslCorePipelineFactory` | Creates per-session inbound decode pipelines |
 | `EslCoreEventBridge` | Dispatches decoded esl-core messages into Laravel events |
-| `EslReactRuntimeBootstrapInputFactory` | Maps Laravel `RuntimeHandoffInterface` bundles into `apntalk/esl-react` prepared bootstrap input |
+| `EslReactRuntimeBootstrapInputFactory` | Maps Laravel `RuntimeHandoffInterface` bundles into `apntalk/esl-react` prepared bootstrap input, including explicit dial URIs for non-default transports on the supported upstream line |
 | `EslReactRuntimeRunnerAdapter` | Invokes the upstream `apntalk/esl-react` runner behind Laravel's `RuntimeRunnerInterface` |
 | `EslEventReceived` | Laravel event carrying typed event, normalized event, and `ConnectionContext` |
 | `EslReplyReceived` | Laravel event carrying typed reply and `ConnectionContext` |

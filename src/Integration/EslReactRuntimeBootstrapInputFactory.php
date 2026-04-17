@@ -32,20 +32,13 @@ final class EslReactRuntimeBootstrapInputFactory
     {
         $context = $handoff->context();
 
-        if ($context->transport !== 'tcp') {
-            throw new \InvalidArgumentException(sprintf(
-                'apntalk/esl-react prepared bootstrap currently supports tcp handoffs only; [%s] given for PBX node [%s].',
-                $context->transport,
-                $context->pbxNodeSlug,
-            ));
-        }
-
         return new PreparedRuntimeBootstrapInput(
             endpoint: $handoff->endpoint(),
             runtimeConfig: $this->runtimeConfig($context),
             connector: $this->connector ?? new Connector($this->connectorOptions),
             inboundPipeline: $handoff->pipeline(),
             sessionContext: $this->sessionContext($context),
+            dialUri: $this->explicitDialUri($context),
         );
     }
 
@@ -103,5 +96,18 @@ final class EslReactRuntimeBootstrapInputFactory
             'worker_session_id' => $context->workerSessionId,
             'transport' => $context->transport,
         ]);
+    }
+
+    private function explicitDialUri(ConnectionContext $context): ?string
+    {
+        return match ($context->transport) {
+            'tcp' => null,
+            'tls' => sprintf('tls://%s:%d', $context->host, $context->port),
+            default => throw new \InvalidArgumentException(sprintf(
+                'apntalk/esl-react prepared bootstrap does not support explicit dial URI mapping for transport [%s] on PBX node [%s].',
+                $context->transport,
+                $context->pbxNodeSlug,
+            )),
+        };
     }
 }

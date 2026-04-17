@@ -9,6 +9,30 @@ This project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-04-17
+
+### Summary
+
+This release is a truthful `0.4.x` Laravel-side runtime observation checkpoint.
+It extends the existing `apntalk/esl-react` runner binding with richer prepared dial-target handoff support.
+It is not a Laravel-owned live runtime milestone.
+
+### Changed
+
+- bumped the minimum supported `apntalk/esl-react` line to `^0.2.1` so Laravel can rely on richer prepared dial-target input support in the installed upstream package
+- extended `EslReactRuntimeBootstrapInputFactory` to pass explicit dial URIs for non-default resolved transports, including `tls://host:port`, while preserving the default TCP path
+
+### Verification
+
+- focused PHPUnit coverage passed for the richer dial-target mapping and existing runner binding paths
+- PHPStan passed at the current configured level
+- Composer metadata validation passed after the dependency floor change
+
+### Deferred
+
+- direct `apntalk/esl-core` `TransportInterface` polling handoff remains deferred to a future `apntalk/esl-react` public seam
+- per-node TLS connector policy and live TLS verification remain outside this package's current responsibility; Laravel only maps the dial target into the prepared runner input
+
 ## [0.4.0] - 2026-04-17
 
 ### Summary

@@ -15,7 +15,8 @@ The worker runtime is a first-class component of this package. In the current pa
 | Node-level failure isolation | `apntalk/laravel-freeswitch-esl` |
 | Graceful drain coordination | `apntalk/laravel-freeswitch-esl` |
 | TCP connection lifecycle | `apntalk/esl-react` through the bound runner |
-| TLS/direct transport handoff | Deferred until `apntalk/esl-react` exposes that public path |
+| Explicit prepared dial-target handoff | `apntalk/laravel-freeswitch-esl` maps resolved transport/endpoint context into `apntalk/esl-react` prepared input |
+| Direct transport polling handoff | Deferred until `apntalk/esl-react` exposes that public path |
 | Reconnect/backoff loop | `apntalk/esl-react` |
 | ESL event subscription management | `apntalk/esl-react` |
 | Heartbeat monitoring primitives | `apntalk/esl-react` |
@@ -60,7 +61,7 @@ This makes the worker handoff state explicit and inspectable without claiming ow
 `WorkerStatus::isHandoffPrepared()` answers whether boot prepared an adapter-consumable bundle.
 `WorkerStatus::isRuntimeRunnerInvoked()` answers whether the Laravel-owned runtime runner seam was called.
 `WorkerStatus::isRuntimeFeedbackObserved()` answers whether the bound runner exposed a feedback snapshot.
-`WorkerStatus::isRuntimeLoopActive()` answers whether that feedback reports a live runtime. On the supported `apntalk/esl-react` `^0.2` line, Laravel maps the upstream `RuntimeRunnerHandle::lifecycleSnapshot()` into status metadata including connection/session state, live/reconnecting/draining/stopped flags, reconnect attempts, last heartbeat timestamp, and startup/runtime error fields.
+`WorkerStatus::isRuntimeLoopActive()` answers whether that feedback reports a live runtime. On the supported `apntalk/esl-react` `^0.2.1` line, Laravel maps the upstream `RuntimeRunnerHandle::lifecycleSnapshot()` into status metadata including connection/session state, live/reconnecting/draining/stopped flags, reconnect attempts, last heartbeat timestamp, and startup/runtime error fields.
 These fields mean “boot prepared the runtime handoff seam,” “the configured runner was invoked,” and “Laravel observed upstream runner lifecycle state.” They do not give Laravel ownership of reconnect, heartbeat, or session lifecycle behavior.
 
 ### WorkerSupervisor
@@ -183,9 +184,9 @@ $this->runner->run($input);
 
 The `ConnectionContext` and connection handle are both prepared during `boot()` (with the worker session ID already attached). The `run()` body only invokes `RuntimeRunnerInterface` after `boot()` has completed, which it enforces with a guard that throws `WorkerException::bootFailed()` if the runtime handoff state is incomplete.
 
-The current adapter supports TCP handoffs. TLS and direct `apntalk/esl-core` `TransportInterface` polling handoff remain deferred until `apntalk/esl-react` exposes those public paths.
+The current adapter supports the default TCP path and now passes an explicit prepared dial URI when the resolved `ConnectionContext` requires a non-default target, including `tls://host:port` for TLS-style handoffs on the supported `apntalk/esl-react` `^0.2.1` line. Direct `apntalk/esl-core` `TransportInterface` polling handoff remains deferred until `apntalk/esl-react` exposes that public path.
 
-The adapter exposes runner feedback from `RuntimeRunnerHandle::lifecycleSnapshot()` on the supported `apntalk/esl-react` `^0.2` line. Laravel maps that upstream read-only lifecycle snapshot into `WorkerStatus::meta`; it does not poll the client, reconnect the session, or manage heartbeats.
+The adapter exposes runner feedback from `RuntimeRunnerHandle::lifecycleSnapshot()` on the supported `apntalk/esl-react` `^0.2.1` line. Laravel maps that upstream read-only lifecycle snapshot into `WorkerStatus::meta`; it does not poll the client, reconnect the session, or manage heartbeats.
 
 For future accepted-stream/listener-backed adapters, the upstream `InboundConnectionFactory` is now the preferred bootstrap seam. Binding that seam here does not imply listener or runtime ownership in this package.
 

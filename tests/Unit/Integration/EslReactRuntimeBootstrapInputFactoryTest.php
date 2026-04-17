@@ -32,6 +32,7 @@ class EslReactRuntimeBootstrapInputFactoryTest extends TestCase
 
         $this->assertInstanceOf(PreparedRuntimeBootstrapInput::class, $input);
         $this->assertSame('tcp://203.0.113.10:8022', $input->endpoint());
+        $this->assertSame('tcp://203.0.113.10:8022', $input->dialUri());
         $this->assertSame('203.0.113.10', $input->runtimeConfig()->host);
         $this->assertSame(8022, $input->runtimeConfig()->port);
         $this->assertSame('secret-pass', $input->runtimeConfig()->password);
@@ -61,16 +62,33 @@ class EslReactRuntimeBootstrapInputFactoryTest extends TestCase
         $this->assertSame([], $input->runtimeConfig()->subscriptions->initialEventNames);
     }
 
-    public function test_create_fails_closed_for_non_tcp_handoff(): void
+    public function test_create_maps_tls_handoff_to_explicit_dial_uri(): void
+    {
+        $factory = new EslReactRuntimeBootstrapInputFactory(
+            connector: $this->createMock(ConnectorInterface::class),
+        );
+
+        $input = $factory->create($this->makeHandoff($this->makeContext(
+            host: '192.0.2.10',
+            port: 7443,
+            transport: 'tls',
+        )));
+
+        $this->assertSame('tls://192.0.2.10:7443', $input->endpoint());
+        $this->assertSame('tls://192.0.2.10:7443', $input->dialUri());
+        $this->assertSame('tcp://192.0.2.10:7443', $input->runtimeConfig()->connectionUri());
+    }
+
+    public function test_create_fails_closed_for_unsupported_explicit_dial_target_transport(): void
     {
         $factory = new EslReactRuntimeBootstrapInputFactory(
             connector: $this->createMock(ConnectorInterface::class),
         );
 
         $this->expectException(\InvalidArgumentException::class);
-        $this->expectExceptionMessage('supports tcp handoffs only');
+        $this->expectExceptionMessage('does not support explicit dial URI mapping');
 
-        $factory->create($this->makeHandoff($this->makeContext(transport: 'tls')));
+        $factory->create($this->makeHandoff($this->makeContext(transport: 'unix')));
     }
 
     private function makeHandoff(ConnectionContext $context): EslCoreConnectionHandle

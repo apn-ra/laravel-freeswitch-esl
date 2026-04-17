@@ -96,6 +96,7 @@ class EslReactRuntimeRunnerAdapterTest extends TestCase
 
         $this->assertInstanceOf(PreparedRuntimeBootstrapInput::class, $upstreamRunner->input);
         $this->assertSame('tcp://203.0.113.10:8021', $upstreamRunner->input->endpoint());
+        $this->assertSame('tcp://203.0.113.10:8021', $upstreamRunner->input->dialUri());
         $this->assertNotNull($adapter->lastHandle());
         $this->assertSame('worker-session-1', $adapter->lastHandle()->sessionContext()?->sessionId());
         $this->assertNotNull($adapter->runtimeFeedback());
