@@ -149,6 +149,8 @@ continues to own durable storage semantics.
 
 Current worker checkpoint/drain behavior is intentionally conservative:
 
+- runtime-triggered periodic checkpoint saves are supported when `worker_defaults.checkpoint_interval_seconds > 0`
+- those periodic saves are attempted only on existing Laravel-owned runtime touch points such as status and inflight bookkeeping after the runtime runner has already been invoked
 - `WorkerRuntime::drain()` records `drain_started_at` and a bounded `drain_deadline_at`
 - drain saves a replay-backed `drain-requested` checkpoint over the current worker session's persisted replay artifacts
 - drain completes immediately when no inflight work is present
@@ -185,8 +187,41 @@ Startup recovery uses the upstream bounded checkpoint/query seams:
 
 Laravel currently uses those seams only to surface conservative recovery posture for a worker scope.
 It does not execute replay, re-inject traffic, or claim live session recovery.
+Periodic checkpoints do not introduce a timer daemon, reconnect ownership, or automatic resume processing; they are bounded saves coordinated by the existing worker runtime.
 
-That posture is now rendered directly in `freeswitch:worker` output as operator-facing checkpoint/recovery hints, and `freeswitch:worker --json` exposes the same bounded posture in a machine-readable form for automation. For reporting-oriented automation, `freeswitch:worker:status` prepares worker runtimes without invoking the bound runtime runner and emits a dedicated JSON payload that can report one or more worker scopes. The default `freeswitch:health` and `freeswitch:status` commands remain conservative: they explicitly note that DB-backed health snapshots and control-plane inventory do not themselves expose live worker recovery posture.
+That posture is now rendered directly in `freeswitch:worker` output as operator-facing checkpoint/recovery hints, and `freeswitch:worker --json` exposes the same bounded posture in a machine-readable form for automation. For reporting-oriented automation, `freeswitch:worker:status` prepares worker runtimes without invoking the bound runtime runner and emits a dedicated JSON payload that can report one or more worker scopes.
+
+Those machine-readable worker surfaces now also expose bounded resume posture derived from the same persisted checkpoint/recovery facts:
+
+- whether replay-backed resume posture is supported for the current node scope
+- whether a prior checkpoint exists
+- whether a bounded replay-backed candidate exists beyond that checkpoint
+- the candidate sequence and replay/session/job/PBX anchors when available
+- explicit `resume_execution_supported = false` / `resume_execution_deferred = true` posture so the report does not imply resume execution
+
+For persisted historical checkpoint posture, `freeswitch:worker:checkpoint-status` now uses the exact checkpoint key plus bounded upstream checkpoint queries to summarize latest checkpoint state per worker/node/profile scope. It defaults to latest-per-scope summaries, only includes bounded history entries when explicitly requested, and supports additive DB-backed filters plus stable `limit`/`offset` pagination for larger worker sets.
+
+That same historical surface now also exposes bounded pruning posture derived from persisted checkpoint data:
+
+- oldest/newest checkpoint timestamps within the current bounded reporting window
+- whether historical pruning posture is supported for the configured replay store
+- a conservative candidate count when the installed upstream filesystem retention planner can derive one
+- the basis used for that posture (`filesystem_retention_plan` or an explicit unsupported reason)
+
+It now also exposes additive top-level retention-policy metadata for the current invocation:
+
+- configured replay store driver
+- configured retention days
+- whether a replay storage path is present
+- whether historical retention planning is supported for that configured store
+- the basis for that support posture
+- the active upstream support path when one exists
+- the upstream support source currently being relied on
+- the bounded reporting window hours already selected for the command
+
+This is reporting only. It does not execute pruning, coordinate pruning across active workers, or claim pruning safety guarantees.
+
+The default `freeswitch:health` and `freeswitch:status` commands remain conservative: they explicitly note that DB-backed health snapshots and control-plane inventory do not themselves expose live worker recovery posture.
 
 This remains a Laravel coordination surface, not a replay executor and not a live runtime
 recovery mechanism.

@@ -300,7 +300,7 @@ class WorkerRuntimeTest extends TestCase
         $this->assertSame('drain-completed', $status->meta['checkpoint_reason']);
         $this->assertSame(0, $status->meta['checkpoint_last_consumed_sequence']);
         $this->assertInstanceOf(ReplayCheckpoint::class, $checkpointStore->savedCheckpoint);
-        $this->assertSame('drain-completed', $checkpointStore->savedCheckpoint?->metadata['checkpoint_reason']);
+        $this->assertSame('drain-completed', $checkpointStore->savedCheckpoint->metadata['checkpoint_reason']);
     }
 
     public function test_drain_waits_for_inflight_work_until_completion(): void
@@ -338,10 +338,175 @@ class WorkerRuntimeTest extends TestCase
         $this->assertTrue($status->meta['drain_timed_out']);
     }
 
+    public function test_periodic_checkpoint_saves_only_after_interval_elapses_and_tracks_last_periodic_timestamp(): void
+    {
+        $checkpointStore = new class implements ReplayCheckpointStoreInterface {
+            /** @var list<ReplayCheckpoint> */
+            public array $saved = [];
+
+            public function save(ReplayCheckpoint $checkpoint): void
+            {
+                $this->saved[] = $checkpoint;
+            }
+
+            public function load(string $key): ?ReplayCheckpoint
+            {
+                return null;
+            }
+
+            public function exists(string $key): bool
+            {
+                return false;
+            }
+
+            public function delete(string $key): void
+            {
+            }
+        };
+
+        $clock = new TestClock('2026-04-18T12:00:00+00:00');
+
+        $runtime = $this->makeRuntime(
+            checkpointManager: new WorkerReplayCheckpointManager(
+                artifactStore: $this->emptyArtifactStore(),
+                checkpointRepository: new ReplayCheckpointRepository($checkpointStore),
+                logger: new NullLogger(),
+                enabled: true,
+            ),
+            checkpointIntervalSeconds: 60,
+            clock: $clock,
+        );
+
+        $runtime->boot();
+        $runtime->run();
+
+        $this->assertCount(0, $checkpointStore->saved);
+        $this->assertNull($runtime->status()->meta['checkpoint_periodic_last_saved_at']);
+        $this->assertCount(0, $checkpointStore->saved);
+
+        $clock->advance('+61 seconds');
+        $status = $runtime->status();
+
+        $this->assertCount(1, $checkpointStore->saved);
+        $this->assertSame('periodic', $status->meta['checkpoint_reason']);
+        $this->assertSame(60, $status->meta['checkpoint_periodic_interval_seconds']);
+        $this->assertSame('2026-04-18T12:01:01.000+00:00', $status->meta['checkpoint_periodic_last_saved_at']);
+        $this->assertSame('periodic', $checkpointStore->saved[0]->metadata['checkpoint_reason']);
+
+        $runtime->status();
+        $this->assertCount(1, $checkpointStore->saved);
+    }
+
+    public function test_periodic_checkpoint_is_not_saved_before_runtime_runner_invocation(): void
+    {
+        $checkpointStore = new class implements ReplayCheckpointStoreInterface {
+            /** @var list<ReplayCheckpoint> */
+            public array $saved = [];
+
+            public function save(ReplayCheckpoint $checkpoint): void
+            {
+                $this->saved[] = $checkpoint;
+            }
+
+            public function load(string $key): ?ReplayCheckpoint
+            {
+                return null;
+            }
+
+            public function exists(string $key): bool
+            {
+                return false;
+            }
+
+            public function delete(string $key): void
+            {
+            }
+        };
+
+        $clock = new TestClock('2026-04-18T12:00:00+00:00');
+
+        $runtime = $this->makeRuntime(
+            checkpointManager: new WorkerReplayCheckpointManager(
+                artifactStore: $this->emptyArtifactStore(),
+                checkpointRepository: new ReplayCheckpointRepository($checkpointStore),
+                logger: new NullLogger(),
+                enabled: true,
+            ),
+            checkpointIntervalSeconds: 60,
+            clock: $clock,
+        );
+
+        $runtime->boot();
+        $clock->advance('+2 minutes');
+        $status = $runtime->status();
+
+        $this->assertCount(0, $checkpointStore->saved);
+        $this->assertNull($status->meta['checkpoint_periodic_last_saved_at']);
+    }
+
+    public function test_periodic_checkpoint_does_not_override_terminal_drain_checkpoint_reason(): void
+    {
+        $checkpointStore = new class implements ReplayCheckpointStoreInterface {
+            /** @var list<ReplayCheckpoint> */
+            public array $saved = [];
+
+            public function save(ReplayCheckpoint $checkpoint): void
+            {
+                $this->saved[] = $checkpoint;
+            }
+
+            public function load(string $key): ?ReplayCheckpoint
+            {
+                return null;
+            }
+
+            public function exists(string $key): bool
+            {
+                return false;
+            }
+
+            public function delete(string $key): void
+            {
+            }
+        };
+
+        $clock = new TestClock('2026-04-18T12:00:00+00:00');
+
+        $runtime = $this->makeRuntime(
+            checkpointManager: new WorkerReplayCheckpointManager(
+                artifactStore: $this->emptyArtifactStore(),
+                checkpointRepository: new ReplayCheckpointRepository($checkpointStore),
+                logger: new NullLogger(),
+                enabled: true,
+            ),
+            checkpointIntervalSeconds: 60,
+            clock: $clock,
+        );
+
+        $runtime->boot();
+        $runtime->run();
+        $clock->advance('+61 seconds');
+        $runtime->status();
+
+        $this->assertCount(1, $checkpointStore->saved);
+        $this->assertSame('periodic', $checkpointStore->saved[0]->metadata['checkpoint_reason']);
+
+        $runtime->drain();
+        $status = $runtime->status();
+
+        $this->assertCount(3, $checkpointStore->saved);
+        $this->assertSame('drain-completed', $status->meta['checkpoint_reason']);
+        $this->assertSame('2026-04-18T12:01:01.000+00:00', $status->meta['checkpoint_periodic_last_saved_at']);
+        $this->assertSame('drain-requested', $checkpointStore->saved[1]->metadata['checkpoint_reason']);
+        $this->assertSame('drain-completed', $checkpointStore->saved[2]->metadata['checkpoint_reason']);
+    }
+
     private function makeRuntime(
         ?RuntimeRunnerInterface $runtimeRunner = null,
         ?WorkerReplayCheckpointManager $checkpointManager = null,
         int $drainTimeoutMilliseconds = 30000,
+        int $checkpointIntervalSeconds = 60,
+        ?TestClock $clock = null,
     ): WorkerRuntime
     {
         $node = new PbxNode(
@@ -406,6 +571,47 @@ class WorkerRuntimeTest extends TestCase
             }
         };
 
+        if ($clock !== null) {
+            return new class (
+                $node,
+                $resolver,
+                $connectionFactory,
+                $runtimeRunner ?? new NonLiveRuntimeRunner(),
+                $checkpointManager,
+                $drainTimeoutMilliseconds,
+                $checkpointIntervalSeconds,
+                $clock,
+            ) extends WorkerRuntime {
+                public function __construct(
+                    PbxNode $node,
+                    ConnectionResolverInterface $connectionResolver,
+                    ConnectionFactoryInterface $connectionFactory,
+                    RuntimeRunnerInterface $runtimeRunner,
+                    ?WorkerReplayCheckpointManager $checkpointManager,
+                    int $drainTimeoutMilliseconds,
+                    int $checkpointIntervalSeconds,
+                    private readonly TestClock $clock,
+                ) {
+                    parent::__construct(
+                        workerName: 'test-worker',
+                        node: $node,
+                        connectionResolver: $connectionResolver,
+                        connectionFactory: $connectionFactory,
+                        runtimeRunner: $runtimeRunner,
+                        logger: new NullLogger(),
+                        checkpointManager: $checkpointManager,
+                        drainTimeoutMilliseconds: $drainTimeoutMilliseconds,
+                        checkpointIntervalSeconds: $checkpointIntervalSeconds,
+                    );
+                }
+
+                protected function now(): \DateTimeImmutable
+                {
+                    return $this->clock->now;
+                }
+            };
+        }
+
         return new WorkerRuntime(
             workerName: 'test-worker',
             node: $node,
@@ -415,6 +621,7 @@ class WorkerRuntimeTest extends TestCase
             logger: new NullLogger(),
             checkpointManager: $checkpointManager,
             drainTimeoutMilliseconds: $drainTimeoutMilliseconds,
+            checkpointIntervalSeconds: $checkpointIntervalSeconds,
         );
     }
 
@@ -441,5 +648,20 @@ class WorkerRuntimeTest extends TestCase
                 return ReplayReadCursor::start();
             }
         };
+    }
+}
+
+final class TestClock
+{
+    public \DateTimeImmutable $now;
+
+    public function __construct(string $now)
+    {
+        $this->now = new \DateTimeImmutable($now);
+    }
+
+    public function advance(string $modify): void
+    {
+        $this->now = $this->now->modify($modify);
     }
 }

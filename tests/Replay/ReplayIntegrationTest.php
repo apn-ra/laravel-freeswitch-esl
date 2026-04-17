@@ -6,6 +6,7 @@ use Apntalk\EslReplay\Checkpoint\ReplayCheckpointRepository;
 use Apntalk\EslReplay\Contracts\ReplayCheckpointStoreInterface;
 use Apntalk\EslCore\Contracts\ReplayEnvelopeInterface;
 use Apntalk\EslReplay\Contracts\ReplayArtifactStoreInterface;
+use Apntalk\EslReplay\Adapter\Filesystem\FilesystemReplayArtifactStore;
 use Apntalk\EslReplay\Checkpoint\ReplayCheckpoint;
 use Apntalk\EslReplay\Read\ReplayReadCriteria;
 use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\ConnectionContext;
@@ -237,6 +238,141 @@ class ReplayIntegrationTest extends TestCase
         $this->assertSame('replay-session-a', $resume['checkpoint_recovery_replay_session_id']);
         $this->assertSame('worker-session-a', $resume['checkpoint_recovery_worker_session_id']);
         $this->assertSame('node-a', $resume['checkpoint_recovery_pbx_node_slug']);
+    }
+
+    public function test_worker_checkpoint_manager_can_summarize_bounded_historical_checkpoint_posture(): void
+    {
+        $context = $this->makeContext(workerSessionId: 'worker-session-a');
+        $sink = new ReplayArtifactStoreCaptureSink($this->store(), $context, new NullLogger());
+        $sink->capture($this->makeEnvelope(
+            sessionId: 'replay-session-a',
+            capturedAtMicros: 1_800_000_000_000_000,
+        ));
+
+        $manager = new WorkerReplayCheckpointManager(
+            artifactStore: $this->store(),
+            checkpointRepository: new ReplayCheckpointRepository($this->app->make(ReplayCheckpointStoreInterface::class)),
+            logger: new NullLogger(),
+            enabled: true,
+        );
+
+        $manager->save('history-worker', $context, 'drain-requested', [
+            'drain_started_at' => '2027-01-15T08:00:00.000+00:00',
+            'drain_deadline_at' => '2027-01-15T08:00:30.000+00:00',
+        ]);
+
+        $summary = $manager->historicalSummary(
+            workerName: 'history-worker',
+            context: $context,
+            historyLimit: 5,
+            savedFrom: new \DateTimeImmutable('-1 hour', new \DateTimeZone('UTC')),
+            includeHistory: true,
+            windowHours: 1,
+        );
+
+        $this->assertTrue($summary['checkpoint_enabled']);
+        $this->assertSame('history-worker', $summary['worker_name']);
+        $this->assertSame('freeswitch', $summary['provider_code']);
+        $this->assertSame('node-a', $summary['pbx_node_slug']);
+        $this->assertSame('primary', $summary['connection_profile_name']);
+        $this->assertSame('worker-runtime.history-worker.freeswitch.node-a.primary', $summary['checkpoint_key']);
+        $this->assertSame('drain-requested', $summary['latest_checkpoint_reason']);
+        $this->assertSame('replay-session-a', $summary['latest_checkpoint_replay_session_id']);
+        $this->assertSame('worker-session-a', $summary['latest_checkpoint_worker_session_id']);
+        $this->assertSame('node-a', $summary['latest_checkpoint_pbx_node_slug']);
+        $this->assertSame('none', $summary['latest_drain_terminal_state']);
+        $this->assertSame('2027-01-15T08:00:00.000+00:00', $summary['latest_drain_started_at']);
+        $this->assertSame('2027-01-15T08:00:30.000+00:00', $summary['latest_drain_deadline_at']);
+        $this->assertSame(1, $summary['checkpoint_count_in_window']);
+        $this->assertNotNull($summary['oldest_checkpoint_saved_at_in_window']);
+        $this->assertNotNull($summary['newest_checkpoint_saved_at_in_window']);
+        $this->assertFalse($summary['historical_pruning_supported']);
+        $this->assertNull($summary['historical_pruning_candidate_count']);
+        $this->assertSame(1, $summary['historical_pruning_window_hours']);
+        $this->assertSame('requires_filesystem_replay_store', $summary['historical_pruning_basis']);
+        $this->assertCount(1, $summary['history']);
+        $this->assertSame('drain-requested', $summary['history'][0]['reason']);
+    }
+
+    public function test_worker_checkpoint_manager_can_surface_global_historical_retention_metadata(): void
+    {
+        $manager = new WorkerReplayCheckpointManager(
+            artifactStore: $this->store(),
+            checkpointRepository: new ReplayCheckpointRepository($this->app->make(ReplayCheckpointStoreInterface::class)),
+            logger: new NullLogger(),
+            enabled: true,
+            replayStoreDriver: 'database',
+            replayStoragePath: $this->storagePath,
+            retentionDays: 7,
+        );
+
+        $metadata = $manager->historicalRetentionMetadata(24);
+
+        $this->assertFalse($metadata['historical_retention_supported']);
+        $this->assertSame('database', $metadata['historical_retention_store_driver']);
+        $this->assertSame(7, $metadata['historical_retention_days']);
+        $this->assertTrue($metadata['historical_retention_storage_path_present']);
+        $this->assertSame('requires_filesystem_replay_store', $metadata['historical_retention_basis']);
+        $this->assertNull($metadata['historical_retention_support_path']);
+        $this->assertSame('apntalk/esl-replay', $metadata['historical_retention_support_source']);
+        $this->assertSame(24, $metadata['historical_retention_window_hours']);
+    }
+
+    public function test_worker_checkpoint_manager_can_report_filesystem_backed_historical_pruning_posture(): void
+    {
+        $storagePath = sys_get_temp_dir() . '/laravel-freeswitch-esl-tests/replay-pruning-' . bin2hex(random_bytes(4));
+        @mkdir($storagePath, 0777, true);
+
+        try {
+            $artifactStore = new FilesystemReplayArtifactStore($storagePath);
+            $context = $this->makeContext(workerSessionId: 'worker-session-a');
+            $sink = new ReplayArtifactStoreCaptureSink($artifactStore, $context, new NullLogger());
+            $sink->capture($this->makeEnvelope(
+                sessionId: 'replay-session-a',
+                capturedAtMicros: 1_715_702_400_000_000,
+            ));
+            $sink->capture($this->makeEnvelope(
+                sessionId: 'replay-session-a',
+                capturedAtMicros: 1_715_788_800_000_000,
+            ));
+
+            $manager = new WorkerReplayCheckpointManager(
+                artifactStore: $artifactStore,
+                checkpointRepository: new ReplayCheckpointRepository($this->app->make(ReplayCheckpointStoreInterface::class)),
+                logger: new NullLogger(),
+                enabled: true,
+                replayStoreDriver: 'filesystem',
+                replayStoragePath: $storagePath,
+                retentionDays: 7,
+            );
+
+            $manager->save('history-worker', $context, 'drain-requested');
+
+            $sink->capture($this->makeEnvelope(
+                sessionId: 'replay-session-a',
+                capturedAtMicros: 1_766_145_600_000_000,
+            ));
+
+            $summary = $manager->historicalSummary(
+                workerName: 'history-worker',
+                context: $context,
+                historyLimit: 5,
+                savedFrom: new \DateTimeImmutable('-24 hours', new \DateTimeZone('UTC')),
+                includeHistory: false,
+                windowHours: 24,
+            );
+
+            $this->assertTrue($summary['historical_pruning_supported']);
+            $this->assertSame(2, $summary['historical_pruning_candidate_count']);
+            $this->assertSame(24, $summary['historical_pruning_window_hours']);
+            $this->assertSame('filesystem_retention_plan', $summary['historical_pruning_basis']);
+        } finally {
+            $file = $storagePath . '/artifacts.ndjson';
+            if (file_exists($file)) {
+                @unlink($file);
+            }
+            @rmdir($storagePath);
+        }
     }
 
     private function store(): ReplayArtifactStoreInterface

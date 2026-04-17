@@ -57,6 +57,8 @@ class WorkerRuntime implements WorkerInterface
 
     private ?\DateTimeImmutable $drainCompletedAt = null;
 
+    private ?\DateTimeImmutable $lastPeriodicCheckpointAt = null;
+
     private bool $drainTimedOut = false;
 
     private bool $drainTerminalCheckpointSaved = false;
@@ -107,6 +109,7 @@ class WorkerRuntime implements WorkerInterface
         private readonly LoggerInterface $logger,
         private readonly ?WorkerReplayCheckpointManager $checkpointManager = null,
         private readonly int $drainTimeoutMilliseconds = 30000,
+        private readonly int $checkpointIntervalSeconds = 60,
     ) {
         $this->sessionId = sprintf(
             '%s-%s-%s',
@@ -147,7 +150,7 @@ class WorkerRuntime implements WorkerInterface
             'checkpoint_last_consumed_sequence' => $this->checkpointMeta['checkpoint_last_consumed_sequence'],
         ]);
 
-        $this->bootedAt = new \DateTimeImmutable();
+        $this->bootedAt = $this->now();
         $this->state = WorkerStatus::STATE_RUNNING;
     }
 
@@ -160,20 +163,23 @@ class WorkerRuntime implements WorkerInterface
             );
         }
 
+        $runtimeHandoff = $this->runtimeHandoff;
+
         $this->logger->info('Invoking runtime runner', [
             'session_id' => $this->sessionId,
             'pbx_node_slug' => $this->node->slug,
-            'endpoint' => $this->runtimeHandoff->endpoint(),
+            'endpoint' => $runtimeHandoff->endpoint(),
             'runtime_runner' => $this->runtimeRunner::class,
         ]);
 
-        $this->runtimeRunner->run($this->runtimeHandoff);
+        $this->runtimeRunner->run($runtimeHandoff);
         $this->runtimeRunnerInvoked = true;
+        $this->maybeSavePeriodicCheckpoint();
 
         $this->logger->info('Worker run completed after runtime runner invocation', [
             'session_id' => $this->sessionId,
             'pbx_node_slug' => $this->node->slug,
-            'endpoint' => $this->runtimeHandoff->endpoint(),
+            'endpoint' => $runtimeHandoff->endpoint(),
             'runtime_runner' => $this->runtimeRunner::class,
         ]);
     }
@@ -190,7 +196,7 @@ class WorkerRuntime implements WorkerInterface
 
         $this->draining = true;
         $this->state = WorkerStatus::STATE_DRAINING;
-        $this->drainStartedAt ??= new \DateTimeImmutable();
+        $this->drainStartedAt ??= $this->now();
         $this->drainDeadlineAt ??= $this->drainStartedAt->modify(sprintf('+%d milliseconds', $this->drainTimeoutMilliseconds));
         $this->drainTerminalCheckpointSaved = false;
         $this->checkpointMeta = array_merge(
@@ -235,6 +241,7 @@ class WorkerRuntime implements WorkerInterface
     public function status(): WorkerStatus
     {
         $this->refreshDrainState();
+        $this->maybeSavePeriodicCheckpoint();
 
         return new WorkerStatus(
             sessionId: $this->sessionId,
@@ -285,6 +292,12 @@ class WorkerRuntime implements WorkerInterface
                 'drain_completed' => $this->drainCompletedAt !== null,
                 'drain_timed_out' => $this->drainTimedOut,
                 'drain_waiting_on_inflight' => $this->draining && $this->drainCompletedAt === null ? $this->inflightCount : 0,
+                'checkpoint_periodic_enabled' => $this->checkpointIntervalSeconds > 0
+                    && ($this->checkpointMeta['checkpoint_enabled'] ?? false) === true,
+                'checkpoint_periodic_interval_seconds' => $this->checkpointIntervalSeconds > 0
+                    ? $this->checkpointIntervalSeconds
+                    : null,
+                'checkpoint_periodic_last_saved_at' => $this->lastPeriodicCheckpointAt?->format(\DateTimeInterface::RFC3339_EXTENDED),
             ], $this->runtimeFeedbackMeta(), $this->checkpointMeta),
         );
     }
@@ -335,6 +348,7 @@ class WorkerRuntime implements WorkerInterface
 
         $this->inflightCount += $count;
         $this->refreshDrainState();
+        $this->maybeSavePeriodicCheckpoint();
     }
 
     public function completeInflightWork(int $count = 1): void
@@ -345,6 +359,7 @@ class WorkerRuntime implements WorkerInterface
 
         $this->inflightCount = max(0, $this->inflightCount - $count);
         $this->refreshDrainState();
+        $this->maybeSavePeriodicCheckpoint();
     }
 
     private function refreshDrainState(): void
@@ -353,7 +368,7 @@ class WorkerRuntime implements WorkerInterface
             return;
         }
 
-        $now = new \DateTimeImmutable();
+        $now = $this->now();
 
         if ($this->inflightCount === 0) {
             $this->drainCompletedAt = $now;
@@ -385,6 +400,41 @@ class WorkerRuntime implements WorkerInterface
         return $this->checkpointManager->save($this->workerName, $this->resolvedContext, $reason, $metadata);
     }
 
+    private function maybeSavePeriodicCheckpoint(): void
+    {
+        if (
+            $this->checkpointIntervalSeconds < 1
+            || $this->checkpointManager === null
+            || $this->resolvedContext === null
+            || $this->bootedAt === null
+            || $this->draining
+            || $this->state !== WorkerStatus::STATE_RUNNING
+            || ! $this->runtimeRunnerInvoked
+        ) {
+            return;
+        }
+
+        $now = $this->now();
+        $referenceTime = $this->lastPeriodicCheckpointAt ?? $this->bootedAt;
+        $nextDueAt = $referenceTime->modify(sprintf('+%d seconds', $this->checkpointIntervalSeconds));
+
+        if ($now < $nextDueAt) {
+            return;
+        }
+
+        $result = $this->saveCheckpoint('periodic', [
+            'periodic_checkpoint_interval_seconds' => $this->checkpointIntervalSeconds,
+            'periodic_checkpoint_due_at' => $nextDueAt->format(\DateTimeInterface::RFC3339_EXTENDED),
+            'inflight_count' => $this->inflightCount,
+        ]);
+
+        $this->checkpointMeta = array_merge($this->checkpointMeta, $result);
+
+        if (($result['checkpoint_saved'] ?? false) === true) {
+            $this->lastPeriodicCheckpointAt = $now;
+        }
+    }
+
     private function persistTerminalDrainCheckpointIfNeeded(): void
     {
         if (
@@ -411,5 +461,10 @@ class WorkerRuntime implements WorkerInterface
         );
 
         $this->drainTerminalCheckpointSaved = true;
+    }
+
+    protected function now(): \DateTimeImmutable
+    {
+        return new \DateTimeImmutable();
     }
 }

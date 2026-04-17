@@ -157,11 +157,13 @@ The `--worker=<name>` option sets the worker identity (default: `esl-worker`). T
 
 After startup, `freeswitch:worker` reports how many node runtimes reached the prepared-handoff state, how many invoked the configured runner, how many exposed push-based lifecycle observation, and how many reported a running live runtime through the feedback seam. That summary is intentionally narrow and does not claim Laravel owns the `apntalk/esl-react` session lifecycle.
 
-The command now also prints one bounded replay-backed checkpoint/recovery posture line per node runtime. Those lines report persisted-artifact checkpoint scope, last checkpoint reason/timestamp, whether startup observed a prior checkpoint, whether a bounded replay-backed recovery candidate was found, and current drain posture. They are explicitly not a claim of live socket recovery, reconnect restoration, or automatic resume processing.
+The command now also prints one bounded replay-backed checkpoint/recovery posture line per node runtime. Those lines report persisted-artifact checkpoint scope, last checkpoint reason/timestamp, whether startup observed a prior checkpoint, whether a bounded replay-backed recovery candidate was found, and current drain posture. They are explicitly not a claim of live socket recovery, reconnect restoration, resume execution, or automatic resume processing.
 
-For automation and stable machine-readable reporting, `freeswitch:worker --json` emits a JSON document that reuses the same `WorkerStatus`-derived checkpoint/drain metadata.
+For automation and stable machine-readable reporting, `freeswitch:worker --json` emits a JSON document that reuses the same `WorkerStatus`-derived checkpoint/drain metadata and now includes additive bounded resume-posture fields derived from the existing replay-backed checkpoint/recovery facts.
 
-For reporting-only automation, `freeswitch:worker:status` now prepares worker runtimes without invoking the bound runtime runner and returns a multi-worker-friendly JSON document built from the same `WorkerStatus` metadata. That surface is observational only: it reports replay-backed checkpoint posture and drain state, but does not claim live recovery, reconnect restoration, or automatic resume processing.
+For reporting-only automation, `freeswitch:worker:status` now prepares worker runtimes without invoking the bound runtime runner and returns a multi-worker-friendly JSON document built from the same `WorkerStatus` metadata. That surface is observational only: it reports replay-backed checkpoint posture, additive resume-posture fields, and drain state, but does not claim live recovery, reconnect restoration, resume execution, or automatic resume processing.
+
+For persisted checkpoint history rather than prepared runtime posture, `freeswitch:worker:checkpoint-status` now emits a dedicated machine-readable historical summary. It reports latest checkpoint posture per worker/node/profile scope, can optionally include a bounded history window, and now supports additive DB-backed filters plus stable `limit`/`offset` pagination for larger result sets. It also exposes bounded historical pruning posture when that can be derived truthfully from the installed replay store and persisted checkpoint/query state, plus additive top-level retention-policy metadata for the current invocation, including the active upstream support path when one exists. It does not claim that historical checkpoint posture equals current live runtime state, does not execute pruning, and does not imply pruning coordination for active workers.
 
 ---
 
@@ -208,6 +210,7 @@ The current worker/runtime posture remains intentionally conservative:
 
 - replay artifacts are persisted with worker/node/profile identity
 - worker checkpoints are written through the upstream checkpoint repository and bounded identity references
+- worker runtime can save bounded interval-based `periodic` checkpoints after the runtime runner has been invoked and the configured checkpoint interval has elapsed
 - `drain()` records `drain_started_at`, `drain_deadline_at`, and saves a `drain-requested` checkpoint
 - terminal drain transitions save a second checkpoint with reason `drain-completed` or `drain-timeout`
 - startup can report bounded checkpoint-backed recovery hints by looking up the prior checkpoint and checking for later persisted replay records using bounded replay criteria
@@ -217,6 +220,7 @@ This does not mean:
 - live FreeSWITCH socket recovery
 - `apntalk/esl-react` session continuity recovery
 - replay execution or re-injection
-- periodic checkpoint scheduling
+- a background checkpoint scheduler or timer loop
 
 Configuration: `freeswitch-esl.replay.*`
+Configuration: `freeswitch-esl.worker_defaults.checkpoint_interval_seconds`

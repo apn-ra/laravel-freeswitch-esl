@@ -67,17 +67,22 @@ final class WorkerStatusReportBuilder
      */
     public function machineReadableNodeStatus(string $slug, WorkerStatus $status): array
     {
+        $checkpointEnabled = ($status->meta['checkpoint_enabled'] ?? false) === true;
+        $checkpointPriorObserved = ($status->meta['checkpoint_is_resuming'] ?? false) === true;
+        $checkpointRecoverySupported = ($status->meta['checkpoint_recovery_supported'] ?? false) === true;
+        $checkpointRecoveryCandidateFound = ($status->meta['checkpoint_recovery_candidate_found'] ?? false) === true;
+
         return [
             'pbx_node_slug' => $slug,
             'worker_runtime_state' => $status->state,
-            'checkpoint_enabled' => ($status->meta['checkpoint_enabled'] ?? false) === true,
+            'checkpoint_enabled' => $checkpointEnabled,
             'checkpoint_key' => $this->metaString($status->meta, 'checkpoint_key'),
             'checkpoint_saved_at' => $this->metaString($status->meta, 'checkpoint_saved_at'),
             'checkpoint_reason' => $this->metaString($status->meta, 'checkpoint_reason')
                 ?? $this->metaString($status->meta['checkpoint_metadata'] ?? null, 'checkpoint_reason'),
-            'checkpoint_prior_observed' => ($status->meta['checkpoint_is_resuming'] ?? false) === true,
-            'checkpoint_recovery_supported' => ($status->meta['checkpoint_recovery_supported'] ?? false) === true,
-            'checkpoint_recovery_candidate_found' => ($status->meta['checkpoint_recovery_candidate_found'] ?? false) === true,
+            'checkpoint_prior_observed' => $checkpointPriorObserved,
+            'checkpoint_recovery_supported' => $checkpointRecoverySupported,
+            'checkpoint_recovery_candidate_found' => $checkpointRecoveryCandidateFound,
             'checkpoint_recovery_next_sequence' => is_scalar($status->meta['checkpoint_recovery_next_sequence'] ?? null)
                 ? (int) $status->meta['checkpoint_recovery_next_sequence']
                 : null,
@@ -85,12 +90,50 @@ final class WorkerStatusReportBuilder
             'checkpoint_recovery_worker_session_id' => $this->metaString($status->meta, 'checkpoint_recovery_worker_session_id'),
             'checkpoint_recovery_job_uuid' => $this->metaString($status->meta, 'checkpoint_recovery_job_uuid'),
             'checkpoint_recovery_pbx_node_slug' => $this->metaString($status->meta, 'checkpoint_recovery_pbx_node_slug'),
+            'resume_supported' => $checkpointEnabled,
+            'resume_execution_supported' => false,
+            'resume_posture_basis' => $this->resumePostureBasis(
+                $checkpointEnabled,
+                $checkpointPriorObserved,
+                $checkpointRecoverySupported,
+            ),
+            'resume_checkpoint_available' => $checkpointPriorObserved,
+            'resume_candidate_available' => $checkpointRecoveryCandidateFound,
+            'resume_candidate_sequence' => is_scalar($status->meta['checkpoint_recovery_next_sequence'] ?? null)
+                ? (int) $status->meta['checkpoint_recovery_next_sequence']
+                : null,
+            'resume_candidate_replay_session_id' => $this->metaString($status->meta, 'checkpoint_recovery_replay_session_id'),
+            'resume_candidate_worker_session_id' => $this->metaString($status->meta, 'checkpoint_recovery_worker_session_id'),
+            'resume_candidate_job_uuid' => $this->metaString($status->meta, 'checkpoint_recovery_job_uuid'),
+            'resume_candidate_pbx_node_slug' => $this->metaString($status->meta, 'checkpoint_recovery_pbx_node_slug'),
+            'resume_posture_source' => 'worker_replay_checkpoint_manager',
+            'resume_execution_deferred' => true,
             'drain_requested' => $this->metaString($status->meta, 'drain_started_at') !== null,
             'drain_completed' => ($status->meta['drain_completed'] ?? false) === true,
             'drain_timed_out' => ($status->meta['drain_timed_out'] ?? false) === true,
             'drain_started_at' => $this->metaString($status->meta, 'drain_started_at'),
             'drain_deadline_at' => $this->metaString($status->meta, 'drain_deadline_at'),
         ];
+    }
+
+    private function resumePostureBasis(
+        bool $checkpointEnabled,
+        bool $checkpointPriorObserved,
+        bool $checkpointRecoverySupported,
+    ): string {
+        if (! $checkpointEnabled) {
+            return 'checkpointing_disabled';
+        }
+
+        if (! $checkpointPriorObserved) {
+            return 'no_prior_checkpoint';
+        }
+
+        if (! $checkpointRecoverySupported) {
+            return 'checkpoint_without_recovery_anchors';
+        }
+
+        return 'checkpoint_recovery_metadata';
     }
 
     /**

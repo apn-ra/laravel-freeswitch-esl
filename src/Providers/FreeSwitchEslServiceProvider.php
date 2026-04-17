@@ -251,11 +251,16 @@ class FreeSwitchEslServiceProvider extends ServiceProvider
         });
 
         $this->app->singleton(WorkerReplayCheckpointManager::class, function ($app) {
+            $replayConfig = $app['config']->get('freeswitch-esl.replay', []);
+
             return new WorkerReplayCheckpointManager(
                 artifactStore: $app->make(ReplayArtifactStoreInterface::class),
                 checkpointRepository: $app->make(ReplayCheckpointRepository::class),
                 logger: $app->make(\Psr\Log\LoggerInterface::class),
                 enabled: (bool) $app['config']->get('freeswitch-esl.replay.enabled', false),
+                replayStoreDriver: is_string($replayConfig['store_driver'] ?? null) ? $replayConfig['store_driver'] : null,
+                replayStoragePath: is_string($replayConfig['storage_path'] ?? null) ? $replayConfig['storage_path'] : null,
+                retentionDays: (int) ($replayConfig['retention_days'] ?? 7),
             );
         });
     }
@@ -322,6 +327,7 @@ class FreeSwitchEslServiceProvider extends ServiceProvider
             \ApnTalk\LaravelFreeswitchEsl\Console\Commands\FreeSwitchStatusCommand::class,
             \ApnTalk\LaravelFreeswitchEsl\Console\Commands\FreeSwitchWorkerCommand::class,
             \ApnTalk\LaravelFreeswitchEsl\Console\Commands\FreeSwitchWorkerStatusCommand::class,
+            \ApnTalk\LaravelFreeswitchEsl\Console\Commands\FreeSwitchWorkerCheckpointStatusCommand::class,
             \ApnTalk\LaravelFreeswitchEsl\Console\Commands\FreeSwitchHealthCommand::class,
             \ApnTalk\LaravelFreeswitchEsl\Console\Commands\FreeSwitchReplayInspectCommand::class,
         ]);

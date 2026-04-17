@@ -53,6 +53,7 @@ class WorkerSupervisor
         private readonly LoggerInterface $logger,
         private readonly ?WorkerReplayCheckpointManager $checkpointManager = null,
         private readonly int $drainTimeoutMilliseconds = 30000,
+        private readonly int $checkpointIntervalSeconds = 60,
     ) {}
 
     /**
@@ -247,6 +248,7 @@ class WorkerSupervisor
                 logger: $this->logger,
                 checkpointManager: $this->checkpointManager,
                 drainTimeoutMilliseconds: $this->drainTimeoutMilliseconds,
+                checkpointIntervalSeconds: $this->checkpointIntervalSeconds,
             );
 
             $this->runtimes[$node->slug] = $runtime;
