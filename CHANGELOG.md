@@ -9,6 +9,29 @@ This project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.4.5] - 2026-04-17
+
+### Summary
+
+This release is a truthful `0.4.x` Laravel-side dependency-alignment checkpoint.
+It aligns the Laravel package to the released `apntalk/esl-react` `^0.2.6` runtime/lifecycle line.
+It is not a Laravel-owned live runtime milestone.
+
+### Changed
+
+- bumped the minimum supported `apntalk/esl-react` line to `^0.2.6` so Laravel consumes the released runner/lifecycle line with stronger live combined-condition reconnect plus bgapi/event validation on the public runner seam
+- tightened docs to clarify that Laravel keeps consuming the existing upstream lifecycle/push observation surfaces while live-vs-deterministic validation posture and bgapi/event runtime behavior remain documented and owned upstream in `apntalk/esl-react`
+
+### Verification
+
+- focused downstream verification should cover the runner adapter, runtime feedback translation, worker runtime, worker command output, provider/binding paths, static analysis, and Composer metadata validation for the dependency bump
+
+### Deferred
+
+- Laravel-owned reconnect, heartbeat, session lifecycle, bgapi/event runtime semantics, and runtime supervision remain out of scope
+- direct `apntalk/esl-core` `TransportInterface` polling handoff remains deferred
+- live runtime validation from this Laravel repository was not run in this checkpoint
+
 ## [0.4.4] - 2026-04-17
 
 ### Summary

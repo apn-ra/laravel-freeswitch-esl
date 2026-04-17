@@ -202,14 +202,14 @@ The package is currently usable for:
 - stable upstream transport and accepted-stream bootstrap seams bound for future runtime adapters
 - a Laravel-owned runtime handoff contract that adapters can consume without re-resolving control-plane state, with `ConnectionFactoryInterface` now typed to that boundary
 - a Laravel-owned runtime runner seam that `WorkerRuntime::run()` invokes; the default binding adapts to `apntalk/esl-react`, while `non-live` remains available as a fallback/dry-run runner
-- real upstream lifecycle observation on the supported `apntalk/esl-react` `^0.2.5` line for live connection/session/liveness/reconnect/drain status reporting, backed by upstream live verification of reconnect and heartbeat degradation behavior plus deterministic combined-condition validation for bgapi/event activity intersecting with degraded liveness and reconnecting states
+- real upstream lifecycle observation on the supported `apntalk/esl-react` `^0.2.6` line for live connection/session/liveness/reconnect/drain status reporting, backed by upstream live verification of reconnect and heartbeat degradation behavior plus live combined-condition reconnect and bgapi/event validation on the public runner seam
 - richer prepared dial-target handoff into `apntalk/esl-react`, including explicit TLS-style dial URIs when the resolved `ConnectionContext` requires them
 
 Still deferred:
 - Laravel-owned runtime supervision, reconnect/backoff ownership, and heartbeat/session lifecycle ownership
 - Replay capture/store integration via `apntalk/esl-replay`
 
-`WorkerRuntime::run()` now invokes the Laravel-owned `RuntimeRunnerInterface` seam. By default, the package maps `RuntimeHandoffInterface` into `apntalk/esl-react`'s `PreparedRuntimeBootstrapInput` and calls the upstream runner. On the supported `apntalk/esl-react` `^0.2.5` line, Laravel consumes `RuntimeRunnerHandle::lifecycleSnapshot()` and registers `RuntimeRunnerHandle::onLifecycleChange()` for push-based status reporting. Laravel can also pass an explicit prepared dial URI when the resolved transport requires it. Reconnect, heartbeat, session lifecycle, and combined bgapi/event activity under degraded or reconnecting runtime states remain owned by the bound runner.
+`WorkerRuntime::run()` now invokes the Laravel-owned `RuntimeRunnerInterface` seam. By default, the package maps `RuntimeHandoffInterface` into `apntalk/esl-react`'s `PreparedRuntimeBootstrapInput` and calls the upstream runner. On the supported `apntalk/esl-react` `^0.2.6` line, Laravel consumes `RuntimeRunnerHandle::lifecycleSnapshot()` and registers `RuntimeRunnerHandle::onLifecycleChange()` for push-based status reporting. Laravel can also pass an explicit prepared dial URI when the resolved transport requires it. Reconnect, heartbeat, session lifecycle, bgapi/event runtime semantics, and combined degraded-or-reconnecting runtime behavior remain owned by the bound runner.
 
 Current worker status semantics:
 - `booting` means handoff state is not yet prepared
