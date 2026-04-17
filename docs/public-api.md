@@ -85,7 +85,7 @@ Runtime runner binding:
 
 | Surface | Notes |
 |---|---|
-| `src/Contracts/Upstream/ReplayCaptureStoreInterface` | `@internal` replay stub, will be removed when `apntalk/esl-replay` is integrated |
+| `WorkerReplayCheckpointManager` internals | Laravel integration detail over upstream replay checkpoint/query APIs |
 | Eloquent model internals | Relationships and scopes may change |
 | `WorkerRuntime` internal methods | Implementation detail; only `WorkerInterface` methods are stable |
 | `WorkerSupervisor` internal methods | Implementation detail |
@@ -94,6 +94,8 @@ Runtime runner binding:
 Current worker/runtime posture notes:
 - `WorkerInterface::run()` is a stable contract; current shipped implementations invoke the configured runtime runner.
 - `WorkerStatus::state = running` currently means boot completed and runtime handoff prepared; use `WorkerStatus::isHandoffPrepared()`, `isRuntimeRunnerInvoked()`, `isRuntimeFeedbackObserved()`, and `isRuntimeLoopActive()` to distinguish prepared scaffolding, seam invocation, observed runner feedback, and upstream lifecycle-snapshot-derived live async session state.
+- worker drain/checkpoint status is surfaced conservatively through `WorkerStatus::meta`, including bounded replay-backed checkpoint save/resume hints and bounded drain completion/timeout fields; this does not imply live session recovery or replay execution
+- `freeswitch:worker` now renders those bounded replay-backed checkpoint/recovery hints in human-readable operator output, `freeswitch:worker --json` exposes the same posture in a stable machine-readable form, and `freeswitch:worker:status` provides a dedicated reporting-oriented JSON surface that prepares runtimes without invoking the runtime runner; `freeswitch:health` and `freeswitch:status` remain intentionally narrower and state that they do not show live worker recovery posture
 
 ---
 

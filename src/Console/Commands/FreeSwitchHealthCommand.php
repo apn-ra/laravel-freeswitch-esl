@@ -58,6 +58,10 @@ class FreeSwitchHealthCommand extends Command
                 ], $snapshots)
             );
 
+            $this->line(
+                'Replay-backed recovery posture is not part of the default DB-backed health snapshot. Use worker runtime output for checkpoint/recovery visibility.'
+            );
+
             return self::SUCCESS;
         } catch (\Throwable $e) {
             $this->error($e->getMessage());

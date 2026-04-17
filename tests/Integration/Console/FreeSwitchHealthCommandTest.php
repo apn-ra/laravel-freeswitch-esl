@@ -117,6 +117,7 @@ class FreeSwitchHealthCommandTest extends TestCase
                     ['primary-fs', 'freeswitch', 'healthy', 'handoff-prepared', 'never', '0', 'no'],
                 ]
             )
+            ->expectsOutputToContain('Replay-backed recovery posture is not part of the default DB-backed health snapshot. Use worker runtime output for checkpoint/recovery visibility.')
             ->assertExitCode(0);
     }
 
@@ -226,6 +227,7 @@ class FreeSwitchHealthCommandTest extends TestCase
                     ['edge-fs', 'freeswitch', 'degraded', 'db-health-only', 'never', '2', 'no'],
                 ]
             )
+            ->expectsOutputToContain('Replay-backed recovery posture is not part of the default DB-backed health snapshot. Use worker runtime output for checkpoint/recovery visibility.')
             ->assertExitCode(0);
 
         $this->assertSame(1, $registry->lookupCalls);

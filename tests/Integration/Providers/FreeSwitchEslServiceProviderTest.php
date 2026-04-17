@@ -2,6 +2,9 @@
 
 namespace ApnTalk\LaravelFreeswitchEsl\Tests\Integration\Providers;
 
+use Apntalk\EslReplay\Checkpoint\ReplayCheckpointRepository;
+use Apntalk\EslReplay\Contracts\ReplayArtifactStoreInterface;
+use Apntalk\EslReplay\Contracts\ReplayCheckpointStoreInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\ConnectionFactoryInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\ConnectionResolverInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\HealthReporterInterface;
@@ -16,6 +19,7 @@ use ApnTalk\LaravelFreeswitchEsl\Integration\EslCoreConnectionFactory;
 use ApnTalk\LaravelFreeswitchEsl\Integration\EslReactRuntimeBootstrapInputFactory;
 use ApnTalk\LaravelFreeswitchEsl\Integration\EslReactRuntimeRunnerAdapter;
 use ApnTalk\LaravelFreeswitchEsl\Integration\NonLiveRuntimeRunner;
+use ApnTalk\LaravelFreeswitchEsl\Integration\Replay\WorkerReplayCheckpointManager;
 use ApnTalk\LaravelFreeswitchEsl\Tests\TestCase;
 
 class FreeSwitchEslServiceProviderTest extends TestCase
@@ -173,6 +177,32 @@ class FreeSwitchEslServiceProviderTest extends TestCase
     public function test_config_has_correct_default_driver(): void
     {
         $this->assertSame('freeswitch', $this->app['config']->get('freeswitch-esl.default_driver'));
+    }
+
+    public function test_replay_store_contract_is_bound(): void
+    {
+        $this->assertTrue($this->app->bound(ReplayArtifactStoreInterface::class));
+    }
+
+    public function test_replay_checkpoint_store_contract_is_bound(): void
+    {
+        $this->assertTrue($this->app->bound(ReplayCheckpointStoreInterface::class));
+    }
+
+    public function test_replay_checkpoint_repository_is_bound(): void
+    {
+        $this->assertInstanceOf(
+            ReplayCheckpointRepository::class,
+            $this->app->make(ReplayCheckpointRepository::class)
+        );
+    }
+
+    public function test_worker_replay_checkpoint_manager_is_bound(): void
+    {
+        $this->assertInstanceOf(
+            WorkerReplayCheckpointManager::class,
+            $this->app->make(WorkerReplayCheckpointManager::class)
+        );
     }
 
     public function test_migrations_are_in_expected_path(): void

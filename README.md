@@ -13,7 +13,7 @@ A production-grade Laravel package that provides:
 - **Worker assignment orchestration** — target one node, a cluster, a tag, or all active nodes
 - **Long-lived worker bootstrapping** — explicit boot/run/drain/shutdown scaffolding, with live async runtime behavior still deferred to `apntalk/esl-react`
 - **Structured health and diagnostics** — machine-usable operational state per node
-- **Replay inspection scaffolding** — config surface and operator inspection command for future `apntalk/esl-replay` integration
+- **Replay-backed integration** — upstream replay capture/store wiring, inspection, and bounded checkpoint/drain coordination
 
 ## What this package is not
 
@@ -207,7 +207,7 @@ The package is currently usable for:
 
 Still deferred:
 - Laravel-owned runtime supervision, reconnect/backoff ownership, and heartbeat/session lifecycle ownership
-- Replay capture/store integration via `apntalk/esl-replay`
+- replay execution/re-injection and live-session recovery from replay checkpoints
 
 `WorkerRuntime::run()` now invokes the Laravel-owned `RuntimeRunnerInterface` seam. By default, the package maps `RuntimeHandoffInterface` into `apntalk/esl-react`'s `PreparedRuntimeBootstrapInput` and calls the upstream runner. On the supported `apntalk/esl-react` `^0.2.7` line, Laravel consumes `RuntimeRunnerHandle::lifecycleSnapshot()` and registers `RuntimeRunnerHandle::onLifecycleChange()` for push-based status reporting. Laravel can also pass an explicit prepared dial URI when the resolved transport requires it. Reconnect, heartbeat, session lifecycle, bgapi/event runtime semantics, and broader runtime supervision remain owned by the bound runner.
 
@@ -215,6 +215,14 @@ Current worker status semantics:
 - `booting` means handoff state is not yet prepared
 - `running` means boot completed and the runtime handoff seam is prepared
 - `running` does not by itself mean a live async ESL loop is active; check `runtime_loop_active` / `isRuntimeLoopActive()` for upstream-feedback-derived live observation
+- drain/checkpoint metadata is conservative and replay-backed; it can report bounded checkpoint save/resume/recovery posture, but it does not claim live `apntalk/esl-react` session recovery
+
+Operator output posture:
+- `freeswitch:worker` renders bounded replay-backed checkpoint/recovery hints per node runtime
+- `freeswitch:worker --json` exposes the same bounded checkpoint/recovery posture in a machine-readable form for automation
+- `freeswitch:worker:status` provides a dedicated machine-readable reporting surface that prepares worker runtimes without invoking the bound runtime runner and can report multiple DB-backed worker scopes in one call
+- `freeswitch:health` remains a DB-backed health snapshot surface and explicitly does not claim worker recovery visibility
+- `freeswitch:status` remains a control-plane inventory surface and explicitly does not claim worker recovery visibility
 
 ---
 

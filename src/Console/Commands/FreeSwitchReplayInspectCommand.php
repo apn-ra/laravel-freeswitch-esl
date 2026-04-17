@@ -2,6 +2,9 @@
 
 namespace ApnTalk\LaravelFreeswitchEsl\Console\Commands;
 
+use Apntalk\EslReplay\Contracts\ReplayArtifactStoreInterface;
+use Apntalk\EslReplay\Read\ReplayReadCriteria;
+use Apntalk\EslReplay\Storage\StoredReplayRecord;
 use Illuminate\Console\Command;
 
 /**
@@ -39,9 +42,9 @@ class FreeSwitchReplayInspectCommand extends Command
         }
 
         // Check if the replay store binding is available
-        if (! app()->bound(\ApnTalk\LaravelFreeswitchEsl\Contracts\Upstream\ReplayCaptureStoreInterface::class)) {
+        if (! app()->bound(ReplayArtifactStoreInterface::class)) {
             $this->error(
-                'ReplayCaptureStoreInterface is not bound in the container. '
+                'ReplayArtifactStoreInterface is not bound in the container. '
                 . 'Ensure apntalk/esl-replay is installed and configured.'
             );
 
@@ -61,35 +64,86 @@ class FreeSwitchReplayInspectCommand extends Command
         $limit = $limitOption !== null ? (int) $limitOption : 50;
         $asJson = $this->booleanOption('json');
 
-        $store = app(\ApnTalk\LaravelFreeswitchEsl\Contracts\Upstream\ReplayCaptureStoreInterface::class);
-        $partitionKey = $pbxSlug ?? 'all';
-        $envelopes = array_slice($store->retrieve($partitionKey, $from, $to), 0, $limit);
+        /** @var ReplayArtifactStoreInterface $store */
+        $store = app(ReplayArtifactStoreInterface::class);
+        $records = $this->readRecords($store, $from, $to, $pbxSlug, $limit);
 
         if ($asJson) {
-            $this->line($this->jsonString($envelopes));
+            $this->line($this->jsonString(array_map(
+                fn (StoredReplayRecord $record): array => $this->recordToArray($record),
+                $records,
+            )));
 
             return self::SUCCESS;
         }
 
         $this->info(sprintf(
-            'Replay store: %d envelope(s) in [%s → %s] for partition [%s]',
-            count($envelopes),
+            'Replay store: %d record(s) in [%s → %s] for PBX [%s]',
+            count($records),
             $from->format('Y-m-d H:i:s'),
             $to->format('Y-m-d H:i:s'),
-            $partitionKey
+            $pbxSlug ?? 'all'
         ));
 
-        foreach ($envelopes as $i => $envelope) {
+        foreach ($records as $i => $record) {
+            $runtimeFlags = $record->runtimeFlags;
             $this->line(sprintf(
-                '[%d] %s',
+                '[%d] %s %s session=%s pbx=%s worker=%s',
                 $i + 1,
-                $this->jsonString($envelope)
+                $record->captureTimestamp->format(\DateTimeInterface::RFC3339_EXTENDED),
+                $record->artifactName,
+                $record->sessionId ?? '-',
+                (string) ($runtimeFlags['pbx_node_slug'] ?? '-'),
+                (string) ($runtimeFlags['worker_session_id'] ?? '-'),
             ));
         }
 
         return self::SUCCESS;
     }
 
+    /**
+     * @return list<StoredReplayRecord>
+     */
+    private function readRecords(
+        ReplayArtifactStoreInterface $store,
+        \DateTimeImmutable $from,
+        \DateTimeImmutable $to,
+        ?string $pbxSlug,
+        int $limit,
+    ): array {
+        $criteria = new ReplayReadCriteria(
+            capturedFrom: $from,
+            capturedUntil: $to,
+        );
+
+        $cursor = $store->openCursor();
+        $records = [];
+        $batchSize = max(50, min(500, $limit * 4));
+
+        while (count($records) < $limit) {
+            $batch = $store->readFromCursor($cursor, $batchSize, $criteria);
+
+            if ($batch === []) {
+                break;
+            }
+
+            foreach ($batch as $record) {
+                $cursor = $cursor->advance($record->appendSequence);
+
+                if ($pbxSlug !== null && ($record->runtimeFlags['pbx_node_slug'] ?? null) !== $pbxSlug) {
+                    continue;
+                }
+
+                $records[] = $record;
+
+                if (count($records) >= $limit) {
+                    break 2;
+                }
+            }
+        }
+
+        return $records;
+    }
 
     private function stringOption(string $name): ?string
     {
@@ -109,5 +163,28 @@ class FreeSwitchReplayInspectCommand extends Command
     private function jsonString(mixed $value): string
     {
         return json_encode($value, JSON_PRETTY_PRINT) ?: '{}';
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function recordToArray(StoredReplayRecord $record): array
+    {
+        return [
+            'id' => $record->id->value,
+            'artifact_version' => $record->artifactVersion,
+            'artifact_name' => $record->artifactName,
+            'capture_timestamp' => $record->captureTimestamp->format(\DateTimeInterface::RFC3339_EXTENDED),
+            'stored_at' => $record->storedAt->format(\DateTimeInterface::RFC3339_EXTENDED),
+            'append_sequence' => $record->appendSequence,
+            'connection_generation' => $record->connectionGeneration,
+            'session_id' => $record->sessionId,
+            'job_uuid' => $record->jobUuid,
+            'event_name' => $record->eventName,
+            'capture_path' => $record->capturePath,
+            'correlation_ids' => $record->correlationIds,
+            'runtime_flags' => $record->runtimeFlags,
+            'payload' => $record->payload,
+        ];
     }
 }

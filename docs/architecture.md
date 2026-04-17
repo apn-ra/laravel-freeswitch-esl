@@ -31,12 +31,7 @@ src/Contracts/
   WorkerAssignmentResolverInterface — assignment scope resolution
   HealthReporterInterface         — structured health snapshot contract
   SecretResolverInterface         — credential resolution contract
-
-  Upstream/                       — @internal development-phase replay stub only
-    ReplayCaptureStoreInterface   — stub for apntalk/esl-replay store
 ```
-
-`Contracts/Upstream/ReplayCaptureStoreInterface` is `@internal`. It exists only until `apntalk/esl-replay` is integrated directly. Do not type-hint against it in application code.
 
 ---
 
@@ -224,7 +219,9 @@ health fields, but they do not yet carry connection-profile identity or worker-s
 In `0.1.x`, connection/runtime identity is propagated into structured logs and worker/runtime status
 surfaces, not into full live runtime health telemetry.
 
-Propagation into replay metadata remains future work for `0.5.x`.
+Replay integration now also persists that runtime identity into replay artifact runtime flags and uses
+the same worker/node/profile identity anchor for bounded replay-backed checkpoint coordination and
+bounded worker recovery hints.
 
 Propagation into Laravel-dispatched ESL events is already partially implemented through
 `src/Events/*`, where each dispatched event carries `ConnectionContext`.
@@ -242,13 +239,16 @@ See `docs/event-model.md` for the full ownership model and integration plan.
 
 ## Replay integration
 
-Replay in this package is integration-only. The canonical replay abstractions (`ReplayCaptureStoreInterface`, `ReplayEnvelope`, etc.) belong in `apntalk/esl-replay`.
+Replay in this package is integration-only. The canonical durable replay abstractions (`ReplayArtifactStoreInterface`, `CapturedArtifactEnvelope`, `StoredReplayRecord`, etc.) belong in `apntalk/esl-replay`.
 
 This package wires:
-- Laravel storage binding for the replay store
+- Laravel storage binding for the replay artifact store
+- Laravel storage binding for the replay checkpoint store
+- Laravel binding for the upstream replay checkpoint repository
 - Retention policy configuration
 - `freeswitch:replay:inspect` command for inspection
-- Session/correlation metadata propagation (wired in `0.5.x`)
+- Session/correlation metadata propagation into stored runtime flags and payloads
+- bounded worker drain/checkpoint coordination plus checkpoint-backed recovery posture over persisted replay artifacts
 
 See `docs/replay-integration.md` for details.
 

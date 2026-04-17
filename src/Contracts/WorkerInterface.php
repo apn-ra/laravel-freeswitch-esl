@@ -36,9 +36,10 @@ interface WorkerInterface
     /**
      * Signal the worker to enter drain mode.
      *
-     * Current implementations only record drain intent in worker state.
-     * They do not yet own inflight completion, drain timers, or async shutdown
-     * orchestration.
+     * Current implementations perform bounded Laravel-owned drain coordination:
+     * they record drain intent, expose drain deadline/completion state, and may
+     * snapshot replay-backed checkpoints. They do not own upstream runtime-loop
+     * reconnect or async shutdown orchestration.
      */
     public function drain(): void;
 

@@ -172,6 +172,7 @@ class WorkerInterfaceContractTest extends TestCase
         $worker->drain();
 
         $this->assertTrue($worker->status()->isDraining());
+        $this->assertArrayHasKey('drain_completed', $worker->status()->meta);
     }
 
     #[\PHPUnit\Framework\Attributes\DataProvider('workerProvider')]

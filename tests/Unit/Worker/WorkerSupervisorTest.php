@@ -178,6 +178,85 @@ class WorkerSupervisorTest extends TestCase
         $this->assertSame('node-a', $handoffs['node-a']->context()->pbxNodeSlug);
     }
 
+    public function test_prepare_for_nodes_boots_runtimes_without_invoking_runner(): void
+    {
+        $node = $this->makeNode(1, 'node-a');
+        $assignmentResolver = $this->createStub(WorkerAssignmentResolverInterface::class);
+        $connectionResolver = new class implements ConnectionResolverInterface {
+            public function resolveForNode(int $pbxNodeId): ConnectionContext
+            {
+                return $this->context('node-a');
+            }
+
+            public function resolveForSlug(string $slug): ConnectionContext
+            {
+                return $this->context($slug);
+            }
+
+            public function resolveForPbxNode(PbxNode $node): ConnectionContext
+            {
+                return $this->context($node->slug);
+            }
+
+            private function context(string $slug): ConnectionContext
+            {
+                return new ConnectionContext(
+                    pbxNodeId: 1,
+                    pbxNodeSlug: $slug,
+                    providerCode: 'freeswitch',
+                    host: '127.0.0.1',
+                    port: 8021,
+                    username: '',
+                    resolvedPassword: 'ClueCon',
+                    transport: 'tcp',
+                    connectionProfileId: null,
+                    connectionProfileName: 'default',
+                );
+            }
+        };
+
+        $connectionFactory = new class implements ConnectionFactoryInterface {
+            public function create(ConnectionContext $context): EslCoreConnectionHandle
+            {
+                $commandFactory = new EslCoreCommandFactory();
+
+                return new EslCoreConnectionHandle(
+                    context: $context,
+                    pipeline: (new EslCorePipelineFactory())->createPipeline(),
+                    openingSequence: $commandFactory->buildOpeningSequence($context),
+                    closingSequence: $commandFactory->buildClosingSequence(),
+                    transportOpener: fn () => new InMemoryTransport(),
+                );
+            }
+        };
+
+        $runtimeRunner = new class implements RuntimeRunnerInterface {
+            public int $runCalls = 0;
+
+            public function run(RuntimeHandoffInterface $handoff): void
+            {
+                $this->runCalls++;
+            }
+        };
+
+        $supervisor = new WorkerSupervisor(
+            assignmentResolver: $assignmentResolver,
+            connectionResolver: $connectionResolver,
+            connectionFactory: $connectionFactory,
+            runtimeRunner: $runtimeRunner,
+            logger: new NullLogger(),
+        );
+
+        $supervisor->prepareForNodes('worker-a', 'db-backed', [$node]);
+        $statuses = $supervisor->runtimeStatuses();
+
+        $this->assertCount(1, $statuses);
+        $this->assertSame(0, $runtimeRunner->runCalls);
+        $this->assertSame(WorkerStatus::STATE_RUNNING, $statuses['node-a']->state);
+        $this->assertTrue($statuses['node-a']->meta['connection_handoff_prepared']);
+        $this->assertFalse($statuses['node-a']->meta['runtime_runner_invoked']);
+    }
+
     private function makeNode(int $id, string $slug): PbxNode
     {
         return new PbxNode(

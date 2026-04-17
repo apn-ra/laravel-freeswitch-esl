@@ -157,6 +157,12 @@ The `--worker=<name>` option sets the worker identity (default: `esl-worker`). T
 
 After startup, `freeswitch:worker` reports how many node runtimes reached the prepared-handoff state, how many invoked the configured runner, how many exposed push-based lifecycle observation, and how many reported a running live runtime through the feedback seam. That summary is intentionally narrow and does not claim Laravel owns the `apntalk/esl-react` session lifecycle.
 
+The command now also prints one bounded replay-backed checkpoint/recovery posture line per node runtime. Those lines report persisted-artifact checkpoint scope, last checkpoint reason/timestamp, whether startup observed a prior checkpoint, whether a bounded replay-backed recovery candidate was found, and current drain posture. They are explicitly not a claim of live socket recovery, reconnect restoration, or automatic resume processing.
+
+For automation and stable machine-readable reporting, `freeswitch:worker --json` emits a JSON document that reuses the same `WorkerStatus`-derived checkpoint/drain metadata.
+
+For reporting-only automation, `freeswitch:worker:status` now prepares worker runtimes without invoking the bound runtime runner and returns a multi-worker-friendly JSON document built from the same `WorkerStatus` metadata. That surface is observational only: it reports replay-backed checkpoint posture and drain state, but does not claim live recovery, reconnect restoration, or automatic resume processing.
+
 ---
 
 ## Node-level failure isolation
@@ -195,17 +201,22 @@ The `WorkerRuntime` will remain the assignment-aware orchestration layer; `esl-r
 
 ---
 
-## Checkpointing and replay integration (future — requires apntalk/esl-replay)
+## Checkpointing and replay integration
 
-Replay capture wiring is not implemented in `0.1.x`. The following describes the
-intended behavior once `apntalk/esl-replay` is integrated (`0.5.x`):
+Replay capture wiring is now implemented through `apntalk/esl-replay`.
+The current worker/runtime posture remains intentionally conservative:
 
-- each worker session registers with the replay capture store
-- events are captured with session and node identity
-- checkpoints are written periodically
-- drain mode flushes pending captures before completing shutdown
+- replay artifacts are persisted with worker/node/profile identity
+- worker checkpoints are written through the upstream checkpoint repository and bounded identity references
+- `drain()` records `drain_started_at`, `drain_deadline_at`, and saves a `drain-requested` checkpoint
+- terminal drain transitions save a second checkpoint with reason `drain-completed` or `drain-timeout`
+- startup can report bounded checkpoint-backed recovery hints by looking up the prior checkpoint and checking for later persisted replay records using bounded replay criteria
 
-The current `WorkerRuntime::drain()` signals drain mode only (sets state flag).
-Flush coordination against a replay store will be added when that integration is wired.
+This does not mean:
+
+- live FreeSWITCH socket recovery
+- `apntalk/esl-react` session continuity recovery
+- replay execution or re-injection
+- periodic checkpoint scheduling
 
 Configuration: `freeswitch-esl.replay.*`

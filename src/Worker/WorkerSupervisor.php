@@ -11,6 +11,7 @@ use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\WorkerStatus;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\RuntimeHandoffInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\RuntimeRunnerInterface;
 use ApnTalk\LaravelFreeswitchEsl\Exceptions\WorkerException;
+use ApnTalk\LaravelFreeswitchEsl\Integration\Replay\WorkerReplayCheckpointManager;
 use Psr\Log\LoggerInterface;
 
 /**
@@ -50,6 +51,8 @@ class WorkerSupervisor
         private readonly ConnectionFactoryInterface $connectionFactory,
         private readonly RuntimeRunnerInterface $runtimeRunner,
         private readonly LoggerInterface $logger,
+        private readonly ?WorkerReplayCheckpointManager $checkpointManager = null,
+        private readonly int $drainTimeoutMilliseconds = 30000,
     ) {}
 
     /**
@@ -71,6 +74,7 @@ class WorkerSupervisor
             workerName: $assignment->workerName,
             assignmentScope: $assignment->assignmentMode,
             nodes: $nodes,
+            invokeRunner: true,
         );
     }
 
@@ -94,6 +98,50 @@ class WorkerSupervisor
             workerName: $workerName,
             assignmentScope: $assignmentScope,
             nodes: $nodes,
+            invokeRunner: true,
+        );
+    }
+
+    /**
+     * Ephemeral reporting path: resolve nodes from the assignment scope and boot
+     * runtimes without invoking the runtime runner.
+     *
+     * @throws WorkerException if no nodes resolve from the assignment
+     */
+    public function prepare(WorkerAssignment $assignment): void
+    {
+        $nodes = $this->assignmentResolver->resolveNodes($assignment);
+
+        if (empty($nodes)) {
+            throw WorkerException::noNodesResolved($assignment->workerName);
+        }
+
+        $this->bootRuntimes(
+            workerName: $assignment->workerName,
+            assignmentScope: $assignment->assignmentMode,
+            nodes: $nodes,
+            invokeRunner: false,
+        );
+    }
+
+    /**
+     * DB-backed reporting path: accept pre-resolved nodes and boot runtimes
+     * without invoking the runtime runner.
+     *
+     * @param  PbxNode[]  $nodes
+     * @throws WorkerException if $nodes is empty
+     */
+    public function prepareForNodes(string $workerName, string $assignmentScope, array $nodes): void
+    {
+        if (empty($nodes)) {
+            throw WorkerException::noNodesResolved($workerName);
+        }
+
+        $this->bootRuntimes(
+            workerName: $workerName,
+            assignmentScope: $assignmentScope,
+            nodes: $nodes,
+            invokeRunner: false,
         );
     }
 
@@ -174,13 +222,19 @@ class WorkerSupervisor
     /**
      * @param  PbxNode[]  $nodes
      */
-    private function bootRuntimes(string $workerName, string $assignmentScope, array $nodes): void
+    private function bootRuntimes(
+        string $workerName,
+        string $assignmentScope,
+        array $nodes,
+        bool $invokeRunner,
+    ): void
     {
         $this->logger->info('WorkerSupervisor starting', [
             'worker_name'      => $workerName,
             'assignment_scope' => $assignmentScope,
             'node_count'       => count($nodes),
             'node_slugs'       => array_map(fn (PbxNode $n) => $n->slug, $nodes),
+            'invoke_runner'    => $invokeRunner,
         ]);
 
         foreach ($nodes as $node) {
@@ -191,13 +245,18 @@ class WorkerSupervisor
                 connectionFactory: $this->connectionFactory,
                 runtimeRunner: $this->runtimeRunner,
                 logger: $this->logger,
+                checkpointManager: $this->checkpointManager,
+                drainTimeoutMilliseconds: $this->drainTimeoutMilliseconds,
             );
 
             $this->runtimes[$node->slug] = $runtime;
 
             try {
                 $runtime->boot();
-                $runtime->run();
+
+                if ($invokeRunner) {
+                    $runtime->run();
+                }
             } catch (\Throwable $e) {
                 $this->logger->error('WorkerRuntime failed for node', [
                     'worker_name'   => $workerName,

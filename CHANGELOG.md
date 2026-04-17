@@ -9,6 +9,20 @@ This project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- integrated `apntalk/esl-replay` `v0.9.1` as a real runtime dependency and replaced the local replay-store stub with the upstream `ReplayArtifactStoreInterface`
+- added Laravel replay store wiring, an esl-core replay sink adapter, and artifact-envelope adaptation so `apntalk/esl-react` replay hooks can be durably persisted when replay is enabled
+- made `freeswitch:replay:inspect` read real upstream stored replay records and filter them by PBX node/runtime metadata
+- enabled replay integration coverage for store binding, metadata propagation, bounded reads, and replay inspection behavior
+- added bounded replay-backed checkpoint coordination for worker runtime using the upstream checkpoint store
+- made worker drain more real by recording drain start/deadline/completion state and snapshotting conservative replay-backed checkpoints
+- aligned worker checkpoints to the upstream `ReplayCheckpointRepository`, `ReplayCheckpointReference`, `ReplayCheckpointCriteria`, and expanded `ReplayReadCriteria`
+- added bounded checkpoint-backed worker recovery hints keyed by persisted `replay_session_id`, `worker_session_id`, `pbx_node_slug`, and `job_uuid`
+- surfaced bounded replay-backed checkpoint/recovery posture in `freeswitch:worker` output and added explicit non-live-recovery wording to the narrower `freeswitch:health` and `freeswitch:status` operator surfaces
+- added `freeswitch:worker --json` as a stable machine-readable reporting surface for bounded replay-backed checkpoint/recovery posture and drain state
+- added `freeswitch:worker:status` as a dedicated machine-readable reporting command that reuses `WorkerStatus` metadata, prepares runtimes without invoking the runtime runner, and can report multiple DB-backed worker scopes in one call
+
 ## [0.4.6] - 2026-04-17
 
 ### Summary

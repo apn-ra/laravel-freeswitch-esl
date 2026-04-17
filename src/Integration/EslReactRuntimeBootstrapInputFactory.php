@@ -4,10 +4,12 @@ namespace ApnTalk\LaravelFreeswitchEsl\Integration;
 
 use Apntalk\EslReact\Config\RuntimeConfig;
 use Apntalk\EslReact\Config\SubscriptionConfig;
+use Apntalk\EslCore\Contracts\ReplayCaptureSinkInterface;
 use Apntalk\EslReact\Runner\PreparedRuntimeBootstrapInput;
 use Apntalk\EslReact\Runner\RuntimeSessionContext;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\RuntimeHandoffInterface;
 use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\ConnectionContext;
+use ApnTalk\LaravelFreeswitchEsl\Integration\Replay\ReplayCaptureSinkFactory;
 use React\Socket\Connector;
 use React\Socket\ConnectorInterface;
 
@@ -26,6 +28,8 @@ final class EslReactRuntimeBootstrapInputFactory
     public function __construct(
         private readonly array $connectorOptions = [],
         private readonly ?ConnectorInterface $connector = null,
+        private readonly ?ReplayCaptureSinkFactory $replayCaptureSinkFactory = null,
+        private readonly bool $replayCaptureEnabled = false,
     ) {}
 
     public function create(RuntimeHandoffInterface $handoff): PreparedRuntimeBootstrapInput
@@ -44,12 +48,28 @@ final class EslReactRuntimeBootstrapInputFactory
 
     private function runtimeConfig(ConnectionContext $context): RuntimeConfig
     {
+        [$replayCaptureEnabled, $replayCaptureSinks] = $this->replayCaptureSettings($context);
+
         return RuntimeConfig::create(
             host: $context->host,
             port: $context->port,
             password: $context->resolvedPassword,
             subscriptions: $this->subscriptionConfig($context),
+            replayCaptureEnabled: $replayCaptureEnabled,
+            replayCaptureSinks: $replayCaptureSinks,
         );
+    }
+
+    /**
+     * @return array{0: bool, 1: list<ReplayCaptureSinkInterface>}
+     */
+    private function replayCaptureSettings(ConnectionContext $context): array
+    {
+        if (! $this->replayCaptureEnabled || $this->replayCaptureSinkFactory === null) {
+            return [false, []];
+        }
+
+        return [true, [$this->replayCaptureSinkFactory->make($context)]];
     }
 
     private function subscriptionConfig(ConnectionContext $context): SubscriptionConfig

@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "91cadb9ec168064de82a83e315fb77dd",
+    "content-hash": "dc7048bd38afff8de6c1c5be607f4931",
     "packages": [
         {
             "name": "apntalk/esl-core",
@@ -115,6 +115,46 @@
                 "source": "https://github.com/apn-ra/esl-react"
             },
             "time": "2026-04-17T08:00:56+00:00"
+        },
+        {
+            "name": "apntalk/esl-replay",
+            "version": "v0.9.1",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/apn-ra/esl-replay.git",
+                "reference": "bfea6ffd0e4a1ce940b314f82e3ce36ff267f819"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/apn-ra/esl-replay/zipball/bfea6ffd0e4a1ce940b314f82e3ce36ff267f819",
+                "reference": "bfea6ffd0e4a1ce940b314f82e3ce36ff267f819",
+                "shasum": ""
+            },
+            "require": {
+                "php": "^8.2"
+            },
+            "require-dev": {
+                "phpstan/phpstan": "^1.12",
+                "phpstan/phpstan-phpunit": "^1.4",
+                "phpstan/phpstan-strict-rules": "^1.6",
+                "phpunit/phpunit": "^11.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Apntalk\\EslReplay\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "description": "Durable replay artifact platform for FreeSWITCH ESL runtime output",
+            "support": {
+                "issues": "https://github.com/apn-ra/esl-replay/issues",
+                "source": "https://github.com/apn-ra/esl-replay/tree/v0.9.1"
+            },
+            "time": "2026-04-17T09:27:46+00:00"
         },
         {
             "name": "brick/math",

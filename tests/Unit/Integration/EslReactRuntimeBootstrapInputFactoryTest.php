@@ -2,13 +2,16 @@
 
 namespace ApnTalk\LaravelFreeswitchEsl\Tests\Unit\Integration;
 
+use Apntalk\EslReplay\Contracts\ReplayArtifactStoreInterface;
 use Apntalk\EslReact\Runner\PreparedRuntimeBootstrapInput;
 use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\ConnectionContext;
 use ApnTalk\LaravelFreeswitchEsl\Integration\EslCoreConnectionHandle;
 use ApnTalk\LaravelFreeswitchEsl\Integration\EslCorePipelineFactory;
 use ApnTalk\LaravelFreeswitchEsl\Integration\EslReactRuntimeBootstrapInputFactory;
+use ApnTalk\LaravelFreeswitchEsl\Integration\Replay\ReplayCaptureSinkFactory;
 use PHPUnit\Framework\TestCase;
 use React\Socket\ConnectorInterface;
+use Psr\Log\NullLogger;
 
 class EslReactRuntimeBootstrapInputFactoryTest extends TestCase
 {
@@ -89,6 +92,21 @@ class EslReactRuntimeBootstrapInputFactoryTest extends TestCase
         $this->expectExceptionMessage('does not support explicit dial URI mapping');
 
         $factory->create($this->makeHandoff($this->makeContext(transport: 'unix')));
+    }
+
+    public function test_create_enables_replay_capture_when_sink_factory_is_available(): void
+    {
+        $store = $this->createMock(ReplayArtifactStoreInterface::class);
+        $factory = new EslReactRuntimeBootstrapInputFactory(
+            connector: $this->createMock(ConnectorInterface::class),
+            replayCaptureSinkFactory: new ReplayCaptureSinkFactory($store, new NullLogger()),
+            replayCaptureEnabled: true,
+        );
+
+        $input = $factory->create($this->makeHandoff($this->makeContext()));
+
+        $this->assertTrue($input->runtimeConfig()->replayCaptureEnabled);
+        $this->assertCount(1, $input->runtimeConfig()->replayCaptureSinks);
     }
 
     private function makeHandoff(ConnectionContext $context): EslCoreConnectionHandle

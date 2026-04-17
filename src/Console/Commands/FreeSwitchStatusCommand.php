@@ -52,6 +52,10 @@ class FreeSwitchStatusCommand extends Command
                 ], $nodes)
             );
 
+            $this->line(
+                'Replay-backed recovery posture is not shown in control-plane inventory output. Use worker runtime output for checkpoint/recovery visibility.'
+            );
+
             return self::SUCCESS;
         } catch (\Throwable $e) {
             $this->error($e->getMessage());

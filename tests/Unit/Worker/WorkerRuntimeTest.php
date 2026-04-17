@@ -2,6 +2,11 @@
 
 namespace ApnTalk\LaravelFreeswitchEsl\Tests\Unit\Worker;
 
+use Apntalk\EslReplay\Checkpoint\ReplayCheckpointRepository;
+use Apntalk\EslReplay\Checkpoint\ReplayCheckpoint;
+use Apntalk\EslReplay\Contracts\ReplayArtifactStoreInterface;
+use Apntalk\EslReplay\Contracts\ReplayCheckpointStoreInterface;
+use Apntalk\EslReplay\Cursor\ReplayReadCursor;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\ConnectionFactoryInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\ConnectionResolverInterface;
 use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\ConnectionContext;
@@ -16,6 +21,7 @@ use ApnTalk\LaravelFreeswitchEsl\Integration\EslCoreConnectionHandle;
 use ApnTalk\LaravelFreeswitchEsl\Integration\EslCorePipelineFactory;
 use ApnTalk\LaravelFreeswitchEsl\Integration\EslCoreCommandFactory;
 use ApnTalk\LaravelFreeswitchEsl\Integration\NonLiveRuntimeRunner;
+use ApnTalk\LaravelFreeswitchEsl\Integration\Replay\WorkerReplayCheckpointManager;
 use ApnTalk\LaravelFreeswitchEsl\Worker\WorkerRuntime;
 use Apntalk\EslCore\Transport\InMemoryTransport;
 use PHPUnit\Framework\TestCase;
@@ -72,6 +78,7 @@ class WorkerRuntimeTest extends TestCase
         $this->assertFalse($status->isRuntimeFeedbackObserved());
         $this->assertFalse($status->isRuntimePushObserved());
         $this->assertFalse($status->isRuntimeLoopActive());
+        $this->assertFalse($status->meta['checkpoint_enabled']);
     }
 
     public function test_status_after_boot_reports_prepared_handoff_state(): void
@@ -102,6 +109,53 @@ class WorkerRuntimeTest extends TestCase
         $this->assertFalse($status->isRuntimeFeedbackObserved());
         $this->assertFalse($status->isRuntimePushObserved());
         $this->assertFalse($status->isRuntimeLoopActive());
+    }
+
+    public function test_boot_surfaces_resuming_checkpoint_state_when_existing_checkpoint_loaded(): void
+    {
+        $checkpointStore = new class implements ReplayCheckpointStoreInterface {
+            public function save(ReplayCheckpoint $checkpoint): void
+            {
+            }
+
+            public function load(string $key): ?ReplayCheckpoint
+            {
+                return new ReplayCheckpoint(
+                    key: $key,
+                    cursor: new ReplayReadCursor(12, 144),
+                    savedAt: new \DateTimeImmutable('2026-04-17T12:00:00+00:00'),
+                    metadata: ['worker_session_id' => 'previous-session'],
+                );
+            }
+
+            public function exists(string $key): bool
+            {
+                return true;
+            }
+
+            public function delete(string $key): void
+            {
+            }
+        };
+
+        $runtime = $this->makeRuntime(
+            checkpointManager: new WorkerReplayCheckpointManager(
+                artifactStore: $this->emptyArtifactStore(),
+                checkpointRepository: new ReplayCheckpointRepository($checkpointStore),
+                logger: new NullLogger(),
+                enabled: true,
+            ),
+        );
+
+        $runtime->boot();
+        $status = $runtime->status();
+
+        $this->assertTrue($status->meta['checkpoint_enabled']);
+        $this->assertTrue($status->meta['checkpoint_is_resuming']);
+        $this->assertSame(12, $status->meta['checkpoint_last_consumed_sequence']);
+        $this->assertSame('previous-session', $status->meta['checkpoint_metadata']['worker_session_id']);
+        $this->assertTrue($status->meta['checkpoint_recovery_supported']);
+        $this->assertSame('previous-session', $status->meta['checkpoint_recovery_worker_session_id']);
     }
 
     public function test_run_before_boot_throws_when_handoff_state_missing(): void
@@ -195,7 +249,100 @@ class WorkerRuntimeTest extends TestCase
         $this->assertSame($status->sessionId, $status->meta['runtime_runner_session_id']);
     }
 
-    private function makeRuntime(?RuntimeRunnerInterface $runtimeRunner = null): WorkerRuntime
+    public function test_drain_records_checkpoint_and_completes_immediately_when_no_inflight(): void
+    {
+        $savedCheckpoint = null;
+        $checkpointStore = new class ($savedCheckpoint) implements ReplayCheckpointStoreInterface {
+            public ?ReplayCheckpoint $savedCheckpoint = null;
+
+            public function __construct(?ReplayCheckpoint $savedCheckpoint)
+            {
+                $this->savedCheckpoint = $savedCheckpoint;
+            }
+
+            public function save(ReplayCheckpoint $checkpoint): void
+            {
+                $this->savedCheckpoint = $checkpoint;
+            }
+
+            public function load(string $key): ?ReplayCheckpoint
+            {
+                return null;
+            }
+
+            public function exists(string $key): bool
+            {
+                return false;
+            }
+
+            public function delete(string $key): void
+            {
+            }
+        };
+
+        $runtime = $this->makeRuntime(
+            checkpointManager: new WorkerReplayCheckpointManager(
+                artifactStore: $this->emptyArtifactStore(),
+                checkpointRepository: new ReplayCheckpointRepository($checkpointStore),
+                logger: new NullLogger(),
+                enabled: true,
+            ),
+        );
+
+        $runtime->boot();
+        $runtime->drain();
+        $status = $runtime->status();
+
+        $this->assertTrue($status->isDraining());
+        $this->assertTrue($status->meta['drain_completed']);
+        $this->assertFalse($status->meta['drain_timed_out']);
+        $this->assertTrue($status->meta['checkpoint_saved']);
+        $this->assertSame('drain-completed', $status->meta['checkpoint_reason']);
+        $this->assertSame(0, $status->meta['checkpoint_last_consumed_sequence']);
+        $this->assertInstanceOf(ReplayCheckpoint::class, $checkpointStore->savedCheckpoint);
+        $this->assertSame('drain-completed', $checkpointStore->savedCheckpoint?->metadata['checkpoint_reason']);
+    }
+
+    public function test_drain_waits_for_inflight_work_until_completion(): void
+    {
+        $runtime = $this->makeRuntime();
+
+        $runtime->boot();
+        $runtime->beginInflightWork(2);
+        $runtime->drain();
+
+        $this->assertFalse($runtime->status()->meta['drain_completed']);
+        $this->assertSame(2, $runtime->status()->meta['drain_waiting_on_inflight']);
+
+        $runtime->completeInflightWork();
+
+        $this->assertFalse($runtime->status()->meta['drain_completed']);
+        $this->assertSame(1, $runtime->status()->meta['drain_waiting_on_inflight']);
+
+        $runtime->completeInflightWork();
+
+        $this->assertTrue($runtime->status()->meta['drain_completed']);
+        $this->assertSame(0, $runtime->status()->meta['drain_waiting_on_inflight']);
+    }
+
+    public function test_drain_times_out_when_inflight_work_does_not_finish_before_deadline(): void
+    {
+        $runtime = $this->makeRuntime(drainTimeoutMilliseconds: 0);
+
+        $runtime->boot();
+        $runtime->beginInflightWork();
+        $runtime->drain();
+        $status = $runtime->status();
+
+        $this->assertTrue($status->meta['drain_completed']);
+        $this->assertTrue($status->meta['drain_timed_out']);
+    }
+
+    private function makeRuntime(
+        ?RuntimeRunnerInterface $runtimeRunner = null,
+        ?WorkerReplayCheckpointManager $checkpointManager = null,
+        int $drainTimeoutMilliseconds = 30000,
+    ): WorkerRuntime
     {
         $node = new PbxNode(
             id: 1,
@@ -266,6 +413,33 @@ class WorkerRuntimeTest extends TestCase
             connectionFactory: $connectionFactory,
             runtimeRunner: $runtimeRunner ?? new NonLiveRuntimeRunner(),
             logger: new NullLogger(),
+            checkpointManager: $checkpointManager,
+            drainTimeoutMilliseconds: $drainTimeoutMilliseconds,
         );
+    }
+
+    private function emptyArtifactStore(): ReplayArtifactStoreInterface
+    {
+        return new class implements ReplayArtifactStoreInterface {
+            public function write(\Apntalk\EslReplay\Artifact\CapturedArtifactEnvelope $artifact): \Apntalk\EslReplay\Storage\ReplayRecordId
+            {
+                throw new \BadMethodCallException('write() should not be called in this unit test.');
+            }
+
+            public function readById(\Apntalk\EslReplay\Storage\ReplayRecordId $id): ?\Apntalk\EslReplay\Storage\StoredReplayRecord
+            {
+                return null;
+            }
+
+            public function readFromCursor(ReplayReadCursor $cursor, int $limit = 100, ?\Apntalk\EslReplay\Read\ReplayReadCriteria $criteria = null): array
+            {
+                return [];
+            }
+
+            public function openCursor(): ReplayReadCursor
+            {
+                return ReplayReadCursor::start();
+            }
+        };
     }
 }

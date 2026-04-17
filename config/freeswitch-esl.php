@@ -141,6 +141,8 @@ return [
     'replay' => [
         'enabled'          => env('FREESWITCH_ESL_REPLAY_ENABLED', false),
         'store_driver'     => env('FREESWITCH_ESL_REPLAY_STORE', 'database'),
+        'storage_path'     => env('FREESWITCH_ESL_REPLAY_STORAGE_PATH', storage_path('app/freeswitch-esl/replay')),
+        'checkpoint_storage_path' => env('FREESWITCH_ESL_REPLAY_CHECKPOINT_STORAGE_PATH', ''),
         'retention_days'   => (int) env('FREESWITCH_ESL_REPLAY_RETENTION_DAYS', 7),
     ],
 

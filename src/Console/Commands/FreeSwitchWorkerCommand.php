@@ -7,10 +7,13 @@ use ApnTalk\LaravelFreeswitchEsl\Contracts\ConnectionResolverInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\PbxRegistryInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\RuntimeRunnerInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\WorkerAssignmentResolverInterface;
+use ApnTalk\LaravelFreeswitchEsl\Console\Support\WorkerStatusReportBuilder;
 use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\WorkerAssignment;
 use ApnTalk\LaravelFreeswitchEsl\Exceptions\PbxNotFoundException;
+use ApnTalk\LaravelFreeswitchEsl\Integration\Replay\WorkerReplayCheckpointManager;
 use ApnTalk\LaravelFreeswitchEsl\Worker\WorkerSupervisor;
 use Illuminate\Console\Command;
+use Illuminate\Contracts\Config\Repository as ConfigRepository;
 use Psr\Log\LoggerInterface;
 
 /**
@@ -64,7 +67,8 @@ class FreeSwitchWorkerCommand extends Command
                             {--cluster=          : [ephemeral] Target all nodes in a named cluster}
                             {--tag=              : [ephemeral] Target all nodes matching a tag}
                             {--provider=         : [ephemeral] Target all nodes for a provider code}
-                            {--all-active        : [ephemeral] Target all currently active PBX nodes}';
+                            {--all-active        : [ephemeral] Target all currently active PBX nodes}
+                            {--json              : Emit machine-readable worker recovery/status output}';
 
     protected $description = 'Start a long-lived ESL worker for one or more PBX nodes';
 
@@ -75,6 +79,8 @@ class FreeSwitchWorkerCommand extends Command
         ConnectionFactoryInterface $connectionFactory,
         RuntimeRunnerInterface $runtimeRunner,
         LoggerInterface $logger,
+        WorkerReplayCheckpointManager $checkpointManager,
+        ConfigRepository $config,
     ): int {
         $workerName = $this->stringOption('worker') ?? 'esl-worker';
         $useDb = $this->booleanOption('db');
@@ -85,6 +91,8 @@ class FreeSwitchWorkerCommand extends Command
             connectionFactory: $connectionFactory,
             runtimeRunner: $runtimeRunner,
             logger: $logger,
+            checkpointManager: $checkpointManager,
+            drainTimeoutMilliseconds: (int) $config->get('freeswitch-esl.drain_defaults.timeout_ms', 30000),
         );
 
         try {
@@ -119,11 +127,13 @@ class FreeSwitchWorkerCommand extends Command
             return self::FAILURE;
         }
 
-        $this->info(sprintf(
-            'Starting worker [%s] in [%s] mode (ephemeral — not persisted to worker_assignments).',
-            $assignment->workerName,
-            $assignment->assignmentMode,
-        ));
+        if (! $this->booleanOption('json')) {
+            $this->info(sprintf(
+                'Starting worker [%s] in [%s] mode (ephemeral — not persisted to worker_assignments).',
+                $assignment->workerName,
+                $assignment->assignmentMode,
+            ));
+        }
 
         try {
             $supervisor->run($assignment);
@@ -224,11 +234,13 @@ class FreeSwitchWorkerCommand extends Command
             return self::FAILURE;
         }
 
-        $this->info(sprintf(
-            'Starting worker [%s] from DB assignment (worker_assignments table) — %d node(s).',
-            $workerName,
-            count($nodes),
-        ));
+        if (! $this->booleanOption('json')) {
+            $this->info(sprintf(
+                'Starting worker [%s] from DB assignment (worker_assignments table) — %d node(s).',
+                $workerName,
+                count($nodes),
+            ));
+        }
 
         try {
             $supervisor->runForNodes($workerName, 'db-backed', $nodes);
@@ -245,40 +257,143 @@ class FreeSwitchWorkerCommand extends Command
     private function reportPreparedHandoffs(WorkerSupervisor $supervisor): void
     {
         $statuses = $supervisor->runtimeStatuses();
-        $preparedCount = 0;
-        $runnerInvokedCount = 0;
-        $pushObservedCount = 0;
-        $runtimeObservedCount = 0;
+        $reportBuilder = new WorkerStatusReportBuilder();
+        $summary = $reportBuilder->statusSummary($statuses);
 
-        foreach ($statuses as $status) {
-            if (($status->meta['connection_handoff_prepared'] ?? false) === true) {
-                $preparedCount++;
-            }
+        if ($this->booleanOption('json')) {
+            $report = $reportBuilder->workerReport(
+                workerName: $this->stringOption('worker') ?? 'esl-worker',
+                assignmentMode: $this->booleanOption('db') ? 'db-backed' : 'ephemeral',
+                statuses: $statuses,
+            );
 
-            if (($status->meta['runtime_runner_invoked'] ?? false) === true) {
-                $runnerInvokedCount++;
-            }
+            $this->line($this->jsonString([
+                'worker_name' => $report['worker_name'],
+                'recovery_surface' => 'replay_checkpoint_posture',
+                'live_recovery_supported' => false,
+                'summary' => $report['summary'],
+                'nodes' => $report['nodes'],
+            ]));
 
-            if ($status->isRuntimePushObserved()) {
-                $pushObservedCount++;
-            }
-
-            if ($status->isRuntimeLoopActive()) {
-                $runtimeObservedCount++;
-            }
+            return;
         }
 
         $this->info(sprintf(
             'Prepared runtime handoff for %d/%d node(s); runtime runner invoked for %d/%d node(s); push lifecycle observed for %d/%d node(s); live runtime observed for %d/%d node(s).',
-            $preparedCount,
-            count($statuses),
-            $runnerInvokedCount,
-            count($statuses),
-            $pushObservedCount,
-            count($statuses),
-            $runtimeObservedCount,
-            count($statuses),
+            $summary['prepared_count'],
+            $summary['node_count'],
+            $summary['runtime_runner_invoked_count'],
+            $summary['node_count'],
+            $summary['push_lifecycle_observed_count'],
+            $summary['node_count'],
+            $summary['live_runtime_observed_count'],
+            $summary['node_count'],
         ));
+
+        if ($statuses === []) {
+            return;
+        }
+
+        $this->line(
+            'Replay-backed checkpoint/recovery posture reflects persisted replay artifacts only; it does not imply live socket or reconnect recovery.'
+        );
+
+        foreach ($statuses as $slug => $status) {
+            $this->line(sprintf(
+                '- %s: checkpoint %s; prior checkpoint %s; recovery hint %s; anchors %s; drain %s',
+                $slug,
+                $this->checkpointVisibility($status),
+                ($status->meta['checkpoint_is_resuming'] ?? false) === true ? 'yes' : 'no',
+                $this->recoveryHint($status),
+                $this->recoveryAnchors($status),
+                $this->drainPosture($status),
+            ));
+        }
+    }
+
+    private function checkpointVisibility(\ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\WorkerStatus $status): string
+    {
+        if (($status->meta['checkpoint_enabled'] ?? false) !== true) {
+            return 'disabled';
+        }
+
+        $scope = $this->metaString($status->meta, 'checkpoint_key') ?? 'unknown-scope';
+        $reason = $this->metaString($status->meta, 'checkpoint_reason')
+            ?? $this->metaString($status->meta['checkpoint_metadata'] ?? null, 'checkpoint_reason')
+            ?? 'none';
+        $savedAt = $this->metaString($status->meta, 'checkpoint_saved_at') ?? 'none';
+
+        return sprintf('scope=%s, reason=%s, saved_at=%s', $scope, $reason, $savedAt);
+    }
+
+    private function recoveryHint(\ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\WorkerStatus $status): string
+    {
+        if (($status->meta['checkpoint_enabled'] ?? false) !== true) {
+            return 'disabled';
+        }
+
+        if (($status->meta['checkpoint_recovery_supported'] ?? false) !== true) {
+            return 'not-anchored';
+        }
+
+        if (($status->meta['checkpoint_recovery_candidate_found'] ?? false) === true) {
+            $sequence = $status->meta['checkpoint_recovery_next_sequence'] ?? null;
+
+            return sprintf('candidate-after-sequence-%s', is_scalar($sequence) ? (string) $sequence : 'unknown');
+        }
+
+        return 'bounded-check-no-candidate';
+    }
+
+    private function recoveryAnchors(\ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\WorkerStatus $status): string
+    {
+        if (($status->meta['checkpoint_enabled'] ?? false) !== true) {
+            return '-';
+        }
+
+        $anchors = array_filter([
+            'replay=' . ($this->metaString($status->meta, 'checkpoint_recovery_replay_session_id') ?? ''),
+            'worker=' . ($this->metaString($status->meta, 'checkpoint_recovery_worker_session_id') ?? ''),
+            'job=' . ($this->metaString($status->meta, 'checkpoint_recovery_job_uuid') ?? ''),
+            'pbx=' . ($this->metaString($status->meta, 'checkpoint_recovery_pbx_node_slug') ?? ''),
+        ], static fn (string $value): bool => ! str_ends_with($value, '='));
+
+        return $anchors === [] ? '-' : implode(', ', $anchors);
+    }
+
+    private function drainPosture(\ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\WorkerStatus $status): string
+    {
+        if (($status->meta['drain_timed_out'] ?? false) === true) {
+            return 'timed-out';
+        }
+
+        if (($status->meta['drain_completed'] ?? false) === true) {
+            return 'completed';
+        }
+
+        if ($this->metaString($status->meta, 'drain_started_at') !== null) {
+            return 'requested';
+        }
+
+        return 'idle';
+    }
+
+    /**
+     * @param  array<string, mixed>|null  $meta
+     */
+    private function metaString(?array $meta, string $key): ?string
+    {
+        $value = $meta[$key] ?? null;
+
+        return is_string($value) && $value !== '' ? $value : null;
+    }
+
+    /**
+     * @param  array<string, mixed>  $value
+     */
+    private function jsonString(array $value): string
+    {
+        return json_encode($value, JSON_PRETTY_PRINT) ?: '{}';
     }
 
 

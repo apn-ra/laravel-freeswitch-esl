@@ -2,6 +2,9 @@
 
 namespace ApnTalk\LaravelFreeswitchEsl\Providers;
 
+use Apntalk\EslReplay\Checkpoint\ReplayCheckpointRepository;
+use Apntalk\EslReplay\Contracts\ReplayArtifactStoreInterface;
+use Apntalk\EslReplay\Contracts\ReplayCheckpointStoreInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\ConnectionFactoryInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\ConnectionResolverInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\HealthReporterInterface;
@@ -24,6 +27,10 @@ use ApnTalk\LaravelFreeswitchEsl\Integration\EslCorePipelineFactory;
 use ApnTalk\LaravelFreeswitchEsl\Integration\EslReactRuntimeBootstrapInputFactory;
 use ApnTalk\LaravelFreeswitchEsl\Integration\EslReactRuntimeRunnerAdapter;
 use ApnTalk\LaravelFreeswitchEsl\Integration\NonLiveRuntimeRunner;
+use ApnTalk\LaravelFreeswitchEsl\Integration\Replay\ReplayCaptureSinkFactory;
+use ApnTalk\LaravelFreeswitchEsl\Integration\Replay\ReplayCheckpointStoreFactory;
+use ApnTalk\LaravelFreeswitchEsl\Integration\Replay\ReplayStoreFactory;
+use ApnTalk\LaravelFreeswitchEsl\Integration\Replay\WorkerReplayCheckpointManager;
 use Apntalk\EslReact\AsyncEslRuntime;
 use Apntalk\EslReact\Contracts\RuntimeRunnerInterface as EslReactRuntimeRunnerInterface;
 use Apntalk\EslCore\Contracts\InboundConnectionFactoryInterface;
@@ -63,6 +70,7 @@ class FreeSwitchEslServiceProvider extends ServiceProvider
         $this->registerConnectionProfileResolver();
         $this->registerConnectionResolver();
         $this->registerConnectionFactory();
+        $this->registerReplayIntegration();
         $this->registerRuntimeRunner();
         $this->registerWorkerAssignmentResolver();
         $this->registerHealthReporter();
@@ -155,6 +163,10 @@ class FreeSwitchEslServiceProvider extends ServiceProvider
         $this->app->singleton(EslReactRuntimeBootstrapInputFactory::class, function ($app) {
             return new EslReactRuntimeBootstrapInputFactory(
                 connectorOptions: $app['config']->get('freeswitch-esl.runtime.react.connector_options', []),
+                replayCaptureSinkFactory: $app->bound(ReplayCaptureSinkFactory::class)
+                    ? $app->make(ReplayCaptureSinkFactory::class)
+                    : null,
+                replayCaptureEnabled: (bool) $app['config']->get('freeswitch-esl.replay.enabled', false),
             );
         });
 
@@ -210,6 +222,44 @@ class FreeSwitchEslServiceProvider extends ServiceProvider
         });
     }
 
+    private function registerReplayIntegration(): void
+    {
+        $this->app->singleton(ReplayStoreFactory::class);
+        $this->app->singleton(ReplayCheckpointStoreFactory::class);
+
+        $this->app->singleton(ReplayArtifactStoreInterface::class, function ($app) {
+            return $app->make(ReplayStoreFactory::class)
+                ->make($app['config']->get('freeswitch-esl.replay', []));
+        });
+
+        $this->app->singleton(ReplayCheckpointStoreInterface::class, function ($app) {
+            return $app->make(ReplayCheckpointStoreFactory::class)
+                ->make($app['config']->get('freeswitch-esl.replay', []));
+        });
+
+        $this->app->singleton(ReplayCheckpointRepository::class, function ($app) {
+            return new ReplayCheckpointRepository(
+                $app->make(ReplayCheckpointStoreInterface::class),
+            );
+        });
+
+        $this->app->singleton(ReplayCaptureSinkFactory::class, function ($app) {
+            return new ReplayCaptureSinkFactory(
+                store: $app->make(ReplayArtifactStoreInterface::class),
+                logger: $app->make(\Psr\Log\LoggerInterface::class),
+            );
+        });
+
+        $this->app->singleton(WorkerReplayCheckpointManager::class, function ($app) {
+            return new WorkerReplayCheckpointManager(
+                artifactStore: $app->make(ReplayArtifactStoreInterface::class),
+                checkpointRepository: $app->make(ReplayCheckpointRepository::class),
+                logger: $app->make(\Psr\Log\LoggerInterface::class),
+                enabled: (bool) $app['config']->get('freeswitch-esl.replay.enabled', false),
+            );
+        });
+    }
+
     private function registerEslCoreIntegration(): void
     {
         // SocketTransportFactory — stable public transport construction seam
@@ -242,7 +292,7 @@ class FreeSwitchEslServiceProvider extends ServiceProvider
     {
         /** @var ProviderDriverRegistryInterface $registry */
         $registry = $this->app->make(ProviderDriverRegistryInterface::class);
-        $drivers = $this->app['config']->get('freeswitch-esl.drivers', []);
+        $drivers = $this->app->make('config')->get('freeswitch-esl.drivers', []);
 
         foreach ($drivers as $code => $driverClass) {
             if (is_string($code) && is_string($driverClass)) {
@@ -271,6 +321,7 @@ class FreeSwitchEslServiceProvider extends ServiceProvider
             \ApnTalk\LaravelFreeswitchEsl\Console\Commands\FreeSwitchPingCommand::class,
             \ApnTalk\LaravelFreeswitchEsl\Console\Commands\FreeSwitchStatusCommand::class,
             \ApnTalk\LaravelFreeswitchEsl\Console\Commands\FreeSwitchWorkerCommand::class,
+            \ApnTalk\LaravelFreeswitchEsl\Console\Commands\FreeSwitchWorkerStatusCommand::class,
             \ApnTalk\LaravelFreeswitchEsl\Console\Commands\FreeSwitchHealthCommand::class,
             \ApnTalk\LaravelFreeswitchEsl\Console\Commands\FreeSwitchReplayInspectCommand::class,
         ]);
