@@ -86,6 +86,16 @@ Every dispatched event will carry runtime identity:
 - `worker_session_id`
 - `schema_version`
 
+The currently shipped Laravel bridge events now expose `schemaVersion = "1.0"` on:
+
+- `EslEventReceived`
+- `EslReplyReceived`
+- `EslDisconnected`
+
+That version applies to the Laravel wrapper contract owned by this package. It
+does not imply that a higher-level normalized domain-event layer already
+exists, and it does not replace upstream `apntalk/esl-core` event/reply typing.
+
 ---
 
 ## Schema versioning

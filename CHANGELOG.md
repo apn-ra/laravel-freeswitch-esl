@@ -22,6 +22,15 @@ This project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - surfaced bounded replay-backed checkpoint/recovery posture in `freeswitch:worker` output and added explicit non-live-recovery wording to the narrower `freeswitch:health` and `freeswitch:status` operator surfaces
 - added `freeswitch:worker --json` as a stable machine-readable reporting surface for bounded replay-backed checkpoint/recovery posture and drain state
 - added `freeswitch:worker:status` as a dedicated machine-readable reporting command that reuses `WorkerStatus` metadata, prepares runtimes without invoking the runtime runner, and can report multiple DB-backed worker scopes in one call
+- added `freeswitch:worker:checkpoint-status` as a dedicated machine-readable historical checkpoint posture summary command with bounded optional history entries driven by upstream replay checkpoint queries
+- added additive DB-backed filters plus stable `limit`/`offset` pagination to `freeswitch:worker:checkpoint-status` for larger worker sets without changing historical posture field semantics
+- added bounded historical pruning-posture reporting to `freeswitch:worker:checkpoint-status`, including additive oldest/newest window timestamps and conservative candidate counts when the upstream filesystem retention planner can derive them safely
+- added additive top-level retention-policy metadata to `freeswitch:worker:checkpoint-status`, including configured store driver, retention days, storage-path presence, support basis, and reporting window hours
+- added additive retention-support basis metadata to `freeswitch:worker:checkpoint-status`, including the active upstream support path when present and the current upstream support source
+- made `worker_defaults.checkpoint_interval_seconds` real by adding bounded runtime-triggered `periodic` checkpoint saves after runner invocation while preserving existing drain-requested, drain-completed, drain-timeout, and shutdown checkpoint semantics
+- added additive machine-readable resume-posture fields to `freeswitch:worker --json` and `freeswitch:worker:status`, derived from the existing replay-backed checkpoint/recovery facts while keeping `resume_execution_supported = false`
+- added explicit `schemaVersion = "1.0"` to the shipped Laravel bridge events (`EslEventReceived`, `EslReplyReceived`, `EslDisconnected`) so wrapper-schema changes can be tracked separately from package SemVer
+- added `freeswitch:health --summary` as a bounded aggregate DB-backed health surface with conservative readiness/liveness posture and unchanged default `freeswitch:health` output semantics
 
 ## [0.4.6] - 2026-04-17
 

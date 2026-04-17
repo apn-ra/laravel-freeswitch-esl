@@ -13,7 +13,7 @@ A production-grade Laravel package that provides:
 - **Worker assignment orchestration** — target one node, a cluster, a tag, or all active nodes
 - **Long-lived worker bootstrapping** — explicit boot/run/drain/shutdown scaffolding, with live async runtime behavior still deferred to `apntalk/esl-react`
 - **Structured health and diagnostics** — machine-usable operational state per node
-- **Replay-backed integration** — upstream replay capture/store wiring, inspection, and bounded checkpoint/drain coordination
+- **Replay-backed integration** — upstream replay capture/store wiring, inspection, bounded checkpoint/drain coordination, and bounded interval-based periodic checkpoints
 
 ## What this package is not
 
@@ -161,7 +161,9 @@ Key settings:
 | `freeswitch:worker --tag=<name>` | Start worker for nodes with tag |
 | `freeswitch:worker --provider=<code>` | Start worker for all provider nodes |
 | `freeswitch:worker --all-active` | Start worker for all active nodes |
-| `freeswitch:health` | Show health snapshots |
+| `freeswitch:worker:status` | Report machine-readable prepared runtime status for one or more worker scopes |
+| `freeswitch:worker:checkpoint-status` | Report machine-readable historical checkpoint posture for one or more worker scopes, with additive filters, stable pagination, bounded pruning posture, and retention-support metadata |
+| `freeswitch:health` | Show health snapshots, with `--summary` for a bounded aggregate DB-backed summary |
 | `freeswitch:replay:inspect` | Inspect replay capture store |
 
 ---
@@ -199,6 +201,7 @@ The package is currently usable for:
 - Worker assignment resolution and boot orchestration
 - Health snapshot inspection
 - `apntalk/esl-core` command/pipeline/event-bridge integration inside Laravel
+- Laravel bridge events with an explicit `schemaVersion` field for downstream schema tracking
 - stable upstream transport and accepted-stream bootstrap seams bound for future runtime adapters
 - a Laravel-owned runtime handoff contract that adapters can consume without re-resolving control-plane state, with `ConnectionFactoryInterface` now typed to that boundary
 - a Laravel-owned runtime runner seam that `WorkerRuntime::run()` invokes; the default binding adapts to `apntalk/esl-react`, while `non-live` remains available as a fallback/dry-run runner
@@ -219,9 +222,10 @@ Current worker status semantics:
 
 Operator output posture:
 - `freeswitch:worker` renders bounded replay-backed checkpoint/recovery hints per node runtime
-- `freeswitch:worker --json` exposes the same bounded checkpoint/recovery posture in a machine-readable form for automation
-- `freeswitch:worker:status` provides a dedicated machine-readable reporting surface that prepares worker runtimes without invoking the bound runtime runner and can report multiple DB-backed worker scopes in one call
-- `freeswitch:health` remains a DB-backed health snapshot surface and explicitly does not claim worker recovery visibility
+- `freeswitch:worker --json` exposes the same bounded checkpoint/recovery posture in a machine-readable form for automation and now includes additive resume-posture fields without implying resume execution
+- `freeswitch:worker:status` provides a dedicated machine-readable reporting surface that prepares worker runtimes without invoking the bound runtime runner, can report multiple DB-backed worker scopes in one call, and carries the same additive resume-posture fields
+- `freeswitch:worker:checkpoint-status` provides a dedicated machine-readable historical checkpoint summary surface over persisted worker/node/profile checkpoint posture, with bounded optional history entries, additive filters, stable `limit`/`offset` pagination, additive historical pruning-posture fields when those can be derived truthfully from the upstream filesystem retention planner, and additive top-level retention-policy/support-basis metadata for the current invocation
+- `freeswitch:health` remains a DB-backed health snapshot surface, now with an optional bounded aggregate `--summary` posture, and explicitly does not claim worker recovery visibility or live runtime linkage
 - `freeswitch:status` remains a control-plane inventory surface and explicitly does not claim worker recovery visibility
 
 ---

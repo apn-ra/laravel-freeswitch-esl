@@ -233,4 +233,185 @@ class FreeSwitchHealthCommandTest extends TestCase
         $this->assertSame(1, $registry->lookupCalls);
         $this->assertSame([9], $reporter->requestedNodeIds);
     }
+
+    public function test_health_command_can_emit_machine_readable_aggregate_summary_when_requested(): void
+    {
+        $healthy = new HealthSnapshot(
+            pbxNodeId: 1,
+            pbxNodeSlug: 'primary-fs',
+            providerCode: 'freeswitch',
+            status: HealthSnapshot::STATUS_HEALTHY,
+            connectionState: 'handoff-prepared',
+            subscriptionState: 'unknown',
+            workerAssignmentScope: 'unknown',
+            inflightCount: 0,
+            retryAttempt: 0,
+            isDraining: false,
+            lastHeartbeatAt: null,
+        );
+        $degraded = new HealthSnapshot(
+            pbxNodeId: 2,
+            pbxNodeSlug: 'edge-fs',
+            providerCode: 'freeswitch',
+            status: HealthSnapshot::STATUS_DEGRADED,
+            connectionState: 'db-health-only',
+            subscriptionState: 'unknown',
+            workerAssignmentScope: 'unknown',
+            inflightCount: 0,
+            retryAttempt: 0,
+            isDraining: false,
+            lastHeartbeatAt: null,
+        );
+
+        $reporter = new class ($healthy, $degraded) implements HealthReporterInterface {
+            public function __construct(
+                private readonly HealthSnapshot $healthy,
+                private readonly HealthSnapshot $degraded,
+            ) {}
+
+            public function forNode(int $pbxNodeId): HealthSnapshot
+            {
+                return $this->healthy;
+            }
+
+            public function forAllActive(): array
+            {
+                return [$this->healthy, $this->degraded];
+            }
+
+            public function forCluster(string $cluster): array
+            {
+                return [$this->healthy, $this->degraded];
+            }
+
+            public function record(HealthSnapshot $snapshot): void
+            {
+            }
+        };
+
+        $this->app->instance(HealthReporterInterface::class, $reporter);
+
+        /** @var Kernel $kernel */
+        $kernel = $this->app->make(Kernel::class);
+
+        $exitCode = $kernel->call('freeswitch:health', [
+            '--summary' => true,
+            '--json' => true,
+        ]);
+
+        /** @var array<string, mixed>|null $decoded */
+        $decoded = json_decode(trim($kernel->output()), true);
+
+        $this->assertSame(0, $exitCode);
+        $this->assertIsArray($decoded);
+        $this->assertSame('health_snapshot_summary', $decoded['report_surface']);
+        $this->assertSame('db_health_snapshot', $decoded['snapshot_basis']);
+        $this->assertFalse($decoded['live_runtime_linked']);
+        $this->assertSame([
+            'node_count' => 2,
+            'healthy_count' => 1,
+            'degraded_count' => 1,
+            'unhealthy_count' => 0,
+            'unknown_count' => 0,
+        ], $decoded['summary']);
+        $this->assertSame(HealthSnapshot::STATUS_DEGRADED, $decoded['liveness_posture']);
+        $this->assertSame(HealthSnapshot::STATUS_DEGRADED, $decoded['readiness_posture']);
+        $this->assertCount(2, $decoded['snapshots']);
+    }
+
+    public function test_health_command_can_render_human_summary_when_requested(): void
+    {
+        $snapshot = new HealthSnapshot(
+            pbxNodeId: 1,
+            pbxNodeSlug: 'primary-fs',
+            providerCode: 'freeswitch',
+            status: HealthSnapshot::STATUS_HEALTHY,
+            connectionState: 'handoff-prepared',
+            subscriptionState: 'unknown',
+            workerAssignmentScope: 'unknown',
+            inflightCount: 0,
+            retryAttempt: 0,
+            isDraining: false,
+            lastHeartbeatAt: null,
+        );
+
+        $reporter = new class ($snapshot) implements HealthReporterInterface {
+            public function __construct(private readonly HealthSnapshot $snapshot) {}
+
+            public function forNode(int $pbxNodeId): HealthSnapshot
+            {
+                return $this->snapshot;
+            }
+
+            public function forAllActive(): array
+            {
+                return [$this->snapshot];
+            }
+
+            public function forCluster(string $cluster): array
+            {
+                return [$this->snapshot];
+            }
+
+            public function record(HealthSnapshot $snapshot): void
+            {
+            }
+        };
+
+        $registry = new class implements PbxRegistryInterface {
+            public function findById(int $id): PbxNode
+            {
+                return $this->node($id, 'primary-fs');
+            }
+
+            public function findBySlug(string $slug): PbxNode
+            {
+                return $this->node(1, $slug);
+            }
+
+            public function allActive(): array
+            {
+                return [];
+            }
+
+            public function allByCluster(string $cluster): array
+            {
+                return [];
+            }
+
+            public function allByTags(array $tags): array
+            {
+                return [];
+            }
+
+            public function allByProvider(string $providerCode): array
+            {
+                return [];
+            }
+
+            private function node(int $id, string $slug): PbxNode
+            {
+                return new PbxNode(
+                    id: $id,
+                    providerId: 1,
+                    providerCode: 'freeswitch',
+                    name: 'Primary FS',
+                    slug: $slug,
+                    host: '127.0.0.1',
+                    port: 8021,
+                    username: '',
+                    passwordSecretRef: 'secret',
+                    transport: 'tcp',
+                    isActive: true,
+                );
+            }
+        };
+
+        $this->app->instance(HealthReporterInterface::class, $reporter);
+        $this->app->instance(PbxRegistryInterface::class, $registry);
+
+        $this->artisan('freeswitch:health', ['--summary' => true])
+            ->expectsOutputToContain('Aggregate DB-backed health summary: 1 node(s); healthy 1; degraded 0; unhealthy 0; unknown 0; readiness healthy; liveness healthy.')
+            ->assertExitCode(0);
+    }
 }

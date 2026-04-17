@@ -146,7 +146,7 @@ src/Console/Commands/
   FreeSwitchPingCommand           — freeswitch:ping
   FreeSwitchStatusCommand         — freeswitch:status
   FreeSwitchWorkerCommand         — freeswitch:worker
-  FreeSwitchHealthCommand         — freeswitch:health
+  FreeSwitchHealthCommand         — freeswitch:health (DB-backed snapshots plus optional bounded aggregate summary)
   FreeSwitchReplayInspectCommand  — freeswitch:replay:inspect
 
 src/Facades/

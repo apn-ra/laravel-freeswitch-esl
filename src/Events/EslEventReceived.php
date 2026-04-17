@@ -33,6 +33,8 @@ use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\ConnectionContext;
  */
 final class EslEventReceived
 {
+    public const SCHEMA_VERSION = '1.0';
+
     public function __construct(
         /**
          * Typed ESL event from apntalk/esl-core.
@@ -51,5 +53,9 @@ final class EslEventReceived
          * Do not log $context->resolvedPassword; use $context->toLogContext() instead.
          */
         public readonly ConnectionContext $context,
+        /**
+         * Laravel event-bridge schema version for downstream consumers.
+         */
+        public readonly string $schemaVersion = self::SCHEMA_VERSION,
     ) {}
 }

@@ -80,6 +80,7 @@ class EslCoreEventBridgeTest extends TestCase
         $this->assertNotNull($dispatched[0]->event);
         $this->assertNotNull($dispatched[0]->normalizedEvent);
         $this->assertSame('HEARTBEAT', $dispatched[0]->event->eventName());
+        $this->assertSame(EslEventReceived::SCHEMA_VERSION, $dispatched[0]->schemaVersion);
     }
 
     public function test_reply_message_dispatches_esl_reply_received(): void
@@ -121,6 +122,7 @@ class EslCoreEventBridgeTest extends TestCase
 
         $this->assertNotNull($dispatched[0]->reply);
         $this->assertTrue($dispatched[0]->reply->isSuccess());
+        $this->assertSame(EslReplyReceived::SCHEMA_VERSION, $dispatched[0]->schemaVersion);
     }
 
     public function test_disconnect_notice_dispatches_esl_disconnected(): void
@@ -135,6 +137,7 @@ class EslCoreEventBridgeTest extends TestCase
 
         $this->assertCount(1, $dispatched);
         $this->assertSame($this->context, $dispatched[0]->context);
+        $this->assertSame(EslDisconnected::SCHEMA_VERSION, $dispatched[0]->schemaVersion);
     }
 
     public function test_auth_request_is_not_dispatched(): void

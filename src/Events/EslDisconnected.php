@@ -27,11 +27,17 @@ use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\ConnectionContext;
  */
 final class EslDisconnected
 {
+    public const SCHEMA_VERSION = '1.0';
+
     public function __construct(
         /**
          * Connection context at the time of the disconnect notice.
          * Do not log $context->resolvedPassword; use $context->toLogContext() instead.
          */
         public readonly ConnectionContext $context,
+        /**
+         * Laravel event-bridge schema version for downstream consumers.
+         */
+        public readonly string $schemaVersion = self::SCHEMA_VERSION,
     ) {}
 }

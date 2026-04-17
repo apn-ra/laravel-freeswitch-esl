@@ -70,6 +70,11 @@ These surfaces are now shipped and should be treated as public package surfaces 
 | `EslReplyReceived` | Laravel event carrying typed reply and `ConnectionContext` |
 | `EslDisconnected` | Laravel event carrying disconnect notice context |
 
+Current Laravel bridge event schema posture:
+- `EslEventReceived::SCHEMA_VERSION = "1.0"`
+- `EslReplyReceived::SCHEMA_VERSION = "1.0"`
+- `EslDisconnected::SCHEMA_VERSION = "1.0"`
+
 Stable upstream seams bound in the Laravel container:
 - `Apntalk\EslCore\Contracts\TransportFactoryInterface` → `SocketTransportFactory`
 - `Apntalk\EslCore\Contracts\InboundConnectionFactoryInterface` → `InboundConnectionFactory`
@@ -94,8 +99,8 @@ Runtime runner binding:
 Current worker/runtime posture notes:
 - `WorkerInterface::run()` is a stable contract; current shipped implementations invoke the configured runtime runner.
 - `WorkerStatus::state = running` currently means boot completed and runtime handoff prepared; use `WorkerStatus::isHandoffPrepared()`, `isRuntimeRunnerInvoked()`, `isRuntimeFeedbackObserved()`, and `isRuntimeLoopActive()` to distinguish prepared scaffolding, seam invocation, observed runner feedback, and upstream lifecycle-snapshot-derived live async session state.
-- worker drain/checkpoint status is surfaced conservatively through `WorkerStatus::meta`, including bounded replay-backed checkpoint save/resume hints and bounded drain completion/timeout fields; this does not imply live session recovery or replay execution
-- `freeswitch:worker` now renders those bounded replay-backed checkpoint/recovery hints in human-readable operator output, `freeswitch:worker --json` exposes the same posture in a stable machine-readable form, and `freeswitch:worker:status` provides a dedicated reporting-oriented JSON surface that prepares runtimes without invoking the runtime runner; `freeswitch:health` and `freeswitch:status` remain intentionally narrower and state that they do not show live worker recovery posture
+- worker drain/checkpoint status is surfaced conservatively through `WorkerStatus::meta`, including bounded replay-backed checkpoint save/resume hints, additive periodic checkpoint metadata, and bounded drain completion/timeout fields; this does not imply live session recovery or replay execution
+- `freeswitch:worker` now renders those bounded replay-backed checkpoint/recovery hints in human-readable operator output, `freeswitch:worker --json` exposes the same posture plus additive machine-readable resume-posture fields in a stable form, `freeswitch:worker:status` provides a dedicated reporting-oriented JSON surface that prepares runtimes without invoking the runtime runner and carries the same additive resume-posture fields, and `freeswitch:worker:checkpoint-status` provides a dedicated historical checkpoint summary surface over persisted checkpoint state with additive filters, stable `limit`/`offset` pagination, additive historical pruning-posture fields when those can be derived truthfully from upstream filesystem retention planning, and additive top-level retention-policy/support-basis metadata for the current invocation; `freeswitch:health --summary` now exposes a bounded aggregate DB-backed health summary with conservative readiness/liveness posture, while `freeswitch:health` and `freeswitch:status` remain intentionally narrower and do not show live worker recovery posture
 
 ---
 
