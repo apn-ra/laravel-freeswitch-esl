@@ -9,6 +9,31 @@ This project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.4.3] - 2026-04-17
+
+### Summary
+
+This release is a truthful `0.4.x` Laravel-side dependency-alignment checkpoint.
+It aligns the Laravel package to the released `apntalk/esl-react` `^0.2.4` runtime/lifecycle line.
+It is not a Laravel-owned live runtime milestone.
+
+### Changed
+
+- bumped the minimum supported `apntalk/esl-react` line to `^0.2.4` so Laravel consumes the released runner/lifecycle line that includes live-verified reconnect recovery, heartbeat liveness degradation, and second-miss dead/reconnect observation on the public runner seam
+- tightened runtime observation docs to clarify that Laravel reports those upstream lifecycle signals through its existing worker/operator surfaces without owning reconnect, heartbeat, or session lifecycle behavior
+
+### Verification
+
+- focused PHPUnit coverage passed for the runner adapter, runtime feedback translation, worker runtime, worker command output, and provider/binding paths
+- PHPStan passed at the current configured level
+- Composer metadata validation passed after the dependency floor change
+
+### Deferred
+
+- Laravel-owned reconnect, heartbeat, session lifecycle, and runtime supervision remain out of scope
+- direct `apntalk/esl-core` `TransportInterface` polling handoff remains deferred
+- live runtime validation from this Laravel repository was not run in this checkpoint
+
 ## [0.4.2] - 2026-04-17
 
 ### Summary
