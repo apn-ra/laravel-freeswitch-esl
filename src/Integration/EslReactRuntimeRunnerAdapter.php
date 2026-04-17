@@ -42,6 +42,12 @@ final class EslReactRuntimeRunnerAdapter implements RuntimeRunnerInterface, Runt
             return null;
         }
 
+        $lifecycleSnapshot = $this->lifecycleSnapshot($this->lastHandle);
+
+        if ($lifecycleSnapshot !== null) {
+            return RuntimeRunnerFeedback::fromEslReactLifecycleSnapshot($lifecycleSnapshot);
+        }
+
         return new RuntimeRunnerFeedback(
             state: match ($this->lastHandle->state()) {
                 RuntimeRunnerState::Starting => RuntimeRunnerFeedback::STATE_STARTING,
@@ -53,5 +59,16 @@ final class EslReactRuntimeRunnerAdapter implements RuntimeRunnerInterface, Runt
             sessionId: $this->lastHandle->sessionContext()?->sessionId(),
             startupError: $this->lastHandle->startupError()?->getMessage(),
         );
+    }
+
+    private function lifecycleSnapshot(object $handle): ?object
+    {
+        if (! method_exists($handle, 'lifecycleSnapshot')) {
+            return null;
+        }
+
+        $snapshot = $handle->lifecycleSnapshot();
+
+        return is_object($snapshot) ? $snapshot : null;
     }
 }

@@ -38,7 +38,7 @@ All value objects are stable public API:
 | `ConnectionProfile` | Immutable operational policy VO |
 | `WorkerAssignment` | Immutable worker targeting scope (5 modes) |
 | `ConnectionContext` | Fully resolved connection parameters (use `toLogContext()` for safe logging) |
-| `RuntimeRunnerFeedback` | Coarse runner feedback snapshot consumed by `WorkerStatus::meta` without owning runtime lifecycle |
+| `RuntimeRunnerFeedback` | Runner feedback snapshot consumed by `WorkerStatus::meta`; uses upstream lifecycle snapshots when available without owning runtime lifecycle |
 | `WorkerStatus` | Worker operational state snapshot; helper methods and `meta` distinguish handoff-prepared, adapter-ready, runner-invoked, and runtime-active state |
 | `HealthSnapshot` | PBX node health at a point in time |
 
@@ -93,7 +93,7 @@ Runtime runner binding:
 
 Current worker/runtime posture notes:
 - `WorkerInterface::run()` is a stable contract; current shipped implementations invoke the configured runtime runner.
-- `WorkerStatus::state = running` currently means boot completed and runtime handoff prepared; use `WorkerStatus::isHandoffPrepared()`, `isRuntimeRunnerInvoked()`, `isRuntimeFeedbackObserved()`, and `isRuntimeLoopActive()` to distinguish prepared scaffolding, seam invocation, observed runner feedback, and Laravel-observed live async session state.
+- `WorkerStatus::state = running` currently means boot completed and runtime handoff prepared; use `WorkerStatus::isHandoffPrepared()`, `isRuntimeRunnerInvoked()`, `isRuntimeFeedbackObserved()`, and `isRuntimeLoopActive()` to distinguish prepared scaffolding, seam invocation, observed runner feedback, and upstream lifecycle-snapshot-derived live async session state.
 
 ---
 

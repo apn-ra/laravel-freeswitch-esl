@@ -207,12 +207,12 @@ Still deferred:
 - Reconnect-safe long-lived worker behavior
 - Replay capture/store integration via `apntalk/esl-replay`
 
-`WorkerRuntime::run()` now invokes the Laravel-owned `RuntimeRunnerInterface` seam. By default, the package maps `RuntimeHandoffInterface` into `apntalk/esl-react`'s `PreparedRuntimeBootstrapInput` and calls the upstream runner. Laravel consumes only coarse runner-handle feedback (`starting`, `running`, `failed`) for status reporting; reconnect, heartbeat, and session lifecycle remain owned by the bound runner.
+`WorkerRuntime::run()` now invokes the Laravel-owned `RuntimeRunnerInterface` seam. By default, the package maps `RuntimeHandoffInterface` into `apntalk/esl-react`'s `PreparedRuntimeBootstrapInput` and calls the upstream runner. Laravel consumes upstream runner feedback for status reporting, including `RuntimeRunnerHandle::lifecycleSnapshot()` when available; reconnect, heartbeat, and session lifecycle remain owned by the bound runner.
 
 Current worker status semantics:
 - `booting` means handoff state is not yet prepared
 - `running` means boot completed and the runtime handoff seam is prepared
-- `running` does not by itself mean a live async ESL loop is active; check `runtime_loop_active` / `isRuntimeLoopActive()` for runner-feedback-derived live observation
+- `running` does not by itself mean a live async ESL loop is active; check `runtime_loop_active` / `isRuntimeLoopActive()` for upstream-feedback-derived live observation
 
 ---
 

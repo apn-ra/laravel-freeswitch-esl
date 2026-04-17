@@ -44,14 +44,14 @@ It is not a live runtime milestone.
   - `EslReactRuntimeBootstrapInputFactory` maps `RuntimeHandoffInterface` into `PreparedRuntimeBootstrapInput`
   - `EslReactRuntimeRunnerAdapter` invokes the upstream `apntalk/esl-react` runner behind Laravel's `RuntimeRunnerInterface`
   - `freeswitch-esl.runtime.runner` now defaults to `esl-react`, with `non-live` retained as a fallback/dry-run option
-- Added `RuntimeRunnerFeedbackProviderInterface` and `RuntimeRunnerFeedback` so Laravel worker status can consume coarse runner handle state without owning runtime lifecycle.
+- Added `RuntimeRunnerFeedbackProviderInterface` and `RuntimeRunnerFeedback` so Laravel worker status can consume runner handle state, including upstream lifecycle snapshots when available, without owning runtime lifecycle.
 - Added focused unit and provider tests for the prepared bootstrap input mapping, runner adapter, and container bindings.
 
 ### Changed
 
 - Promoted `apntalk/esl-react` from a suggested package to a runtime dependency.
 - Updated worker/runtime docs and command output to distinguish runner invocation from Laravel-observed live runtime state.
-- `WorkerStatus::meta` now includes runner feedback fields when the bound runner exposes them: feedback source, runner state, endpoint, session id, startup error, and feedback-derived `runtime_loop_active`.
+- `WorkerStatus::meta` now includes runner feedback fields when the bound runner exposes them: feedback source, runner state, endpoint, session id, startup/runtime errors, connection/session state, liveness, reconnecting, draining, stopped, reconnect attempts, heartbeat timestamp, and feedback-derived `runtime_loop_active`.
 
 ### Deferred
 

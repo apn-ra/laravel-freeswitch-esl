@@ -26,7 +26,7 @@ Support for PHP 8.2 and below, and Laravel 10, is not planned.
 
 Current worker/runtime truth:
 - `WorkerRuntime::run()` invokes the Laravel-owned runtime runner seam; the default binding calls `apntalk/esl-react`, and the `non-live` fallback may return immediately
-- Laravel consumes only coarse runner-handle feedback (`starting`, `running`, `failed`, or `not-live`) for status reporting
+- Laravel consumes runner-handle feedback for status reporting; when available, `apntalk/esl-react` lifecycle snapshots provide connection/session/liveness/reconnect/drain truth
 - `WorkerStatus::state = running` currently means handoff prepared, not live async session active
 - reconnecting/failed worker states remain reserved for future `apntalk/esl-react` integration
 
