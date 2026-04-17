@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "ea59bbd6221ed9aa7885f06d2abd6ab3",
+    "content-hash": "91cadb9ec168064de82a83e315fb77dd",
     "packages": [
         {
             "name": "apntalk/esl-core",
@@ -60,16 +60,16 @@
         },
         {
             "name": "apntalk/esl-react",
-            "version": "v0.2.6",
+            "version": "v0.2.7",
             "source": {
                 "type": "git",
                 "url": "https://github.com/apn-ra/esl-react.git",
-                "reference": "bd222692458130668991898b4178c7dd1f7d6133"
+                "reference": "7de0106cc3d8b5e4623cea081f6d0da135d2542e"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/apn-ra/esl-react/zipball/bd222692458130668991898b4178c7dd1f7d6133",
-                "reference": "bd222692458130668991898b4178c7dd1f7d6133",
+                "url": "https://api.github.com/repos/apn-ra/esl-react/zipball/7de0106cc3d8b5e4623cea081f6d0da135d2542e",
+                "reference": "7de0106cc3d8b5e4623cea081f6d0da135d2542e",
                 "shasum": ""
             },
             "require": {
@@ -114,7 +114,7 @@
                 "issues": "https://github.com/apn-ra/esl-react/issues",
                 "source": "https://github.com/apn-ra/esl-react"
             },
-            "time": "2026-04-17T07:24:52+00:00"
+            "time": "2026-04-17T08:00:56+00:00"
         },
         {
             "name": "brick/math",
