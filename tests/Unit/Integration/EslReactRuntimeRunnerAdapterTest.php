@@ -102,15 +102,18 @@ class EslReactRuntimeRunnerAdapterTest extends TestCase
         $this->assertSame('worker-session-1', $adapter->lastHandle()->sessionContext()?->sessionId());
         $this->assertNotNull($adapter->runtimeFeedback());
         $this->assertSame(RuntimeRunnerFeedback::STATE_RUNNING, $adapter->runtimeFeedback()->state);
-        $this->assertSame('apntalk/esl-react-runtime-lifecycle-snapshot', $adapter->runtimeFeedback()->source);
+        $this->assertSame('apntalk/esl-react-runtime-status-snapshot', $adapter->runtimeFeedback()->source);
         $this->assertSame('push', $adapter->runtimeFeedback()->delivery);
+        $this->assertSame('active', $adapter->runtimeFeedback()->statusPhase);
         $this->assertSame('worker-session-1', $adapter->runtimeFeedback()->sessionId);
         $this->assertTrue($adapter->runtimeFeedback()->isConnected);
         $this->assertTrue($adapter->runtimeFeedback()->isAuthenticated);
         $this->assertTrue($adapter->runtimeFeedback()->isLive);
+        $this->assertTrue($adapter->runtimeFeedback()->isRuntimeActive);
+        $this->assertFalse($adapter->runtimeFeedback()->isRecoveryInProgress);
         $this->assertSame('authenticated', $adapter->runtimeFeedback()->connectionState);
         $this->assertSame('active', $adapter->runtimeFeedback()->sessionState);
-        $this->assertSame(2, $adapter->runtimeFeedback()->reconnectAttempts);
+        $this->assertNull($adapter->runtimeFeedback()->reconnectAttempts);
     }
 
     public function test_run_tracks_updated_feedback_from_upstream_push_lifecycle_changes(): void
@@ -185,9 +188,12 @@ class EslReactRuntimeRunnerAdapterTest extends TestCase
         $this->assertNotNull($feedback);
         $this->assertSame('push', $feedback->delivery);
         $this->assertSame(RuntimeRunnerFeedback::STATE_RUNNING, $feedback->state);
+        $this->assertSame('reconnecting', $feedback->statusPhase);
         $this->assertFalse($feedback->isLive);
+        $this->assertTrue($feedback->isRuntimeActive);
+        $this->assertFalse($feedback->isRecoveryInProgress);
         $this->assertTrue($feedback->isReconnecting);
-        $this->assertSame(3, $feedback->reconnectAttempts);
+        $this->assertNull($feedback->reconnectAttempts);
         $this->assertSame('reconnecting', $feedback->connectionState);
     }
 }

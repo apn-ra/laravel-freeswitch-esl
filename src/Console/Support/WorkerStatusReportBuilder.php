@@ -75,6 +75,21 @@ final class WorkerStatusReportBuilder
         return [
             'pbx_node_slug' => $slug,
             'worker_runtime_state' => $status->state,
+            'runtime_status_phase' => $this->metaString($status->meta, 'runtime_status_phase'),
+            'runtime_active' => $this->metaBool($status->meta, 'runtime_active'),
+            'runtime_recovery_in_progress' => $this->metaBool($status->meta, 'runtime_recovery_in_progress'),
+            'runtime_connection_state' => $this->metaString($status->meta, 'runtime_connection_state'),
+            'runtime_session_state' => $this->metaString($status->meta, 'runtime_session_state'),
+            'runtime_authenticated' => $this->metaBool($status->meta, 'runtime_authenticated'),
+            'runtime_reconnect_attempts' => $this->metaInt($status->meta, 'runtime_reconnect_attempts'),
+            'runtime_last_heartbeat_at' => $this->metaString($status->meta, 'runtime_last_heartbeat_at'),
+            'runtime_last_successful_connect_at' => $this->metaString($status->meta, 'runtime_last_successful_connect_at'),
+            'runtime_last_disconnect_at' => $this->metaString($status->meta, 'runtime_last_disconnect_at'),
+            'runtime_last_disconnect_reason_class' => $this->metaString($status->meta, 'runtime_last_disconnect_reason_class'),
+            'runtime_last_disconnect_reason_message' => $this->metaString($status->meta, 'runtime_last_disconnect_reason_message'),
+            'runtime_last_failure_at' => $this->metaString($status->meta, 'runtime_last_failure_at'),
+            'runtime_last_failure_class' => $this->metaString($status->meta, 'runtime_last_error_class'),
+            'runtime_last_failure_message' => $this->metaString($status->meta, 'runtime_last_error_message'),
             'checkpoint_enabled' => $checkpointEnabled,
             'checkpoint_key' => $this->metaString($status->meta, 'checkpoint_key'),
             'checkpoint_saved_at' => $this->metaString($status->meta, 'checkpoint_saved_at'),
@@ -144,5 +159,25 @@ final class WorkerStatusReportBuilder
         $value = $meta[$key] ?? null;
 
         return is_string($value) && $value !== '' ? $value : null;
+    }
+
+    /**
+     * @param  array<string, mixed>|null  $meta
+     */
+    private function metaBool(?array $meta, string $key): ?bool
+    {
+        $value = $meta[$key] ?? null;
+
+        return is_bool($value) ? $value : null;
+    }
+
+    /**
+     * @param  array<string, mixed>|null  $meta
+     */
+    private function metaInt(?array $meta, string $key): ?int
+    {
+        $value = $meta[$key] ?? null;
+
+        return is_int($value) ? $value : null;
     }
 }

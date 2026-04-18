@@ -4,6 +4,7 @@ namespace ApnTalk\LaravelFreeswitchEsl\Tests\Unit\ControlPlane\ValueObjects;
 
 use Apntalk\EslReact\Connection\ConnectionState;
 use Apntalk\EslReact\Runner\RuntimeRunnerState;
+use Apntalk\EslReact\Runner\RuntimeStatusPhase;
 use Apntalk\EslReact\Session\SessionState;
 use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\RuntimeRunnerFeedback;
 use PHPUnit\Framework\TestCase;
@@ -118,6 +119,103 @@ class RuntimeRunnerFeedbackTest extends TestCase
         $this->assertSame(0, $meta['runtime_reconnect_attempts']);
         $this->assertSame(123.45, $meta['runtime_last_heartbeat_at_micros']);
         $this->assertTrue($meta['runtime_loop_active']);
+    }
+
+    public function test_from_esl_react_status_snapshot_maps_runtime_owned_status_truth(): void
+    {
+        $snapshot = new class
+        {
+            public string $endpoint = 'tcp://127.0.0.1:8021';
+
+            public RuntimeRunnerState $runnerState = RuntimeRunnerState::Running;
+
+            public RuntimeStatusPhase $phase = RuntimeStatusPhase::Reconnecting;
+
+            public bool $isRuntimeActive = true;
+
+            public bool $isRecoveryInProgress = true;
+
+            public ?float $lastSuccessfulConnectAtMicros = 1700000.0;
+
+            public ?float $lastDisconnectAtMicros = 1800000.0;
+
+            public ?string $lastDisconnectReasonClass = \RuntimeException::class;
+
+            public ?string $lastDisconnectReasonMessage = 'link dropped';
+
+            public ?float $lastFailureAtMicros = 1900000.0;
+
+            public ?string $lastFailureClass = \LogicException::class;
+
+            public ?string $lastFailureMessage = 'supervisor observed failure';
+
+            public ?string $startupErrorClass = null;
+
+            public ?string $startupErrorMessage = null;
+
+            public object $sessionContext;
+
+            public object $health;
+
+            public object $reconnectState;
+
+            public function __construct()
+            {
+                $this->sessionContext = new class
+                {
+                    public function sessionId(): string
+                    {
+                        return 'worker-session-status-1';
+                    }
+                };
+
+                $this->health = new class
+                {
+                    public ConnectionState $connectionState = ConnectionState::Reconnecting;
+
+                    public SessionState $sessionState = SessionState::Disconnected;
+
+                    public bool $isLive = false;
+
+                    public bool $isDraining = false;
+
+                    public ?float $lastHeartbeatAtMicros = 1234567.0;
+
+                    public function isConnected(): bool
+                    {
+                        return false;
+                    }
+
+                    public function isAuthenticated(): bool
+                    {
+                        return false;
+                    }
+                };
+
+                $this->reconnectState = new class
+                {
+                    public int $attemptNumber = 4;
+                };
+            }
+        };
+
+        $feedback = RuntimeRunnerFeedback::fromEslReactStatusSnapshot($snapshot, 'push');
+        $meta = $feedback->toMeta();
+
+        $this->assertSame(RuntimeRunnerFeedback::STATE_RUNNING, $feedback->state);
+        $this->assertSame('apntalk/esl-react-runtime-status-snapshot', $feedback->source);
+        $this->assertSame('reconnecting', $feedback->statusPhase);
+        $this->assertTrue($meta['runtime_active']);
+        $this->assertTrue($meta['runtime_recovery_in_progress']);
+        $this->assertSame('reconnecting', $meta['runtime_status_phase']);
+        $this->assertSame(4, $meta['runtime_reconnect_attempts']);
+        $this->assertSame(\RuntimeException::class, $meta['runtime_last_disconnect_reason_class']);
+        $this->assertSame('link dropped', $meta['runtime_last_disconnect_reason_message']);
+        $this->assertSame(\LogicException::class, $meta['runtime_last_error_class']);
+        $this->assertSame('supervisor observed failure', $meta['runtime_last_error_message']);
+        $this->assertNotNull($meta['runtime_last_successful_connect_at']);
+        $this->assertNotNull($meta['runtime_last_disconnect_at']);
+        $this->assertNotNull($meta['runtime_last_failure_at']);
     }
 
     public function test_running_runner_state_does_not_mean_live_when_lifecycle_reports_not_live(): void

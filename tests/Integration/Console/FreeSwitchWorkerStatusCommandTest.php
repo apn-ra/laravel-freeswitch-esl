@@ -112,6 +112,9 @@ class FreeSwitchWorkerStatusCommandTest extends TestCase
         ], $decoded['workers'][0]['summary']);
         $this->assertSame('primary-fs', $decoded['workers'][0]['nodes'][0]['pbx_node_slug']);
         $this->assertSame('running', $decoded['workers'][0]['nodes'][0]['worker_runtime_state']);
+        $this->assertNull($decoded['workers'][0]['nodes'][0]['runtime_status_phase']);
+        $this->assertNull($decoded['workers'][0]['nodes'][0]['runtime_active']);
+        $this->assertNull($decoded['workers'][0]['nodes'][0]['runtime_recovery_in_progress']);
         $this->assertTrue($decoded['workers'][0]['nodes'][0]['checkpoint_enabled']);
         $this->assertSame(
             'worker-runtime.status-worker.freeswitch.primary-fs.default',

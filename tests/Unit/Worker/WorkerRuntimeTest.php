@@ -209,6 +209,9 @@ class WorkerRuntimeTest extends TestCase
         $this->assertSame(RuntimeRunnerFeedback::STATE_NOT_LIVE, $status->meta['runtime_runner_state']);
         $this->assertSame('non-live-runtime-runner', $status->meta['runtime_feedback_source']);
         $this->assertSame('non-live-runtime-runner', $status->meta['runtime_loop_active_source']);
+        $this->assertNull($status->meta['runtime_status_phase']);
+        $this->assertNull($status->meta['runtime_active']);
+        $this->assertNull($status->meta['runtime_recovery_in_progress']);
         $this->assertFalse($status->meta['runtime_loop_active']);
         $this->assertFalse($status->isRuntimeLoopActive());
     }
@@ -246,9 +249,64 @@ class WorkerRuntimeTest extends TestCase
         $this->assertSame(RuntimeRunnerFeedback::STATE_RUNNING, $status->meta['runtime_runner_state']);
         $this->assertSame('test-runner-handle', $status->meta['runtime_feedback_source']);
         $this->assertTrue($status->isRuntimePushObserved());
+        $this->assertNull($status->meta['runtime_status_phase']);
         $this->assertTrue($status->meta['runtime_loop_active']);
         $this->assertTrue($status->isRuntimeLoopActive());
         $this->assertSame($status->sessionId, $status->meta['runtime_runner_session_id']);
+    }
+
+    public function test_status_uses_runtime_owned_reconnecting_phase_when_feedback_reports_recovery_in_progress(): void
+    {
+        $runtime = $this->makeRuntime(new class implements RuntimeRunnerFeedbackProviderInterface, RuntimeRunnerInterface
+        {
+            private ?RuntimeRunnerFeedback $feedback = null;
+
+            public function run(RuntimeHandoffInterface $handoff): void
+            {
+                $this->feedback = new RuntimeRunnerFeedback(
+                    state: RuntimeRunnerFeedback::STATE_RUNNING,
+                    source: 'status-snapshot-runner',
+                    delivery: 'push',
+                    statusPhase: 'reconnecting',
+                    endpoint: $handoff->endpoint(),
+                    sessionId: $handoff->context()->workerSessionId,
+                    isRuntimeActive: true,
+                    isRecoveryInProgress: true,
+                    reconnectAttempts: 5,
+                    lastHeartbeatAtMicros: 1700000.0,
+                    lastSuccessfulConnectAtMicros: 1600000.0,
+                    lastDisconnectAtMicros: 1650000.0,
+                    lastDisconnectReasonClass: \RuntimeException::class,
+                    lastDisconnectReasonMessage: 'disconnect observed',
+                    lastFailureAtMicros: 1660000.0,
+                    lastRuntimeErrorClass: \LogicException::class,
+                    lastRuntimeErrorMessage: 'failure summary',
+                );
+            }
+
+            public function runtimeFeedback(): ?RuntimeRunnerFeedback
+            {
+                return $this->feedback;
+            }
+        });
+
+        $runtime->boot();
+        $runtime->run();
+        $status = $runtime->status();
+
+        $this->assertSame(WorkerStatus::STATE_RECONNECTING, $status->state);
+        $this->assertSame(5, $status->retryAttempt);
+        $this->assertNotNull($status->lastHeartbeatAt);
+        $this->assertSame('reconnecting', $status->meta['runtime_status_phase']);
+        $this->assertTrue($status->meta['runtime_active']);
+        $this->assertTrue($status->meta['runtime_recovery_in_progress']);
+        $this->assertSame(\RuntimeException::class, $status->meta['runtime_last_disconnect_reason_class']);
+        $this->assertSame('disconnect observed', $status->meta['runtime_last_disconnect_reason_message']);
+        $this->assertSame(\LogicException::class, $status->meta['runtime_last_error_class']);
+        $this->assertSame('failure summary', $status->meta['runtime_last_error_message']);
+        $this->assertNotNull($status->meta['runtime_last_successful_connect_at']);
+        $this->assertNotNull($status->meta['runtime_last_disconnect_at']);
+        $this->assertNotNull($status->meta['runtime_last_failure_at']);
     }
 
     public function test_drain_records_checkpoint_and_completes_immediately_when_no_inflight(): void

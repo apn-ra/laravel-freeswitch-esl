@@ -7,6 +7,7 @@ use ApnTalk\LaravelFreeswitchEsl\Contracts\PbxRegistryInterface;
 use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\HealthSnapshot;
 use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\PbxNode;
 use ApnTalk\LaravelFreeswitchEsl\Tests\TestCase;
+use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Console\Kernel;
 
 class FreeSwitchHealthCommandTest extends TestCase
@@ -117,6 +118,7 @@ class FreeSwitchHealthCommandTest extends TestCase
                     ['primary-fs', 'freeswitch', 'healthy', 'handoff-prepared', 'never', '0', 'no'],
                 ]
             )
+            ->expectsOutputToContain('Runtime-linked health facts are not present in these stored health snapshots. Use a real worker run to record bounded upstream runtime-status facts when available.')
             ->expectsOutputToContain('Replay-backed recovery posture is not part of the default DB-backed health snapshot. Use worker runtime output for checkpoint/recovery visibility.')
             ->assertExitCode(0);
     }
@@ -227,6 +229,7 @@ class FreeSwitchHealthCommandTest extends TestCase
                     ['edge-fs', 'freeswitch', 'degraded', 'db-health-only', 'never', '2', 'no'],
                 ]
             )
+            ->expectsOutputToContain('Runtime-linked health facts are not present in these stored health snapshots. Use a real worker run to record bounded upstream runtime-status facts when available.')
             ->expectsOutputToContain('Replay-backed recovery posture is not part of the default DB-backed health snapshot. Use worker runtime output for checkpoint/recovery visibility.')
             ->assertExitCode(0);
 
@@ -316,6 +319,67 @@ class FreeSwitchHealthCommandTest extends TestCase
         $this->assertSame(HealthSnapshot::STATUS_DEGRADED, $decoded['liveness_posture']);
         $this->assertSame(HealthSnapshot::STATUS_DEGRADED, $decoded['readiness_posture']);
         $this->assertCount(2, $decoded['snapshots']);
+    }
+
+    public function test_health_command_summary_marks_runtime_linked_when_snapshot_meta_reports_live_runtime_truth(): void
+    {
+        $snapshot = new HealthSnapshot(
+            pbxNodeId: 1,
+            pbxNodeSlug: 'primary-fs',
+            providerCode: 'freeswitch',
+            status: HealthSnapshot::STATUS_HEALTHY,
+            connectionState: 'authenticated',
+            subscriptionState: 'subscribed',
+            workerAssignmentScope: 'node',
+            inflightCount: 0,
+            retryAttempt: 2,
+            isDraining: false,
+            lastHeartbeatAt: new \DateTimeImmutable('2026-04-18T10:00:00+00:00'),
+            meta: [
+                'snapshot_basis' => 'worker_runtime_status_snapshot',
+                'live_runtime_linked' => true,
+                'runtime_truth_source' => 'apntalk/esl-react-runtime-status-snapshot',
+            ],
+        );
+
+        $reporter = new class($snapshot) implements HealthReporterInterface
+        {
+            public function __construct(private readonly HealthSnapshot $snapshot) {}
+
+            public function forNode(int $pbxNodeId): HealthSnapshot
+            {
+                return $this->snapshot;
+            }
+
+            public function forAllActive(): array
+            {
+                return [$this->snapshot];
+            }
+
+            public function forCluster(string $cluster): array
+            {
+                return [$this->snapshot];
+            }
+
+            public function record(HealthSnapshot $snapshot): void {}
+        };
+
+        $this->app->instance(HealthReporterInterface::class, $reporter);
+
+        /** @var Kernel $kernel */
+        $kernel = $this->app->make(Kernel::class);
+
+        $exitCode = $kernel->call('freeswitch:health', [
+            '--summary' => true,
+            '--json' => true,
+        ]);
+
+        /** @var array<string, mixed>|null $decoded */
+        $decoded = json_decode(trim($kernel->output()), true);
+
+        $this->assertSame(0, $exitCode);
+        $this->assertIsArray($decoded);
+        $this->assertTrue($decoded['live_runtime_linked']);
     }
 
     public function test_health_command_can_render_human_summary_when_requested(): void
@@ -412,5 +476,237 @@ class FreeSwitchHealthCommandTest extends TestCase
         $this->artisan('freeswitch:health', ['--summary' => true])
             ->expectsOutputToContain('Aggregate DB-backed health summary: 1 node(s); healthy 1; degraded 0; unhealthy 0; unknown 0; readiness healthy; liveness healthy.')
             ->assertExitCode(0);
+    }
+
+    public function test_health_command_renders_runtime_linked_snapshot_facts_when_present(): void
+    {
+        CarbonImmutable::setTestNow('2026-04-18T10:02:14+00:00');
+
+        $snapshot = new HealthSnapshot(
+            pbxNodeId: 1,
+            pbxNodeSlug: 'primary-fs',
+            providerCode: 'freeswitch',
+            status: HealthSnapshot::STATUS_HEALTHY,
+            connectionState: 'authenticated',
+            subscriptionState: 'active',
+            workerAssignmentScope: 'node',
+            inflightCount: 1,
+            retryAttempt: 2,
+            isDraining: false,
+            lastHeartbeatAt: new \DateTimeImmutable('2026-04-18T10:00:00+00:00'),
+            meta: [
+                'live_runtime_linked' => true,
+                'runtime_status_phase' => 'active',
+                'runtime_active' => true,
+                'runtime_recovery_in_progress' => false,
+                'runtime_last_successful_connect_at' => '2026-04-18T09:58:30.000+00:00',
+                'runtime_last_disconnect_at' => '2026-04-18T09:57:00.000+00:00',
+                'runtime_last_disconnect_reason_message' => 'disconnect observed',
+                'runtime_last_failure_at' => '2026-04-18T09:57:10.000+00:00',
+                'runtime_last_failure_message' => 'failure summary',
+            ],
+        );
+
+        $reporter = new class($snapshot) implements HealthReporterInterface
+        {
+            public function __construct(private readonly HealthSnapshot $snapshot) {}
+
+            public function forNode(int $pbxNodeId): HealthSnapshot
+            {
+                return $this->snapshot;
+            }
+
+            public function forAllActive(): array
+            {
+                return [$this->snapshot];
+            }
+
+            public function forCluster(string $cluster): array
+            {
+                return [$this->snapshot];
+            }
+
+            public function record(HealthSnapshot $snapshot): void {}
+        };
+
+        $registry = new class implements PbxRegistryInterface
+        {
+            public function findById(int $id): PbxNode
+            {
+                return $this->node($id, 'primary-fs');
+            }
+
+            public function findBySlug(string $slug): PbxNode
+            {
+                return $this->node(1, $slug);
+            }
+
+            public function allActive(): array
+            {
+                return [];
+            }
+
+            public function allByCluster(string $cluster): array
+            {
+                return [];
+            }
+
+            public function allByTags(array $tags): array
+            {
+                return [];
+            }
+
+            public function allByProvider(string $providerCode): array
+            {
+                return [];
+            }
+
+            private function node(int $id, string $slug): PbxNode
+            {
+                return new PbxNode(
+                    id: $id,
+                    providerId: 1,
+                    providerCode: 'freeswitch',
+                    name: 'Primary FS',
+                    slug: $slug,
+                    host: '127.0.0.1',
+                    port: 8021,
+                    username: '',
+                    passwordSecretRef: 'secret',
+                    transport: 'tcp',
+                    isActive: true,
+                );
+            }
+        };
+
+        $this->app->instance(HealthReporterInterface::class, $reporter);
+        $this->app->instance(PbxRegistryInterface::class, $registry);
+        config()->set('freeswitch-esl.health.heartbeat_timeout_seconds', 300);
+
+        try {
+            $this->artisan('freeswitch:health')
+                ->expectsTable(
+                    ['Node', 'Provider', 'Status', 'Connection', 'Last Heartbeat', 'Inflight', 'Draining'],
+                    [
+                        ['primary-fs', 'freeswitch', 'healthy', 'authenticated', '2026-04-18 10:00:00', '1', 'no'],
+                    ]
+                )
+                ->expectsOutputToContain('Runtime-linked snapshot facts:')
+                ->expectsOutputToContain('primary-fs: runtime-linked yes; phase active; active yes; recovery_in_progress no; last_successful_connect 2026-04-18T09:58:30.000+00:00; last_disconnect 2026-04-18T09:57:00.000+00:00 (disconnect observed); last_failure 2026-04-18T09:57:10.000+00:00 (failure summary)')
+                ->expectsOutputToContain('Runtime-linked snapshot age: 2m 14s')
+                ->expectsOutputToContain('Replay-backed recovery posture is not part of the default DB-backed health snapshot. Use worker runtime output for checkpoint/recovery visibility.')
+                ->assertExitCode(0);
+        } finally {
+            CarbonImmutable::setTestNow();
+        }
+    }
+
+    public function test_health_command_marks_runtime_linked_snapshot_age_as_potentially_stale_when_it_exceeds_timeout(): void
+    {
+        CarbonImmutable::setTestNow('2026-04-18T10:02:14+00:00');
+
+        $snapshot = new HealthSnapshot(
+            pbxNodeId: 1,
+            pbxNodeSlug: 'primary-fs',
+            providerCode: 'freeswitch',
+            status: HealthSnapshot::STATUS_DEGRADED,
+            connectionState: 'reconnecting',
+            subscriptionState: 'disconnected',
+            workerAssignmentScope: 'node',
+            inflightCount: 0,
+            retryAttempt: 4,
+            isDraining: false,
+            lastHeartbeatAt: new \DateTimeImmutable('2026-04-18T10:00:00+00:00'),
+            meta: [
+                'live_runtime_linked' => true,
+                'runtime_status_phase' => 'reconnecting',
+                'runtime_active' => true,
+                'runtime_recovery_in_progress' => true,
+            ],
+        );
+
+        $reporter = new class($snapshot) implements HealthReporterInterface
+        {
+            public function __construct(private readonly HealthSnapshot $snapshot) {}
+
+            public function forNode(int $pbxNodeId): HealthSnapshot
+            {
+                return $this->snapshot;
+            }
+
+            public function forAllActive(): array
+            {
+                return [$this->snapshot];
+            }
+
+            public function forCluster(string $cluster): array
+            {
+                return [$this->snapshot];
+            }
+
+            public function record(HealthSnapshot $snapshot): void {}
+        };
+
+        $registry = new class implements PbxRegistryInterface
+        {
+            public function findById(int $id): PbxNode
+            {
+                return $this->node($id, 'primary-fs');
+            }
+
+            public function findBySlug(string $slug): PbxNode
+            {
+                return $this->node(1, $slug);
+            }
+
+            public function allActive(): array
+            {
+                return [];
+            }
+
+            public function allByCluster(string $cluster): array
+            {
+                return [];
+            }
+
+            public function allByTags(array $tags): array
+            {
+                return [];
+            }
+
+            public function allByProvider(string $providerCode): array
+            {
+                return [];
+            }
+
+            private function node(int $id, string $slug): PbxNode
+            {
+                return new PbxNode(
+                    id: $id,
+                    providerId: 1,
+                    providerCode: 'freeswitch',
+                    name: 'Primary FS',
+                    slug: $slug,
+                    host: '127.0.0.1',
+                    port: 8021,
+                    username: '',
+                    passwordSecretRef: 'secret',
+                    transport: 'tcp',
+                    isActive: true,
+                );
+            }
+        };
+
+        $this->app->instance(HealthReporterInterface::class, $reporter);
+        $this->app->instance(PbxRegistryInterface::class, $registry);
+        config()->set('freeswitch-esl.health.heartbeat_timeout_seconds', 60);
+
+        try {
+            $this->artisan('freeswitch:health')
+                ->expectsOutputToContain('Runtime-linked snapshot age: 2m 14s (may be stale)')
+                ->assertExitCode(0);
+        } finally {
+            CarbonImmutable::setTestNow();
+        }
     }
 }

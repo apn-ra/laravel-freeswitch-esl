@@ -33,10 +33,8 @@ final class EslReactRuntimeRunnerAdapter implements RuntimeRunnerFeedbackProvide
         $this->lastFeedback = null;
 
         $this->lastHandle->onLifecycleChange(function (object $snapshot): void {
-            $this->lastFeedback = RuntimeRunnerFeedback::fromEslReactLifecycleSnapshot(
-                $snapshot,
-                'push',
-            );
+            $this->lastFeedback = $this->feedbackFromHandle('push')
+                ?? RuntimeRunnerFeedback::fromEslReactLifecycleSnapshot($snapshot, 'push');
         });
     }
 
@@ -52,8 +50,18 @@ final class EslReactRuntimeRunnerAdapter implements RuntimeRunnerFeedbackProvide
         }
 
         return $this->lastFeedback
-            ?? RuntimeRunnerFeedback::fromEslReactLifecycleSnapshot(
-                $this->lastHandle->lifecycleSnapshot()
-            );
+            ?? $this->feedbackFromHandle();
+    }
+
+    private function feedbackFromHandle(string $delivery = 'snapshot'): ?RuntimeRunnerFeedback
+    {
+        if ($this->lastHandle === null) {
+            return null;
+        }
+
+        return RuntimeRunnerFeedback::fromEslReactStatusSnapshot(
+            $this->lastHandle->statusSnapshot(),
+            $delivery,
+        );
     }
 }

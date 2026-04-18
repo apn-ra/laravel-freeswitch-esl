@@ -20,7 +20,7 @@
     "require": {
         "php": "^8.3",
         "apntalk/esl-core": "^0.2",
-        "apntalk/esl-react": "^0.2.7",
+        "apntalk/esl-react": "^0.2.9",
         "apntalk/esl-replay": "^0.9",
         "illuminate/console": "^11.0|^12.0",
         "illuminate/contracts": "^11.0|^12.0",

@@ -14,6 +14,8 @@ This project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - enriched worker status/reporting surfaces with runtime-owned phase, active/recovery posture, connect/disconnect observation, and failure summary metadata without adding reconnect or resume execution
 - made aggregate health JSON summaries report whether provided snapshots are actually live-runtime-linked instead of hard-coding that posture
 - made real `freeswitch:worker` runs persist selected upstream runtime-status facts into DB-backed health snapshots so later `freeswitch:health` reads can surface the latest linked phase, connect/disconnect, and failure posture conservatively
+- made human-readable `freeswitch:health` render a small runtime-linked facts section when the stored DB-backed health snapshot contains selected upstream runtime-status facts
+- added a bounded human-readable runtime-linked snapshot age/staleness hint to `freeswitch:health`, derived from the stored snapshot timestamp rather than inferred live-runtime state
 
 ### Added
 

@@ -5,6 +5,7 @@ namespace ApnTalk\LaravelFreeswitchEsl\Console\Commands;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\HealthReporterInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\PbxRegistryInterface;
 use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\HealthSnapshot;
+use Carbon\CarbonImmutable;
 use Illuminate\Console\Command;
 
 /**
@@ -36,11 +37,12 @@ class FreeSwitchHealthCommand extends Command
             $summary = $this->summary($snapshots);
 
             if ($asJson) {
+                $liveRuntimeLinked = $this->isRuntimeLinked($snapshots);
                 $payload = $withSummary
                     ? [
                         'report_surface' => 'health_snapshot_summary',
                         'snapshot_basis' => 'db_health_snapshot',
-                        'live_runtime_linked' => false,
+                        'live_runtime_linked' => $liveRuntimeLinked,
                         'summary' => $summary,
                         'liveness_posture' => $this->aggregatePosture($summary),
                         'readiness_posture' => $this->aggregatePosture($summary),
@@ -80,6 +82,8 @@ class FreeSwitchHealthCommand extends Command
                     $s->isDraining ? 'yes' : 'no',
                 ], $snapshots)
             );
+
+            $this->renderRuntimeLinkedSnapshotFacts($snapshots);
 
             if ($withSummary) {
                 $this->line(sprintf(
@@ -170,5 +174,124 @@ class FreeSwitchHealthCommand extends Command
         }
 
         return HealthSnapshot::STATUS_HEALTHY;
+    }
+
+    /**
+     * @param  list<HealthSnapshot>  $snapshots
+     */
+    private function isRuntimeLinked(array $snapshots): bool
+    {
+        foreach ($snapshots as $snapshot) {
+            if (($snapshot->meta['live_runtime_linked'] ?? false) === true) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * @param  list<HealthSnapshot>  $snapshots
+     */
+    private function renderRuntimeLinkedSnapshotFacts(array $snapshots): void
+    {
+        $linkedSnapshots = array_values(array_filter(
+            $snapshots,
+            fn (HealthSnapshot $snapshot): bool => (($snapshot->meta['live_runtime_linked'] ?? false) === true)
+        ));
+
+        if ($linkedSnapshots === []) {
+            $this->line(
+                'Runtime-linked health facts are not present in these stored health snapshots. Use a real worker run to record bounded upstream runtime-status facts when available.'
+            );
+
+            return;
+        }
+
+        $this->line('Runtime-linked snapshot facts:');
+
+        foreach ($linkedSnapshots as $snapshot) {
+            $phase = $this->metaString($snapshot, 'runtime_status_phase') ?? 'unknown';
+            $runtimeActive = $this->metaBoolLabel($snapshot, 'runtime_active');
+            $recovery = $this->metaBoolLabel($snapshot, 'runtime_recovery_in_progress');
+            $lastConnect = $this->metaString($snapshot, 'runtime_last_successful_connect_at') ?? 'not recorded';
+            $lastDisconnectAt = $this->metaString($snapshot, 'runtime_last_disconnect_at');
+            $lastDisconnectReason = $this->metaString($snapshot, 'runtime_last_disconnect_reason_message') ?? 'not recorded';
+            $lastFailureAt = $this->metaString($snapshot, 'runtime_last_failure_at');
+            $lastFailure = $this->metaString($snapshot, 'runtime_last_failure_message') ?? 'not recorded';
+
+            $disconnectSummary = $lastDisconnectAt === null
+                ? 'not recorded'
+                : sprintf('%s (%s)', $lastDisconnectAt, $lastDisconnectReason);
+
+            $failureSummary = $lastFailureAt === null
+                ? $lastFailure
+                : sprintf('%s (%s)', $lastFailureAt, $lastFailure);
+
+            $this->line(sprintf(
+                '  - %s: runtime-linked yes; phase %s; active %s; recovery_in_progress %s; last_successful_connect %s; last_disconnect %s; last_failure %s',
+                $snapshot->pbxNodeSlug,
+                $phase,
+                $runtimeActive,
+                $recovery,
+                $lastConnect,
+                $disconnectSummary,
+                $failureSummary,
+            ));
+
+            $this->line(sprintf(
+                '    Runtime-linked snapshot age: %s',
+                $this->snapshotAgeHint($snapshot),
+            ));
+        }
+    }
+
+    private function snapshotAgeHint(HealthSnapshot $snapshot): string
+    {
+        if ($snapshot->lastHeartbeatAt === null) {
+            return 'not available from stored snapshot timestamp';
+        }
+
+        $ageSeconds = (int) max(0, CarbonImmutable::now('UTC')->getTimestamp() - $snapshot->lastHeartbeatAt->getTimestamp());
+        $hint = $this->formatDuration($ageSeconds);
+
+        if ($ageSeconds > $this->heartbeatTimeoutSeconds()) {
+            return sprintf('%s (may be stale)', $hint);
+        }
+
+        return $hint;
+    }
+
+    private function heartbeatTimeoutSeconds(): int
+    {
+        $configured = config('freeswitch-esl.health.heartbeat_timeout_seconds');
+
+        return is_int($configured) && $configured > 0 ? $configured : 60;
+    }
+
+    private function formatDuration(int $seconds): string
+    {
+        $minutes = intdiv($seconds, 60);
+        $remainingSeconds = $seconds % 60;
+
+        if ($minutes === 0) {
+            return sprintf('%ds', $remainingSeconds);
+        }
+
+        return sprintf('%dm %ds', $minutes, $remainingSeconds);
+    }
+
+    private function metaString(HealthSnapshot $snapshot, string $key): ?string
+    {
+        $value = $snapshot->meta[$key] ?? null;
+
+        return is_string($value) && $value !== '' ? $value : null;
+    }
+
+    private function metaBoolLabel(HealthSnapshot $snapshot, string $key): string
+    {
+        $value = $snapshot->meta[$key] ?? null;
+
+        return is_bool($value) ? ($value ? 'yes' : 'no') : 'unknown';
     }
 }

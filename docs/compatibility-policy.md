@@ -17,16 +17,16 @@ Support for PHP 8.2 and below, and Laravel 10, is not planned.
 | `0.1.x` | Repo foundation, control-plane contracts, DB schema, worker lifecycle scaffolding |
 | `0.2.x` | Integrate `apntalk/esl-core` (typed events, command dispatch, event normalizer, stable transport/bootstrap seams) |
 | `0.3.x` | Runtime-prep milestone: explicit handoff bundles, runner seams, interface-first worker/runtime boundaries, truthful runner/status reporting |
-| `0.4.x` | Real `apntalk/esl-react` runner binding plus upstream lifecycle snapshot observation in Laravel status/operator surfaces |
+| `0.4.x` | Real `apntalk/esl-react` runner binding plus upstream runtime status observation in Laravel status/operator surfaces |
 | `0.5.x` | Integrate `apntalk/esl-replay` (capture wiring, retention, replay inspection) |
 | `0.6.x` | Observability + hardening |
 | `1.0.0` | Only after runtime and multi-PBX behavior are stable |
 
-**Current repo posture:** `0.1.x` control-plane scope is complete, `0.2.x` `apntalk/esl-core` integration is in place, `0.3.x` runtime-prep seams are landed, and `0.4.x` lifecycle observation is now in place: `RuntimeHandoffInterface`, `RuntimeRunnerInterface`, a non-live fallback runner, default adaptation into `PreparedRuntimeBootstrapInput`, explicit prepared dial-target mapping on the supported `apntalk/esl-react` `^0.2.7` line, real `RuntimeRunnerHandle::lifecycleSnapshot()` consumption, and push-based `RuntimeRunnerHandle::onLifecycleChange()` observation through Laravel worker/operator status surfaces.
+**Current repo posture:** `0.1.x` control-plane scope is complete, `0.2.x` `apntalk/esl-core` integration is in place, `0.3.x` runtime-prep seams are landed, and `0.4.x` runtime observation is now in place: `RuntimeHandoffInterface`, `RuntimeRunnerInterface`, a non-live fallback runner, default adaptation into `PreparedRuntimeBootstrapInput`, explicit prepared dial-target mapping on the supported `apntalk/esl-react` `^0.2.9` line, real `RuntimeRunnerHandle::statusSnapshot()` consumption, and push-based `RuntimeRunnerHandle::onLifecycleChange()` observation through Laravel worker/operator status surfaces.
 
 Current worker/runtime truth:
 - `WorkerRuntime::run()` invokes the Laravel-owned runtime runner seam; the default binding calls `apntalk/esl-react`, and the `non-live` fallback may return immediately
-- Laravel consumes runner-handle feedback for status reporting; on the supported `apntalk/esl-react` `^0.2.7` line, lifecycle snapshots and push-based lifecycle callbacks provide connection/session/liveness/reconnect/drain truth and prepared dial targets can be passed explicitly for non-default transports. Validation/stability truth for reconnect, heartbeat, and bgapi/event runtime behavior remains upstream-owned and upstream-documented.
+- Laravel consumes runner-handle feedback for status reporting; on the supported `apntalk/esl-react` `^0.2.9` line, runtime status snapshots and push-based lifecycle callbacks provide connection/session/liveness/reconnect/drain truth and prepared dial targets can be passed explicitly for non-default transports. Validation/stability truth for reconnect, heartbeat, and bgapi/event runtime behavior remains upstream-owned and upstream-documented.
 - `WorkerStatus::state = running` currently means handoff prepared, not live async session active
 - reconnecting/failed worker states remain reserved for future Laravel-side operator modeling beyond the current snapshot-fed status surface
 
