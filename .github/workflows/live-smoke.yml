@@ -79,54 +79,13 @@ jobs:
           FREESWITCH_ESL_SMOKE_HOST: ${{ secrets.FREESWITCH_ESL_SMOKE_HOST }}
           FREESWITCH_ESL_SMOKE_PORT: ${{ secrets.FREESWITCH_ESL_SMOKE_PORT }}
           FREESWITCH_ESL_SMOKE_PASSWORD: ${{ secrets.FREESWITCH_ESL_SMOKE_PASSWORD }}
-          SMOKE_TIMEOUT: ${{ inputs.timeout_seconds }}
-          CAPTURE_FRAMES: ${{ inputs.capture_frames }}
+          FREESWITCH_ESL_SMOKE_TIMEOUT: ${{ inputs.timeout_seconds }}
+          FREESWITCH_ESL_SMOKE_CAPTURE_FRAMES: ${{ inputs.capture_frames }}
+          FREESWITCH_ESL_SMOKE_OUTPUT_DIR: build/live-smoke-review
         run: |
           set -euo pipefail
 
-          ARTIFACT_DIR="build/live-smoke"
-          CAPTURE_DIR="${ARTIFACT_DIR}/captures"
-          mkdir -p "${ARTIFACT_DIR}"
-
-          capture_arg=()
-          if [[ "${CAPTURE_FRAMES}" == 'true' ]]; then
-            mkdir -p "${CAPTURE_DIR}"
-            capture_arg=(--capture-dir="${CAPTURE_DIR}")
-          fi
-
-          php vendor/apntalk/esl-core/tools/smoke/live_freeswitch_readonly_validate.php \
-            auth \
-            "${FREESWITCH_ESL_SMOKE_HOST}" \
-            "${FREESWITCH_ESL_SMOKE_PORT}" \
-            --password-env=FREESWITCH_ESL_SMOKE_PASSWORD \
-            "${capture_arg[@]}" \
-            > "${ARTIFACT_DIR}/auth.json"
-
-          php vendor/apntalk/esl-core/tools/smoke/live_freeswitch_readonly_validate.php \
-            api \
-            "${FREESWITCH_ESL_SMOKE_HOST}" \
-            "${FREESWITCH_ESL_SMOKE_PORT}" \
-            --password-env=FREESWITCH_ESL_SMOKE_PASSWORD \
-            "${capture_arg[@]}" \
-            > "${ARTIFACT_DIR}/api-status.json"
-
-          php vendor/apntalk/esl-core/tools/smoke/live_freeswitch_readonly_validate.php \
-            event-plain \
-            "${FREESWITCH_ESL_SMOKE_HOST}" \
-            "${FREESWITCH_ESL_SMOKE_PORT}" \
-            --password-env=FREESWITCH_ESL_SMOKE_PASSWORD \
-            --timeout="${SMOKE_TIMEOUT}" \
-            "${capture_arg[@]}" \
-            > "${ARTIFACT_DIR}/event-plain.json"
-
-          php vendor/apntalk/esl-core/tools/smoke/live_freeswitch_readonly_validate.php \
-            event-json \
-            "${FREESWITCH_ESL_SMOKE_HOST}" \
-            "${FREESWITCH_ESL_SMOKE_PORT}" \
-            --password-env=FREESWITCH_ESL_SMOKE_PASSWORD \
-            --timeout="${SMOKE_TIMEOUT}" \
-            "${capture_arg[@]}" \
-            > "${ARTIFACT_DIR}/event-json.json"
+          php bin/freeswitch-private-live-validate.php
 
           {
             echo "## Live smoke outputs"
@@ -135,6 +94,8 @@ jobs:
             echo "- \`api-status.json\`"
             echo "- \`event-plain.json\`"
             echo "- \`event-json.json\`"
+            echo "- \`summary.json\`"
+            echo "- \`release-review.md\`"
           } >> "${GITHUB_STEP_SUMMARY}"
 
       - name: Upload live smoke artifacts
@@ -142,5 +103,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: live-smoke-${{ github.run_id }}
-          path: build/live-smoke
+          path: build/live-smoke-review
           if-no-files-found: error

@@ -2,6 +2,7 @@
 
 namespace ApnTalk\LaravelFreeswitchEsl\ControlPlane\Models;
 
+use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\WorkerAssignment as WorkerAssignmentValueObject;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -30,6 +31,13 @@ class WorkerAssignment extends Model
         'pbx_node_id' => 'integer',
         'is_active' => 'boolean',
     ];
+
+    protected static function booted(): void
+    {
+        static::saving(function (self $assignment): void {
+            $assignment->guardAssignmentMode();
+        });
+    }
 
     /**
      * @return BelongsTo<PbxNode, $this>
@@ -60,8 +68,21 @@ class WorkerAssignment extends Model
     /**
      * Convert to the VO used throughout the control plane.
      */
-    public function toValueObject(): \ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\WorkerAssignment
+    public function toValueObject(): WorkerAssignmentValueObject
     {
-        return \ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\WorkerAssignment::fromRecord($this->toArray());
+        return WorkerAssignmentValueObject::fromRecord($this->toArray());
+    }
+
+    private function guardAssignmentMode(): void
+    {
+        $mode = $this->getAttribute('assignment_mode');
+
+        if (! is_string($mode) || ! in_array($mode, WorkerAssignmentValueObject::VALID_MODES, true)) {
+            throw new \InvalidArgumentException(sprintf(
+                'Invalid worker_assignments.assignment_mode [%s]. Valid modes: %s',
+                is_scalar($mode) ? (string) $mode : get_debug_type($mode),
+                implode(', ', WorkerAssignmentValueObject::VALID_MODES),
+            ));
+        }
     }
 }

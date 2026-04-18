@@ -83,7 +83,10 @@ This package integrates with FreeSWITCH via `apntalk/esl-core` and `apntalk/esl-
 FreeSWITCH version compatibility is governed by those packages.
 
 This package targets FreeSWITCH ESL (Event Socket Library) in inbound client mode.
-Outbound server mode is planned for a future version.
+Outbound server mode is explicitly deferred beyond the current `1.0.0`
+stabilization target. Reaching `1.0.0` for this package does not require
+Laravel-owned outbound support, and no outbound server-mode public API should be
+assumed on the current release line.
 
 ---
 

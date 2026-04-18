@@ -23,6 +23,11 @@ The baseline persisted health source is the `pbx_nodes` table:
 - `last_heartbeat_at`
 - `settings_json`
 
+Current shipped storage posture:
+- no dedicated health-snapshot or health-history table is added in this release line
+- the latest Laravel-owned runtime-linked facts are projected into `settings_json`
+  on the corresponding `pbx_nodes` record
+
 These fields support:
 
 - `freeswitch:health`

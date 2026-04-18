@@ -133,7 +133,7 @@ This package still does not own listener/runtime behavior. The accepted-stream f
 
 ```
 src/Health/
-  HealthReporter     — HealthReporterInterface impl (DB-backed health snapshots, with additive runtime-linked facts recorded from real worker runs when upstream status truth is available)
+  HealthReporter     — HealthReporterInterface impl (DB-backed health snapshots rooted in `pbx_nodes`, with additive runtime-linked facts recorded into `settings_json` when upstream status truth is available)
   HealthSummaryBuilder — shared bounded readiness/liveness summary builder for CLI and HTTP health surfaces
 ```
 
@@ -163,11 +163,16 @@ src/Facades/
 | Table | Purpose |
 |---|---|
 | `pbx_providers` | Provider families and driver metadata |
-| `pbx_nodes` | Actual PBX endpoints (the live inventory) |
+| `pbx_nodes` | Actual PBX endpoints (the live inventory) plus the current bounded health projection surface |
 | `pbx_connection_profiles` | Reusable operational policy profiles |
 | `worker_assignments` | Worker-to-scope targeting records |
 
 See `database/migrations/` for schema details.
+
+Current shipped health-storage posture:
+- the package persists bounded health state into `pbx_nodes.health_status` and `pbx_nodes.last_heartbeat_at`
+- the latest runtime-linked health facts are projected into `pbx_nodes.settings_json`
+- there is no separate dedicated health-history table in the current `0.6.x` scope
 
 ---
 

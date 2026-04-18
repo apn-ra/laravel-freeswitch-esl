@@ -79,6 +79,11 @@ Current Laravel bridge event schema posture:
 - `EslReplyReceived::SCHEMA_VERSION = "1.0"`
 - `EslDisconnected::SCHEMA_VERSION = "1.0"`
 
+Clarification:
+- these are wrapper-schema versions for the shipped Laravel bridge events
+- they do not mean a separate Laravel-native normalized domain-event layer is
+  already part of the current public API
+
 Stable upstream seams bound in the Laravel container:
 - `Apntalk\EslCore\Contracts\TransportFactoryInterface` → `SocketTransportFactory`
 - `Apntalk\EslCore\Contracts\InboundConnectionFactoryInterface` → `InboundConnectionFactory`
@@ -87,6 +92,12 @@ Stable upstream seams bound in the Laravel container:
 Runtime runner binding:
 - `ApnTalk\LaravelFreeswitchEsl\Contracts\RuntimeRunnerInterface` resolves to the `apntalk/esl-react` adapter by default.
 - Set `freeswitch-esl.runtime.runner = non-live` to retain the no-op fallback runner for dry-run or unsupported environments.
+
+Current connection-mode scope:
+- the shipped Laravel package public surface targets FreeSWITCH ESL inbound
+  client mode
+- outbound server mode is not part of the current public API and is deferred
+  beyond the present `1.0.0` stabilization target
 
 ---
 

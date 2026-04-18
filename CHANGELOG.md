@@ -22,6 +22,8 @@ This project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - removed the dead `freeswitch-esl.fallback` published config surface and aligned boundary/support docs with the current direct-upstream dependency posture and PHP `8.3+` floor
 - clarified the `0.6.x` release handoff so private-network, operator-run live validation is the primary evidence path and the helper workflow remains optional
 - aligned the private live-validation path to the fixed direct upstream helper in `apntalk/esl-core` `^0.2.8`, removed the temporary downstream proxy/workaround, and recorded retained live smoke evidence for RC promotion review
+- aligned the optional GitHub Actions live-smoke workflow to the same private-validation wrapper, artifact layout, and retained summary files used by the documented operator path
+- prepared the post-RC1 release surface as an RC2 candidate because the repository now contains release-truth, defensive-proof, and model-hardening changes beyond the recorded RC1 evidence set
 
 ## [0.6.0-rc1] - 2026-04-18
 
@@ -31,7 +33,7 @@ This project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - changed the default metrics binding from an implicit no-op to the shipped log-backed recorder, while keeping `event` and explicit `null` drivers available
 - made `freeswitch-esl.drain_defaults.max_inflight` load-bearing in `WorkerRuntime` and surfaced bounded backpressure metadata in worker and health-adjacent status snapshots
 - replaced the placeholder example-app posture with a near-runnable cookbook containing seeders, config guidance, and a small example service provider
-- aligned the upstream dependency floors to `apntalk/esl-core` `^0.2.6`, `apntalk/esl-react` `^0.2.10`, and `apntalk/esl-replay` `^0.9.2`
+- aligned the upstream dependency floors to `apntalk/esl-core` `^0.2.8`, `apntalk/esl-react` `^0.2.10`, and `apntalk/esl-replay` `^0.9.2`
 - kept the default `apntalk/esl-react` integration on the runtime-owned `RuntimeRunnerHandle::statusSnapshot()` seam while validating compatibility on `v0.2.10`
 - enriched worker status/reporting surfaces with runtime-owned phase, active/recovery posture, connect/disconnect observation, and failure summary metadata without adding reconnect or resume execution
 - made aggregate health JSON summaries report whether provided snapshots are actually live-runtime-linked instead of hard-coding that posture

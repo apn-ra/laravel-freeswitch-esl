@@ -57,7 +57,14 @@ Use the database for:
 - provider bindings
 - connection profiles
 - worker assignments
-- health state snapshots
+- bounded health snapshot persistence rooted in `pbx_nodes.health_status`,
+  `pbx_nodes.last_heartbeat_at`, and additive runtime-linked projection stored in
+  `pbx_nodes.settings_json`
+
+Current shipped `0.6.x` posture: this repository does not add a separate
+health-history table. The bounded Laravel-owned health model projects the
+latest known runtime-linked facts into the existing `pbx_nodes` record and
+keeps full live-status history out of scope for this release line.
 
 ### 1.4 Runtime identity everywhere
 Every event, job, health snapshot, and replay artifact should carry:
@@ -99,7 +106,9 @@ This package should own five major domains.
 
 ### 2.3 Event integration
 - app-facing event bridge
-- normalized event dispatch into Laravel conventions
+- Laravel bridge-wrapper dispatch around upstream typed and normalized payloads
+- higher-level Laravel-native normalized domain events only if and when that
+  later projection layer is intentionally added
 - schema-aware app integration
 
 ### 2.4 Worker orchestration
@@ -252,6 +261,12 @@ Suggested fields:
 - `health_status`
 - `last_heartbeat_at`
 
+Current shipped posture:
+- `settings_json` also carries the latest bounded runtime-linked health facts
+  recorded by Laravel when a real worker run has upstream status truth
+- no separate dedicated health-snapshot table is being added in the current
+  `0.6.x` release scope
+
 #### 5.3 `pbx_connection_profiles`
 Purpose: store reusable operational policies
 
@@ -341,8 +356,13 @@ superseded plan wording rather than missing Laravel-owned classes.
 
 ### Modes
 - inbound client
-- outbound server hooks later
+- outbound server mode deferred beyond the current `1.0.0` target
 - async worker transport
+
+Current shipped decision:
+- `1.0.0` readiness for this Laravel package is defined around stable inbound
+  client-mode control-plane, worker, replay-integration, and operator surfaces
+- outbound server mode is not a required `1.0.0` deliverable for this package
 
 ### Exit criteria
 - connect to FreeSWITCH

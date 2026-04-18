@@ -229,7 +229,7 @@ The package is currently usable for:
 - Worker assignment resolution and boot orchestration
 - Health snapshot inspection
 - `apntalk/esl-core` command/pipeline/event-bridge integration inside Laravel
-- Laravel bridge events with an explicit `schemaVersion` field for downstream schema tracking
+- Laravel bridge-wrapper events with an explicit `schemaVersion` field for downstream schema tracking
 - stable upstream transport and accepted-stream bootstrap seams bound for future runtime adapters
 - a Laravel-owned runtime handoff contract that adapters can consume without re-resolving control-plane state, with `ConnectionFactoryInterface` now typed to that boundary
 - a Laravel-owned runtime runner seam that `WorkerRuntime::run()` invokes; the default binding adapts to `apntalk/esl-react`, while `non-live` remains available as a fallback/dry-run runner
@@ -244,6 +244,10 @@ Still deferred:
 - Laravel-owned runtime supervision, reconnect/backoff ownership, and heartbeat/session lifecycle ownership
 - replay execution/re-injection and live-session recovery from replay checkpoints
 - stronger live-process liveness guarantees than the latest DB-backed health snapshot model can prove
+- a higher-level Laravel-native normalized domain-event layer beyond the shipped
+  wrapper events around upstream esl-core payloads
+- outbound server-mode support; the current package scope and `1.0` horizon are
+  explicitly inbound-client-only
 
 `WorkerRuntime::run()` now invokes the Laravel-owned `RuntimeRunnerInterface` seam. By default, the package maps `RuntimeHandoffInterface` into `apntalk/esl-react`'s `PreparedRuntimeBootstrapInput` and calls the upstream runner. On the supported `apntalk/esl-react` `^0.2.10` line, Laravel consumes `RuntimeRunnerHandle::statusSnapshot()` and registers `RuntimeRunnerHandle::onLifecycleChange()` so machine-readable worker and health-adjacent surfaces can reflect runtime-owned phase, reconnect posture, connect/disconnect observation, and failure summaries without claiming reconnect or resume execution ownership. Laravel can also pass an explicit prepared dial URI when the resolved transport requires it. Reconnect, heartbeat, session lifecycle, bgapi/event runtime semantics, and broader runtime supervision remain owned by the bound runner.
 
@@ -280,8 +284,8 @@ php artisan freeswitch:validate-install
 php artisan freeswitch:validate-install --example
 ```
 
-For `0.6.x` RC framing and upgrade notes, see
-`docs/releases/0.6.0-rc1.md`.
+For the current `0.6.x` release-candidate framing and upgrade notes, see
+`docs/releases/0.6.0-rc2.md`.
 
 ### Optional private-environment live validation
 
