@@ -181,6 +181,7 @@ Key settings:
 | `freeswitch:worker:checkpoint-status` | Report machine-readable historical checkpoint posture for one or more worker scopes, with additive filters, stable pagination, bounded pruning posture, and retention-support metadata |
 | `freeswitch:health` | Show health snapshots, with `--summary` for a bounded aggregate DB-backed summary |
 | `freeswitch:replay:inspect` | Inspect replay capture store |
+| `freeswitch:validate-install` | Validate config/schema/bindings/commands, with optional example-seed checks, without live ESL |
 
 HTTP health routes:
 
@@ -255,10 +256,11 @@ Current worker status semantics:
 Operator output posture:
 - `freeswitch:worker` renders bounded replay-backed checkpoint/recovery hints per node runtime
 - `freeswitch:worker` and `freeswitch:worker:status` now expose bounded backpressure metadata such as `max_inflight`, `backpressure_active`, and rejection posture
+- `freeswitch:worker` also renders a small human-readable operator posture summary for the configured metrics driver, bounded backpressure counts, and per-node action wording for drain or overload posture
 - `freeswitch:worker --json` exposes the same bounded checkpoint/recovery posture in a machine-readable form for automation and now includes additive resume-posture fields without implying resume execution
 - `freeswitch:worker:status` provides a dedicated machine-readable reporting surface that prepares worker runtimes without invoking the bound runtime runner, can report multiple DB-backed worker scopes in one call, and carries the same additive resume-posture fields
 - `freeswitch:worker:checkpoint-status` provides a dedicated machine-readable historical checkpoint summary surface over persisted worker/node/profile checkpoint posture, with bounded optional history entries, additive filters, stable `limit`/`offset` pagination, additive historical pruning-posture fields when those can be derived truthfully from the upstream filesystem retention planner, and additive top-level retention-policy/support-basis metadata for the current invocation
-- `freeswitch:health` remains a DB-backed health snapshot surface, now with an optional bounded aggregate `--summary` posture; when a real `freeswitch:worker` run records upstream runtime-status facts, the human-readable output can now show a small runtime-linked facts section with the latest persisted phase, active/recovery posture, connect/disconnect, failure summary, and a bounded snapshot-age hint derived from the stored snapshot timestamp, but the command still does not claim worker recovery visibility, reconnect ownership, or broader live-runtime guarantees
+- `freeswitch:health` remains a DB-backed health snapshot surface, now with an optional bounded aggregate `--summary` posture; the human-readable output shows the configured metrics driver, can render bounded backpressure snapshot facts when present, and when a real `freeswitch:worker` run records upstream runtime-status facts it can also show a small runtime-linked facts section with the latest persisted phase, active/recovery posture, connect/disconnect, failure summary, and a bounded snapshot-age hint derived from the stored snapshot timestamp, but the command still does not claim worker recovery visibility, reconnect ownership, or broader live-runtime guarantees
 - `freeswitch:status` remains a control-plane inventory surface and explicitly does not claim worker recovery visibility
 
 ---
@@ -270,6 +272,13 @@ composer test
 ```
 
 The test suite uses SQLite in-memory and does not require a live PBX.
+
+For a bounded local install/adoption check without live ESL, run:
+
+```bash
+php artisan freeswitch:validate-install
+php artisan freeswitch:validate-install --example
+```
 
 For `0.6.x` RC framing and upgrade notes, see
 `docs/releases/0.6.0-rc1.md`.

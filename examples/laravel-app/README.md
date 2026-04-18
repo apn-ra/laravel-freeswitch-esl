@@ -26,6 +26,7 @@ Included here:
 5. Verify control-plane commands.
 6. Start the worker in ephemeral and DB-backed modes.
 7. Check JSON health endpoints and metrics behavior.
+8. Run the bounded local install validator.
 
 ## Fresh-app setup
 
@@ -95,7 +96,18 @@ php artisan freeswitch:ping --pbx=primary-fs
 php artisan freeswitch:status
 php artisan freeswitch:health
 php artisan freeswitch:health --summary --json
+php artisan freeswitch:validate-install
+php artisan freeswitch:validate-install --example
 ```
+
+Expected local posture:
+
+- `freeswitch:validate-install` reports config/schema/container/command posture
+  and emits one bounded validation metric through the configured metrics driver
+- `freeswitch:validate-install --example` additionally verifies that provider
+  `freeswitch`, node `primary-fs`, profile `default`, and worker
+  `ingest-worker` are present in the database
+- neither command requires a live ESL target
 
 ## Worker validation
 
@@ -136,6 +148,7 @@ for metric records such as:
 - `freeswitch_esl.worker.boot`
 - `freeswitch_esl.worker.run_invoked`
 - `freeswitch_esl.health.snapshot_recorded`
+- `freeswitch_esl.install.validation`
 
 Optional replay inspection remains available when replay is enabled:
 
@@ -155,3 +168,5 @@ replay artifacts.
 - It does not turn this repository into an owner of reconnect semantics.
 - It does not provide a production-ready dashboard or queueing stack.
 - It does not replace upstream live-runtime validation from `apntalk/esl-react`.
+- It does not require GitHub secrets or live-smoke workflow access for the
+  local validation path documented here.

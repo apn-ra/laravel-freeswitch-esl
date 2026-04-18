@@ -183,6 +183,23 @@ The `--worker=<name>` option sets the worker identity (default: `esl-worker`). T
 
 After startup, `freeswitch:worker` reports how many node runtimes reached the prepared-handoff state, how many invoked the configured runner, how many exposed push-based lifecycle observation, and how many reported a running live runtime through the feedback seam. That summary is intentionally narrow and does not claim Laravel owns the `apntalk/esl-react` session lifecycle.
 
+`freeswitch:worker` now also renders a small human-readable operator posture
+summary:
+- configured metrics driver
+- how many prepared nodes currently report bounded backpressure
+- how many nodes are in a drain posture
+
+Each node line now includes bounded backpressure wording and a concise
+operator-action hint. Those hints are intentionally conservative:
+- `none` when the package sees no bounded drain/backpressure issue
+- `let inflight work settle before adding work` when drain has started
+- `reduce inflight load or raise max_inflight deliberately` when the configured
+  inflight limit is being enforced
+- `investigate stuck inflight work before restarting` when drain timed out
+
+Those hints do not imply ownership of reconnect, resume execution, or any
+broader queueing/dead-letter system.
+
 The command now also prints one bounded replay-backed checkpoint/recovery posture line per node runtime. Those lines report persisted-artifact checkpoint scope, last checkpoint reason/timestamp, whether startup observed a prior checkpoint, whether a bounded replay-backed recovery candidate was found, and current drain posture. They are explicitly not a claim of live socket recovery, reconnect restoration, resume execution, or automatic resume processing.
 
 For automation and stable machine-readable reporting, `freeswitch:worker --json` emits a JSON document that reuses the same `WorkerStatus`-derived checkpoint/drain metadata and now includes additive bounded resume-posture fields derived from the existing replay-backed checkpoint/recovery facts.

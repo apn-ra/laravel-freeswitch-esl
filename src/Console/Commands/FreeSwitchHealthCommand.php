@@ -8,6 +8,7 @@ use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\HealthSnapshot;
 use ApnTalk\LaravelFreeswitchEsl\Health\HealthSummaryBuilder;
 use Carbon\CarbonImmutable;
 use Illuminate\Console\Command;
+use Illuminate\Contracts\Config\Repository as ConfigRepository;
 
 /**
  * Display structured health snapshots for PBX nodes.
@@ -26,6 +27,7 @@ class FreeSwitchHealthCommand extends Command
         HealthReporterInterface $reporter,
         PbxRegistryInterface $registry,
         HealthSummaryBuilder $summaryBuilder,
+        ConfigRepository $config,
     ): int {
         $pbx = $this->stringOption('pbx');
         $cluster = $this->stringOption('cluster');
@@ -78,7 +80,12 @@ class FreeSwitchHealthCommand extends Command
                 ], $snapshots)
             );
 
+            $this->line(sprintf(
+                'Observability posture: metrics driver %s.',
+                $this->metricsDriver($config),
+            ));
             $this->renderRuntimeLinkedSnapshotFacts($snapshots);
+            $this->renderBackpressureFacts($snapshots);
 
             if ($withSummary) {
                 $this->line(sprintf(
@@ -228,5 +235,70 @@ class FreeSwitchHealthCommand extends Command
         $value = $snapshot->meta[$key] ?? null;
 
         return is_bool($value) ? ($value ? 'yes' : 'no') : 'unknown';
+    }
+
+    /**
+     * @param  list<HealthSnapshot>  $snapshots
+     */
+    private function renderBackpressureFacts(array $snapshots): void
+    {
+        $backpressureSnapshots = array_values(array_filter(
+            $snapshots,
+            fn (HealthSnapshot $snapshot): bool => array_key_exists('backpressure_active', $snapshot->meta)
+                || array_key_exists('backpressure_reason', $snapshot->meta)
+                || array_key_exists('backpressure_rejected_total', $snapshot->meta)
+        ));
+
+        if ($backpressureSnapshots === []) {
+            $this->line(
+                'Backpressure posture is not present in these stored health snapshots. Use worker runtime output for bounded live rejection posture.'
+            );
+
+            return;
+        }
+
+        $this->line('Backpressure snapshot facts:');
+
+        foreach ($backpressureSnapshots as $snapshot) {
+            $active = $snapshot->meta['backpressure_active'] ?? null;
+            $reason = $this->metaString($snapshot, 'backpressure_reason') ?? 'not recorded';
+            $rejectedTotal = $snapshot->meta['backpressure_rejected_total'] ?? 'not recorded';
+            $maxInflight = $snapshot->meta['max_inflight'] ?? 'not recorded';
+
+            $this->line(sprintf(
+                '  - %s: active %s; reason %s; max_inflight %s; rejected_total %s; operator action %s',
+                $snapshot->pbxNodeSlug,
+                is_bool($active) ? ($active ? 'yes' : 'no') : 'unknown',
+                $reason,
+                is_scalar($maxInflight) ? (string) $maxInflight : 'not recorded',
+                is_scalar($rejectedTotal) ? (string) $rejectedTotal : 'not recorded',
+                $this->backpressureAction($snapshot),
+            ));
+        }
+    }
+
+    private function backpressureAction(HealthSnapshot $snapshot): string
+    {
+        if ($snapshot->isDraining || (($snapshot->meta['runtime_draining'] ?? false) === true)) {
+            return 'let drain complete before adding work';
+        }
+
+        if (($snapshot->meta['backpressure_active'] ?? false) === true
+            && (($snapshot->meta['backpressure_limit_reached'] ?? false) === true)) {
+            return 'reduce inflight load or raise max_inflight deliberately';
+        }
+
+        if (($snapshot->meta['backpressure_active'] ?? false) === true) {
+            return 'wait for the worker posture to recover before adding work';
+        }
+
+        return 'none';
+    }
+
+    private function metricsDriver(ConfigRepository $config): string
+    {
+        $driver = $config->get('freeswitch-esl.observability.metrics.driver');
+
+        return is_string($driver) && $driver !== '' ? $driver : 'unknown';
     }
 }

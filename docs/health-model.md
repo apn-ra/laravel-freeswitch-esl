@@ -78,10 +78,25 @@ Those metrics flow through the configured `MetricsRecorderInterface` driver:
 This package still does not ship a Prometheus or OpenTelemetry exporter. Those
 remain application-level integrations via the same interface.
 
+The human-readable `freeswitch:health` output now also surfaces the configured
+metrics driver directly so operators do not need to infer observability posture
+from config files alone.
+
+When a stored snapshot carries bounded backpressure metadata, the command
+renders a concise operator-action hint such as:
+- let drain complete before adding work
+- reduce inflight load or raise `max_inflight` deliberately
+
+These hints are bounded interpretations of stored Laravel-owned snapshot facts.
+They do not imply live queue ownership, reconnect ownership, or scheduler
+ownership.
+
 ### CLI
 
 `freeswitch:health`
 - human-readable DB-backed health table
+- configured metrics-driver posture line
+- bounded human-readable backpressure snapshot facts when present
 - additive runtime-linked fact lines when present
 - additive runtime-linked age/staleness hint derived from the stored snapshot time
 

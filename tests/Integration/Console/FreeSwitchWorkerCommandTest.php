@@ -206,8 +206,9 @@ class FreeSwitchWorkerCommandTest extends TestCase
         ])
             ->expectsOutputToContain('Starting worker [ingest-worker] in [node] mode')
             ->expectsOutputToContain('Prepared runtime handoff for 1/1 node(s); runtime runner invoked for 1/1 node(s); push lifecycle observed for 0/1 node(s); live runtime observed for 0/1 node(s).')
+            ->expectsOutputToContain('Operator posture: metrics driver log; backpressure active on 0/1 node(s); draining on 0/1 node(s).')
             ->expectsOutputToContain('Replay-backed checkpoint/recovery posture reflects persisted replay artifacts only; it does not imply live socket or reconnect recovery.')
-            ->expectsOutputToContain('- primary-fs: checkpoint disabled; prior checkpoint no; recovery hint disabled; anchors -; drain idle')
+            ->expectsOutputToContain('- primary-fs: checkpoint disabled; prior checkpoint no; recovery hint disabled; anchors -; drain idle; backpressure idle (max inflight 100, rejected total 0); operator action none')
             ->assertExitCode(0);
 
         $this->assertSame(1, $registry->findBySlugCalls);

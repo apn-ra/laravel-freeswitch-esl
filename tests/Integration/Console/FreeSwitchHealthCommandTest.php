@@ -118,7 +118,9 @@ class FreeSwitchHealthCommandTest extends TestCase
                     ['primary-fs', 'freeswitch', 'healthy', 'handoff-prepared', 'never', '0', 'no'],
                 ]
             )
+            ->expectsOutputToContain('Observability posture: metrics driver log.')
             ->expectsOutputToContain('Runtime-linked health facts are not present in these stored health snapshots. Use a real worker run to record bounded upstream runtime-status facts when available.')
+            ->expectsOutputToContain('Backpressure posture is not present in these stored health snapshots. Use worker runtime output for bounded live rejection posture.')
             ->expectsOutputToContain('Replay-backed recovery posture is not part of the default DB-backed health snapshot. Use worker runtime output for checkpoint/recovery visibility.')
             ->assertExitCode(0);
     }
@@ -229,7 +231,9 @@ class FreeSwitchHealthCommandTest extends TestCase
                     ['edge-fs', 'freeswitch', 'degraded', 'db-health-only', 'never', '2', 'no'],
                 ]
             )
+            ->expectsOutputToContain('Observability posture: metrics driver log.')
             ->expectsOutputToContain('Runtime-linked health facts are not present in these stored health snapshots. Use a real worker run to record bounded upstream runtime-status facts when available.')
+            ->expectsOutputToContain('Backpressure posture is not present in these stored health snapshots. Use worker runtime output for bounded live rejection posture.')
             ->expectsOutputToContain('Replay-backed recovery posture is not part of the default DB-backed health snapshot. Use worker runtime output for checkpoint/recovery visibility.')
             ->assertExitCode(0);
 
@@ -591,7 +595,9 @@ class FreeSwitchHealthCommandTest extends TestCase
                         ['primary-fs', 'freeswitch', 'healthy', 'authenticated', '2026-04-18 10:00:00', '1', 'no'],
                     ]
                 )
+                ->expectsOutputToContain('Observability posture: metrics driver log.')
                 ->expectsOutputToContain('Runtime-linked snapshot facts:')
+                ->expectsOutputToContain('Backpressure posture is not present in these stored health snapshots. Use worker runtime output for bounded live rejection posture.')
                 ->expectsOutputToContain('primary-fs: runtime-linked yes; phase active; active yes; recovery_in_progress no; last_successful_connect 2026-04-18T09:58:30.000+00:00; last_disconnect 2026-04-18T09:57:00.000+00:00 (disconnect observed); last_failure 2026-04-18T09:57:10.000+00:00 (failure summary)')
                 ->expectsOutputToContain('Runtime-linked snapshot age: 2m 14s')
                 ->expectsOutputToContain('Replay-backed recovery posture is not part of the default DB-backed health snapshot. Use worker runtime output for checkpoint/recovery visibility.')
@@ -703,10 +709,115 @@ class FreeSwitchHealthCommandTest extends TestCase
 
         try {
             $this->artisan('freeswitch:health')
+                ->expectsOutputToContain('Observability posture: metrics driver log.')
                 ->expectsOutputToContain('Runtime-linked snapshot age: 2m 14s (may be stale)')
                 ->assertExitCode(0);
         } finally {
             CarbonImmutable::setTestNow();
         }
+    }
+
+    public function test_health_command_renders_human_readable_backpressure_action_when_snapshot_contains_it(): void
+    {
+        $snapshot = new HealthSnapshot(
+            pbxNodeId: 1,
+            pbxNodeSlug: 'primary-fs',
+            providerCode: 'freeswitch',
+            status: HealthSnapshot::STATUS_DEGRADED,
+            connectionState: 'authenticated',
+            subscriptionState: 'active',
+            workerAssignmentScope: 'node',
+            inflightCount: 2,
+            retryAttempt: 0,
+            isDraining: false,
+            lastHeartbeatAt: null,
+            meta: [
+                'backpressure_active' => true,
+                'backpressure_limit_reached' => true,
+                'backpressure_reason' => 'max_inflight_exhausted',
+                'backpressure_rejected_total' => 4,
+                'max_inflight' => 2,
+            ],
+        );
+
+        $reporter = new class($snapshot) implements HealthReporterInterface
+        {
+            public function __construct(private readonly HealthSnapshot $snapshot) {}
+
+            public function forNode(int $pbxNodeId): HealthSnapshot
+            {
+                return $this->snapshot;
+            }
+
+            public function forAllActive(): array
+            {
+                return [$this->snapshot];
+            }
+
+            public function forCluster(string $cluster): array
+            {
+                return [$this->snapshot];
+            }
+
+            public function record(HealthSnapshot $snapshot): void {}
+        };
+
+        $registry = new class implements PbxRegistryInterface
+        {
+            public function findById(int $id): PbxNode
+            {
+                return $this->node($id, 'primary-fs');
+            }
+
+            public function findBySlug(string $slug): PbxNode
+            {
+                return $this->node(1, $slug);
+            }
+
+            public function allActive(): array
+            {
+                return [];
+            }
+
+            public function allByCluster(string $cluster): array
+            {
+                return [];
+            }
+
+            public function allByTags(array $tags): array
+            {
+                return [];
+            }
+
+            public function allByProvider(string $providerCode): array
+            {
+                return [];
+            }
+
+            private function node(int $id, string $slug): PbxNode
+            {
+                return new PbxNode(
+                    id: $id,
+                    providerId: 1,
+                    providerCode: 'freeswitch',
+                    name: 'Primary FS',
+                    slug: $slug,
+                    host: '127.0.0.1',
+                    port: 8021,
+                    username: '',
+                    passwordSecretRef: 'secret',
+                    transport: 'tcp',
+                    isActive: true,
+                );
+            }
+        };
+
+        $this->app->instance(HealthReporterInterface::class, $reporter);
+        $this->app->instance(PbxRegistryInterface::class, $registry);
+
+        $this->artisan('freeswitch:health')
+            ->expectsOutputToContain('Backpressure snapshot facts:')
+            ->expectsOutputToContain('primary-fs: active yes; reason max_inflight_exhausted; max_inflight 2; rejected_total 4; operator action reduce inflight load or raise max_inflight deliberately')
+            ->assertExitCode(0);
     }
 }

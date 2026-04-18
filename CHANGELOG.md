@@ -9,6 +9,17 @@ This project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+- added `freeswitch:validate-install` as a bounded local install/adoption validator for config shape, schema presence, container bindings, command discoverability, metrics-recorder wiring, and optional example-seed checks without live ESL
+
+### Changed
+- extended human-readable `freeswitch:worker` output with the configured metrics driver, bounded backpressure counts, per-node backpressure posture, and concise operator-action wording for drain or overload states
+- extended human-readable `freeswitch:health` output with the configured metrics driver and bounded backpressure snapshot facts when stored health metadata carries them
+- updated the implementation plan to mark the bounded `0.6.x` package work as complete, separate delegated/external-only items, and name the next repo-owned operator/adoption completion pack
+- updated the example app docs to use the new local validation path instead of relying on cookbook steps alone
+
+## [0.6.0-rc1] - 2026-04-18
+
 ### Changed
 - reconciled the implementation plan, compatibility policy, and example-app docs with actual shipped component ownership, replacing stale class-name expectations with current merged or upstream-delegated surfaces
 - documented PHP `8.3+` as the truthful support floor across repo authority docs because the supported `apntalk/esl-react` line requires PHP `^8.3`
@@ -28,12 +39,10 @@ This project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - removed the default HTML coverage-report request from `phpunit.xml` so `vendor/bin/phpunit` and `composer test` are truthful non-coverage release gates in the default environment
 
 ### Added
-
 - added shipped `LogMetricsRecorder` and `EventMetricsRecorder` implementations plus the `MetricsRecorded` Laravel event
 - added a deterministic simulated ESL harness for integration tests proving Laravel-observed connect, subscribe, disconnect, reconnect, and drain posture on the current `apntalk/esl-react` boundary
 - added `docs/releases/0.6.0-rc1.md` as the bounded release-candidate note for the `0.6.x` hardening line
 - added an optional manual GitHub Actions live smoke workflow that runs bounded read-only connect/auth/status/subscription checks when the required secrets are present and skips cleanly otherwise
-
 - integrated `apntalk/esl-replay` as a real runtime dependency and replaced the local replay-store stub with the upstream `ReplayArtifactStoreInterface`
 - added Laravel replay store wiring, an esl-core replay sink adapter, and artifact-envelope adaptation so `apntalk/esl-react` replay hooks can be durably persisted when replay is enabled
 - made `freeswitch:replay:inspect` read real upstream stored replay records and filter them by PBX node/runtime metadata

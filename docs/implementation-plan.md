@@ -642,12 +642,55 @@ Ship with a support policy that matches long-term maintenance.
 - `0.6.x` observability + hardening
 - `1.0.0` only after runtime and multi-PBX behavior are stable
 
-Current repo truth before the `0.6.x` hardening pass:
-- `0.1.x` through `0.5.x` architecture is materially present
+Current repo truth at the bounded `0.6.x` RC-ready surface:
+- `0.1.x` through `0.6.x` architecture is materially present for the Laravel
+  package's control-plane, runtime-handoff, replay integration, health, and
+  observability responsibilities
 - several originally named classes were merged, renamed, or delegated upstream
-- remaining `0.6.x` work is concentrated in observability defaults,
-  load-bearing backpressure, runtime-realistic integration testing, and example
-  app truthfulness rather than missing protocol/runtime ownership
+  and should not be treated as missing product behavior solely because the
+  original plan used different names
+- the bounded `0.6.x` package work is complete for:
+  - truthful authority docs and compatibility surfaces
+  - shipped non-null metrics drivers, with `log` as the default install path
+  - load-bearing `max_inflight` enforcement and bounded backpressure metadata
+  - deterministic simulated ESL lifecycle verification through the current
+    `apntalk/esl-react` boundary
+  - a near-runnable example-app cookbook
+- remaining release-promotion work is external-only:
+  - GitHub workflow environment/secrets
+  - optional live smoke evidence
+  - RC promotion mechanics
+
+Still delegated or deferred by design:
+- protocol parsing and low-level transport behavior remain in `apntalk/esl-core`
+- reconnect/backoff, heartbeat/session lifecycle, subscription lifecycle, and
+  broader async runtime ownership remain in `apntalk/esl-react`
+- replay primitives, replay execution, replay projectors/scenario runners, and
+  checkpoint-store primitives remain in `apntalk/esl-replay`
+- broader dead-letter or queueing architecture remains deferred
+
+### Next repo-owned continuation pack
+
+`Post-0.6 Repo-Owned Operator & Adoption Completion Pack`
+
+Objective:
+- finish the next highest-value Laravel-package work without reopening release
+  plumbing, live validation, or upstream-owned runtime responsibilities
+
+Scope:
+- stronger human-readable operator surfaces for backpressure, metrics-driver,
+  drain, and bounded runtime posture
+- a self-validating example/adoption path that proves install/config/seed/
+  status wiring without requiring live ESL or GitHub setup
+
+Acceptance criteria:
+- operators can see bounded backpressure and metrics posture without relying on
+  raw JSON fields alone
+- human-readable worker/health output gives concise action-oriented wording when
+  a worker is draining or refusing new work
+- a downstream maintainer can run one bounded local validation path that checks
+  config shape, schema presence, seed shape, container bindings, command
+  discoverability, and metrics-recorder wiring without live infrastructure
 
 ### Policy docs
 - public API surface

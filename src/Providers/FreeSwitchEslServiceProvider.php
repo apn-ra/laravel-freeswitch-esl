@@ -15,6 +15,7 @@ use ApnTalk\LaravelFreeswitchEsl\Console\Commands\FreeSwitchHealthCommand;
 use ApnTalk\LaravelFreeswitchEsl\Console\Commands\FreeSwitchPingCommand;
 use ApnTalk\LaravelFreeswitchEsl\Console\Commands\FreeSwitchReplayInspectCommand;
 use ApnTalk\LaravelFreeswitchEsl\Console\Commands\FreeSwitchStatusCommand;
+use ApnTalk\LaravelFreeswitchEsl\Console\Commands\FreeSwitchValidateInstallCommand;
 use ApnTalk\LaravelFreeswitchEsl\Console\Commands\FreeSwitchWorkerCheckpointStatusCommand;
 use ApnTalk\LaravelFreeswitchEsl\Console\Commands\FreeSwitchWorkerCommand;
 use ApnTalk\LaravelFreeswitchEsl\Console\Commands\FreeSwitchWorkerStatusCommand;
@@ -383,6 +384,7 @@ class FreeSwitchEslServiceProvider extends ServiceProvider
             FreeSwitchWorkerCheckpointStatusCommand::class,
             FreeSwitchHealthCommand::class,
             FreeSwitchReplayInspectCommand::class,
+            FreeSwitchValidateInstallCommand::class,
         ]);
     }
 }

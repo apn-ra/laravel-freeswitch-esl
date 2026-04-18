@@ -301,6 +301,14 @@ class FreeSwitchWorkerCommand extends Command
             $summary['live_runtime_observed_count'],
             $summary['node_count'],
         ));
+        $this->line(sprintf(
+            'Operator posture: metrics driver %s; backpressure active on %d/%d node(s); draining on %d/%d node(s).',
+            $this->metricsDriver(),
+            $this->backpressureActiveCount($statuses),
+            $summary['node_count'],
+            $this->drainingCount($statuses),
+            $summary['node_count'],
+        ));
 
         if ($statuses === []) {
             return;
@@ -312,13 +320,15 @@ class FreeSwitchWorkerCommand extends Command
 
         foreach ($statuses as $slug => $status) {
             $this->line(sprintf(
-                '- %s: checkpoint %s; prior checkpoint %s; recovery hint %s; anchors %s; drain %s',
+                '- %s: checkpoint %s; prior checkpoint %s; recovery hint %s; anchors %s; drain %s; backpressure %s; operator action %s',
                 $slug,
                 $this->checkpointVisibility($status),
                 ($status->meta['checkpoint_is_resuming'] ?? false) === true ? 'yes' : 'no',
                 $this->recoveryHint($status),
                 $this->recoveryAnchors($status),
                 $this->drainPosture($status),
+                $this->backpressurePosture($status),
+                $this->operatorAction($status),
             ));
         }
     }
@@ -402,6 +412,90 @@ class FreeSwitchWorkerCommand extends Command
         }
 
         return 'idle';
+    }
+
+    /**
+     * @param  array<string, WorkerStatus>  $statuses
+     */
+    private function backpressureActiveCount(array $statuses): int
+    {
+        $count = 0;
+
+        foreach ($statuses as $status) {
+            if (($status->meta['backpressure_active'] ?? false) === true) {
+                $count++;
+            }
+        }
+
+        return $count;
+    }
+
+    /**
+     * @param  array<string, WorkerStatus>  $statuses
+     */
+    private function drainingCount(array $statuses): int
+    {
+        $count = 0;
+
+        foreach ($statuses as $status) {
+            if ($status->isDraining || $this->metaString($status->meta, 'drain_started_at') !== null) {
+                $count++;
+            }
+        }
+
+        return $count;
+    }
+
+    private function backpressurePosture(WorkerStatus $status): string
+    {
+        $maxInflight = $status->meta['max_inflight'] ?? null;
+        $rejectedTotal = $status->meta['backpressure_rejected_total'] ?? 0;
+
+        if (($status->meta['backpressure_active'] ?? false) !== true) {
+            return sprintf(
+                'idle (max inflight %s, rejected total %s)',
+                is_scalar($maxInflight) ? (string) $maxInflight : 'unknown',
+                is_scalar($rejectedTotal) ? (string) $rejectedTotal : '0',
+            );
+        }
+
+        $reason = $this->metaString($status->meta, 'backpressure_reason') ?? 'active';
+
+        return sprintf(
+            '%s (max inflight %s, rejected total %s)',
+            str_replace('_', '-', $reason),
+            is_scalar($maxInflight) ? (string) $maxInflight : 'unknown',
+            is_scalar($rejectedTotal) ? (string) $rejectedTotal : 'unknown',
+        );
+    }
+
+    private function operatorAction(WorkerStatus $status): string
+    {
+        if (($status->meta['drain_timed_out'] ?? false) === true) {
+            return 'investigate stuck inflight work before restarting';
+        }
+
+        if ($this->metaString($status->meta, 'drain_started_at') !== null) {
+            return 'let inflight work settle before adding work';
+        }
+
+        if (($status->meta['backpressure_active'] ?? false) === true
+            && ($status->meta['backpressure_limit_reached'] ?? false) === true) {
+            return 'reduce inflight load or raise max_inflight deliberately';
+        }
+
+        if (($status->meta['backpressure_active'] ?? false) === true) {
+            return 'wait for worker posture to recover before adding work';
+        }
+
+        return 'none';
+    }
+
+    private function metricsDriver(): string
+    {
+        $driver = config('freeswitch-esl.observability.metrics.driver');
+
+        return is_string($driver) && $driver !== '' ? $driver : 'unknown';
     }
 
     /**
