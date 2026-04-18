@@ -58,25 +58,25 @@ The APNTalk ESL ecosystem is split across four packages with explicit ownership:
 
 ---
 
-## Upstream stubs
+## Direct upstream dependency posture
 
-`apntalk/esl-core` is now consumed directly by this package, so the old local esl-core stubs are gone.
+This package now consumes the relevant `apntalk/esl-core`, `apntalk/esl-react`,
+and `apntalk/esl-replay` contracts directly. There is no remaining
+`src/Contracts/Upstream/` stub layer in this repository.
 
-The only remaining local upstream stub is:
-
-- `ReplayCaptureStoreInterface` — temporary `@internal` placeholder for `apntalk/esl-replay`
-
-That stub:
-- is marked `@internal`
-- exists only to keep Laravel-side replay wiring isolated until `apntalk/esl-replay` is integrated
-- must NOT be treated as stable public API
-- should be removed once the canonical replay package contract is required directly
+Laravel-owned adapters and integration helpers may depend on upstream contracts,
+but they must not shadow or re-declare upstream protocol, runtime, or replay
+primitives locally.
 
 ---
 
 ## Enforcement
 
-The `CLAUDE.md` execution contract enforces these boundaries on every implementation task:
+The `CLAUDE.md` execution contract enforces these boundaries on every
+implementation task, and `tests/Contract/PackageBoundaryEnforcementTest.php`
+provides a lightweight automated guard against reintroducing local upstream
+stub namespaces or shadowing upstream package namespaces.
+
 1. Boundary check before any non-trivial change
 2. Explicit conflict reporting if a change drifts across boundaries
 3. Thin adapters are acceptable; re-owned protocol internals are not

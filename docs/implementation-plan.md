@@ -49,7 +49,6 @@ Use config for:
 
 - defaults
 - driver classes
-- local fallback
 - operational policies
 
 Use the database for:
@@ -179,7 +178,8 @@ From `apntalk/esl-core`:
 - `EventNormalizerInterface`
 
 From `apntalk/esl-replay`:
-- `ReplayCaptureStoreInterface`
+- `ReplayArtifactStoreInterface`
+- `ReplayCheckpointStoreInterface`
 
 ### Core value objects owned by this package
 - `PbxProvider`
@@ -293,7 +293,6 @@ Config should define the framework, not the live PBX inventory.
 
 Config should contain:
 - provider driver map
-- fallback local connection
 - default retry/drain values
 - health thresholds
 - secret resolution mode
@@ -540,7 +539,8 @@ Laravel integration layer:
 - Laravel storage binding for replay stores
 
 Provided by `apntalk/esl-replay`:
-- `ReplayCaptureStoreInterface`
+- `ReplayArtifactStoreInterface`
+- `ReplayCheckpointStoreInterface`
 - `ReplayProjectorInterface`
 - `ReplayScenarioRunner`
 - `ReplayCursor`
@@ -657,8 +657,7 @@ Current repo truth at the bounded `0.6.x` RC-ready surface:
     `apntalk/esl-react` boundary
   - a near-runnable example-app cookbook
 - remaining release-promotion work is external-only:
-  - GitHub workflow environment/secrets
-  - optional live smoke evidence
+  - private-network live validation evidence
   - RC promotion mechanics
 
 Still delegated or deferred by design:

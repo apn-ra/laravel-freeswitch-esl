@@ -4,20 +4,20 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "09f9b6f1e53e76acb9a2bc05eb01e575",
+    "content-hash": "768bb03a95acffd32275048c9bb234cb",
     "packages": [
         {
             "name": "apntalk/esl-core",
-            "version": "v0.2.6",
+            "version": "v0.2.8",
             "source": {
                 "type": "git",
                 "url": "https://github.com/apn-ra/esl-core.git",
-                "reference": "930c340b917104b48229a89c5b6157461f8fa1ed"
+                "reference": "7fe37448d732c70b4b96b60c7eca682c923010ca"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/apn-ra/esl-core/zipball/930c340b917104b48229a89c5b6157461f8fa1ed",
-                "reference": "930c340b917104b48229a89c5b6157461f8fa1ed",
+                "url": "https://api.github.com/repos/apn-ra/esl-core/zipball/7fe37448d732c70b4b96b60c7eca682c923010ca",
+                "reference": "7fe37448d732c70b4b96b60c7eca682c923010ca",
                 "shasum": ""
             },
             "require": {
@@ -54,9 +54,9 @@
             ],
             "support": {
                 "issues": "https://github.com/apn-ra/esl-core/issues",
-                "source": "https://github.com/apn-ra/esl-core/tree/v0.2.6"
+                "source": "https://github.com/apn-ra/esl-core/tree/v0.2.8"
             },
-            "time": "2026-04-18T01:55:05+00:00"
+            "time": "2026-04-18T06:34:14+00:00"
         },
         {
             "name": "apntalk/esl-react",

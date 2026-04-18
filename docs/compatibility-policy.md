@@ -46,7 +46,7 @@ not in an `Internal/` or `Support/` namespace and is not marked `@internal`.
 
 The following are stable public API surfaces:
 
-- All interfaces in `src/Contracts/` (excluding `Contracts/Upstream/` which are stubs)
+- All interfaces in `src/Contracts/`
 - All value objects in `src/ControlPlane/ValueObjects/`
 - Service provider class name and registered bindings
 - Config key `freeswitch-esl` and all documented config keys

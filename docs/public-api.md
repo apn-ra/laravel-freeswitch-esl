@@ -10,8 +10,8 @@ For bounded health snapshot/readiness/liveness semantics, see `docs/health-model
 
 ### Contracts (`src/Contracts/`)
 
-All interfaces in `src/Contracts/` are stable public API **except** `src/Contracts/Upstream/`
-which is explicitly `@internal`.
+All interfaces in `src/Contracts/` are stable public API. This repository no
+longer ships a `src/Contracts/Upstream/` stub namespace.
 
 | Interface | Purpose |
 |---|---|

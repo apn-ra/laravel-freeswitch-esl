@@ -3,6 +3,7 @@
 namespace ApnTalk\LaravelFreeswitchEsl\Tests\Unit\Integration;
 
 use Apntalk\EslCore\Inbound\DecodedInboundMessage;
+use Apntalk\EslCore\Inbound\InboundMessageType;
 use Apntalk\EslCore\Inbound\InboundPipeline;
 use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\ConnectionContext;
 use ApnTalk\LaravelFreeswitchEsl\Events\EslDisconnected;
@@ -189,6 +190,30 @@ class EslCoreEventBridgeTest extends TestCase
         $this->assertFalse($received);
     }
 
+    public function test_event_message_with_missing_typed_or_normalized_payload_is_ignored_without_throwing(): void
+    {
+        $received = false;
+        $this->laravelEvents->listen('*', function () use (&$received) {
+            $received = true;
+        });
+
+        $this->bridge->dispatch($this->makeMalformedMessage(InboundMessageType::Event), $this->context);
+
+        $this->assertFalse($received);
+    }
+
+    public function test_reply_message_with_missing_typed_reply_is_ignored_without_throwing(): void
+    {
+        $received = false;
+        $this->laravelEvents->listen('*', function () use (&$received) {
+            $received = true;
+        });
+
+        $this->bridge->dispatch($this->makeMalformedMessage(InboundMessageType::Reply), $this->context);
+
+        $this->assertFalse($received);
+    }
+
     // -------------------------------------------------------------------------
     // Helpers
     // -------------------------------------------------------------------------
@@ -230,5 +255,19 @@ class EslCoreEventBridgeTest extends TestCase
         $messages = $pipeline->decode($frame);
 
         return $messages[0];
+    }
+
+    private function makeMalformedMessage(InboundMessageType $type): DecodedInboundMessage
+    {
+        $reflection = new \ReflectionClass(DecodedInboundMessage::class);
+        $constructor = $reflection->getConstructor();
+        \assert($constructor instanceof \ReflectionMethod);
+        $constructor->setAccessible(true);
+
+        /** @var DecodedInboundMessage $message */
+        $message = $reflection->newInstanceWithoutConstructor();
+        $constructor->invoke($message, $type, null, null, null);
+
+        return $message;
     }
 }

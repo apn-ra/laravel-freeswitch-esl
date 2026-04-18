@@ -29,25 +29,6 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Local Fallback Connection
-    |--------------------------------------------------------------------------
-    | An optional in-config PBX node definition used when DB-backed inventory
-    | is not yet seeded or during local development. This is NOT the primary
-    | inventory source — it is a fallback/bootstrap helper only.
-    |
-    | Set 'enabled' to false to disable the fallback entirely.
-    */
-    'fallback' => [
-        'enabled' => env('FREESWITCH_ESL_FALLBACK_ENABLED', false),
-        'provider' => 'freeswitch',
-        'host' => env('FREESWITCH_ESL_HOST', '127.0.0.1'),
-        'port' => (int) env('FREESWITCH_ESL_PORT', 8021),
-        'password' => env('FREESWITCH_ESL_PASSWORD', 'ClueCon'),
-        'timeout' => (int) env('FREESWITCH_ESL_TIMEOUT', 10),
-    ],
-
-    /*
-    |--------------------------------------------------------------------------
     | Secret Resolution
     |--------------------------------------------------------------------------
     | Controls how connection passwords/secrets are resolved.

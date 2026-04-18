@@ -283,21 +283,36 @@ php artisan freeswitch:validate-install --example
 For `0.6.x` RC framing and upgrade notes, see
 `docs/releases/0.6.0-rc1.md`.
 
-### Optional live smoke workflow
+### Optional private-environment live validation
 
-The repository also ships an optional manual GitHub Actions workflow at
-`.github/workflows/live-smoke.yml`.
+The repository includes one optional helper workflow at
+`.github/workflows/live-smoke.yml`, but it is not the normal or required
+release-validation path for this package.
 
-Workflow posture:
+Real FreeSWITCH validation for this repository is expected to be run by a
+maintainer from a private-network environment that can actually reach the
+target ESL endpoint.
 
-- `workflow_dispatch` only
+Validation posture:
+
 - read-only and bounded to connect/auth/`api status`/event subscription checks
-- skipped cleanly when the required GitHub secrets are absent
-- uploads JSON outputs and raw-frame captures for troubleshooting when it runs
+- operator-run or private-runner-run, not part of the default public CI gate
+- environment-specific and external to deterministic package release evidence
+- does not change runtime ownership or turn this package into the owner of live
+  ESL supervision
+- uses the direct upstream `apntalk/esl-core` smoke helper path on `v0.2.8+`;
+  no downstream proxy/workaround is required
 
-This workflow is not part of the default CI gate.
-It validates environment reachability and FreeSWITCH ESL auth/bootstrap truth in
-a real deployment without moving live runtime ownership into this package.
+For the exact private validation procedure and retained evidence shape, use
+`docs/releases/0.6.0-private-live-validation-runbook.md`.
+
+Quick operator path from a private-network checkout:
+
+```bash
+cp .env.private-validation.example .env.private-validation
+php bin/freeswitch-private-live-validate.php --env-file=.env.private-validation --dry-run
+php bin/freeswitch-private-live-validate.php --env-file=.env.private-validation
+```
 
 ## Metrics and observability
 

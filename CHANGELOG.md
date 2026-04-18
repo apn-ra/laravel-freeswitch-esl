@@ -11,12 +11,17 @@ This project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 - added `freeswitch:validate-install` as a bounded local install/adoption validator for config shape, schema presence, container bindings, command discoverability, metrics-recorder wiring, and optional example-seed checks without live ESL
+- added contract tests for `ConnectionResolverInterface` and `HealthReporterInterface`, direct value-object coverage for `ConnectionContext` and `WorkerStatus`, a malformed/null event-bridge regression test, and a lightweight package-boundary enforcement test
+- added `.env.private-validation.example` and `bin/freeswitch-private-live-validate.php` so maintainers can run one bounded private-network read-only validation pass with predictable artifacts
 
 ### Changed
 - extended human-readable `freeswitch:worker` output with the configured metrics driver, bounded backpressure counts, per-node backpressure posture, and concise operator-action wording for drain or overload states
 - extended human-readable `freeswitch:health` output with the configured metrics driver and bounded backpressure snapshot facts when stored health metadata carries them
 - updated the implementation plan to mark the bounded `0.6.x` package work as complete, separate delegated/external-only items, and name the next repo-owned operator/adoption completion pack
 - updated the example app docs to use the new local validation path instead of relying on cookbook steps alone
+- removed the dead `freeswitch-esl.fallback` published config surface and aligned boundary/support docs with the current direct-upstream dependency posture and PHP `8.3+` floor
+- clarified the `0.6.x` release handoff so private-network, operator-run live validation is the primary evidence path and the helper workflow remains optional
+- aligned the private live-validation path to the fixed direct upstream helper in `apntalk/esl-core` `^0.2.8`, removed the temporary downstream proxy/workaround, and recorded retained live smoke evidence for RC promotion review
 
 ## [0.6.0-rc1] - 2026-04-18
 

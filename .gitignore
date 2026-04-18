@@ -1,6 +1,7 @@
 /vendor/
 /node_modules/
 .env
+.env.private-validation
 .phpunit.result.cache
 coverage/
 .idea
@@ -10,3 +11,4 @@ CLAUDE.md
 docs/prompts
 AGENTS.md
 .codex
+build/live-smoke-review/
