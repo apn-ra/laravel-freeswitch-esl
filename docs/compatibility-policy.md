@@ -77,6 +77,50 @@ After `1.0.0`:
 
 ---
 
+## Laravel bridge event schema-version policy
+
+The `SCHEMA_VERSION` constants on the shipped Laravel bridge-wrapper events
+apply to the wrapper payload shape exposed by this package:
+
+- `EslEventReceived::SCHEMA_VERSION`
+- `EslReplyReceived::SCHEMA_VERSION`
+- `EslDisconnected::SCHEMA_VERSION`
+
+This version applies to the Laravel event wrapper contract itself, including:
+
+- top-level wrapper field names and meaning
+- wrapper metadata carried for downstream consumers
+- the presence, type, or semantics of wrapper-carried typed or normalized
+  payload references
+
+This version does not define FreeSWITCH protocol compatibility, raw esl-core
+frame/event compatibility, or a separate Laravel-native normalized domain-event
+layer.
+
+A breaking schema change is any change that would require a downstream consumer
+of the Laravel wrapper event to change its code or assumptions, including:
+
+- removing a wrapper field
+- renaming a wrapper field
+- changing the meaning or type of a wrapper field
+- changing whether a wrapper field is present
+
+The schema version must bump when such a breaking wrapper change ships. Additive
+changes may remain on the same schema version when existing consumers can
+ignore the new data safely.
+
+Compatibility expectation for downstream consumers:
+
+- consumers should treat `SCHEMA_VERSION` as the compatibility marker for the
+  Laravel bridge-wrapper event contract
+- additive fields may appear without a schema bump
+- breaking wrapper changes will be called out in release notes and changelog
+  entries
+- consumers that need strict compatibility checks should gate on the wrapper
+  `SCHEMA_VERSION`, not on package SemVer alone
+
+---
+
 ## FreeSWITCH compatibility
 
 This package integrates with FreeSWITCH via `apntalk/esl-core` and `apntalk/esl-react`.

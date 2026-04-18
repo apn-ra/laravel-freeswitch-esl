@@ -39,7 +39,7 @@ final class EslReactRuntimeBootstrapInputFactory
         return new PreparedRuntimeBootstrapInput(
             endpoint: $handoff->endpoint(),
             runtimeConfig: $this->runtimeConfig($context),
-            connector: $this->connector ?? new Connector($this->connectorOptions),
+            connector: $this->connector ?? new Connector($this->connectorOptionsFor($context)),
             inboundPipeline: $handoff->pipeline(),
             sessionContext: $this->sessionContext($context),
             dialUri: $this->explicitDialUri($context),
@@ -129,5 +129,81 @@ final class EslReactRuntimeBootstrapInputFactory
                 $context->pbxNodeSlug,
             )),
         };
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function connectorOptionsFor(ConnectionContext $context): array
+    {
+        $options = $this->connectorOptions;
+        $timeout = $this->connectTimeoutSeconds($context);
+
+        if ($timeout !== null) {
+            $options['timeout'] = $timeout;
+        }
+
+        $streamContextOptions = $this->streamContextOptions($context);
+
+        if (isset($streamContextOptions['socket']) && is_array($streamContextOptions['socket'])) {
+            $options = $this->mergeNestedConnectorOptions($options, 'tcp', $streamContextOptions['socket']);
+        }
+
+        if (isset($streamContextOptions['ssl']) && is_array($streamContextOptions['ssl'])) {
+            $options = $this->mergeNestedConnectorOptions($options, 'tls', $streamContextOptions['ssl']);
+        }
+
+        return $options;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function streamContextOptions(ConnectionContext $context): array
+    {
+        $options = $context->driverParameters['stream_context_options'] ?? [];
+
+        return is_array($options) ? $options : [];
+    }
+
+    private function connectTimeoutSeconds(ConnectionContext $context): ?float
+    {
+        $timeout = $context->driverParameters['connect_timeout_seconds'] ?? null;
+
+        if (! is_int($timeout) && ! is_float($timeout) && ! is_string($timeout)) {
+            return null;
+        }
+
+        if (! is_numeric((string) $timeout)) {
+            return null;
+        }
+
+        return max(0.1, (float) $timeout);
+    }
+
+    /**
+     * @param  array<string, mixed>  $options
+     * @param  array<string, mixed>  $projection
+     * @return array<string, mixed>
+     */
+    private function mergeNestedConnectorOptions(array $options, string $key, array $projection): array
+    {
+        $value = $options[$key] ?? [];
+
+        if ($value === false || $value instanceof ConnectorInterface) {
+            return $options;
+        }
+
+        if ($value === true) {
+            $value = [];
+        }
+
+        if (! is_array($value)) {
+            return $options;
+        }
+
+        $options[$key] = array_replace($value, $projection);
+
+        return $options;
     }
 }

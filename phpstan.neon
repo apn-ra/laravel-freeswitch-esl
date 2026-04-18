@@ -6,6 +6,4 @@ parameters:
     level: 8
     paths:
         - src
-    excludePaths:
-        - src/Providers/FreeSwitchEslServiceProvider.php
     treatPhpDocTypesAsCertain: false

@@ -9,13 +9,6 @@ This project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
-Current publication target: `0.6.0`.
-The validated runtime baseline for that final release is `v0.6.0-rc2`
-(`8602d3fed7f12d829d12538631b35503ac2410ba`).
-Later changes on top of that validated ref are release-facing documentation and
-promotion materials only; they do not change package runtime behavior and do
-not require a fresh private live-validation pass.
-
 ### Added
 - added `freeswitch:validate-install` as a bounded local install/adoption validator for config shape, schema presence, container bindings, command discoverability, metrics-recorder wiring, and optional example-seed checks without live ESL
 - added contract tests for `ConnectionResolverInterface` and `HealthReporterInterface`, direct value-object coverage for `ConnectionContext` and `WorkerStatus`, a malformed/null event-bridge regression test, and a lightweight package-boundary enforcement test
@@ -31,6 +24,10 @@ not require a fresh private live-validation pass.
 - aligned the private live-validation path to the fixed direct upstream helper in `apntalk/esl-core` `^0.2.8`, removed the temporary downstream proxy/workaround, and recorded retained live smoke evidence for RC promotion review
 - aligned the optional GitHub Actions live-smoke workflow to the same private-validation wrapper, artifact layout, and retained summary files used by the documented operator path
 - prepared the post-RC1 release surface as an RC2 candidate because the repository now contains release-truth, defensive-proof, and model-hardening changes beyond the recorded RC1 evidence set
+- removed the PHPStan exclusion for `FreeSwitchEslServiceProvider` and restored static-analysis coverage for the package wiring surface
+- projected bounded `connect_timeout_seconds`, `stream_context_options.socket`, and `stream_context_options.ssl` settings onto the real `apntalk/esl-react` live connector path without widening transport ownership beyond the existing prepared bootstrap seam
+- added explicit operator warnings when `freeswitch-esl.runtime.runner=non-live` is selected so dry-run/no-op worker posture is harder to mistake for live ingestion
+- documented the Laravel bridge-wrapper `SCHEMA_VERSION` compatibility policy and clarified that `build/live-smoke-review/` remains ephemeral operator evidence, not durable repository truth
 
 ## [0.6.0-rc1] - 2026-04-18
 

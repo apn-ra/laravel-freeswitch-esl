@@ -13,6 +13,7 @@ use ApnTalk\LaravelFreeswitchEsl\ControlPlane\Models\PbxConnectionProfile;
 use ApnTalk\LaravelFreeswitchEsl\ControlPlane\Models\PbxNode;
 use ApnTalk\LaravelFreeswitchEsl\ControlPlane\Models\PbxProvider;
 use ApnTalk\LaravelFreeswitchEsl\ControlPlane\Models\WorkerAssignment;
+use ApnTalk\LaravelFreeswitchEsl\Integration\NonLiveRuntimeRunner;
 use Illuminate\Console\Command;
 use Illuminate\Contracts\Config\Repository as ConfigRepository;
 use Illuminate\Contracts\Console\Kernel;
@@ -98,6 +99,7 @@ class FreeSwitchValidateInstallCommand extends Command
             && $this->allTrue($schemaChecks)
             && $this->allTrue($commandChecks)
             && ($exampleChecks === null || $this->allTrue($exampleChecks));
+        $warnings = $this->warnings($runtimeRunner);
 
         $payload = [
             'report_surface' => 'install_validation',
@@ -106,6 +108,7 @@ class FreeSwitchValidateInstallCommand extends Command
                 'default_driver' => $config->get('freeswitch-esl.default_driver'),
                 'metrics_driver' => $metricsDriver,
                 'runtime_runner' => $config->get('freeswitch-esl.runtime.runner'),
+                'runtime_runner_live_capable' => ! $runtimeRunner instanceof NonLiveRuntimeRunner,
                 'checks' => $configChecks,
             ],
             'schema' => $schemaChecks,
@@ -116,6 +119,7 @@ class FreeSwitchValidateInstallCommand extends Command
                 'recorder_class' => $metrics::class,
                 'validation_metric_emitted' => true,
             ],
+            'warnings' => $warnings,
             'example' => $exampleChecks,
         ];
 
@@ -157,6 +161,10 @@ class FreeSwitchValidateInstallCommand extends Command
             'Observability posture: emitted freeswitch_esl.install.validation through metrics driver %s.',
             $metricsDriver,
         ));
+
+        foreach ($warnings as $warning) {
+            $this->warn($warning);
+        }
 
         if ($exampleChecks !== null) {
             $this->line(sprintf(
@@ -201,5 +209,19 @@ class FreeSwitchValidateInstallCommand extends Command
     private function yesNo(bool $value): string
     {
         return $value ? 'yes' : 'no';
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function warnings(RuntimeRunnerInterface $runtimeRunner): array
+    {
+        if (! $runtimeRunner instanceof NonLiveRuntimeRunner) {
+            return [];
+        }
+
+        return [
+            'WARNING: freeswitch-esl.runtime.runner=non-live keeps the worker in a truthful non-live/no-op posture. Use esl-react for real live ESL sessions.',
+        ];
     }
 }

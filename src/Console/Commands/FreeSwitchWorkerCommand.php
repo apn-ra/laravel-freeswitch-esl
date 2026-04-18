@@ -13,6 +13,7 @@ use ApnTalk\LaravelFreeswitchEsl\Contracts\WorkerAssignmentResolverInterface;
 use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\WorkerAssignment;
 use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\WorkerStatus;
 use ApnTalk\LaravelFreeswitchEsl\Exceptions\PbxNotFoundException;
+use ApnTalk\LaravelFreeswitchEsl\Integration\NonLiveRuntimeRunner;
 use ApnTalk\LaravelFreeswitchEsl\Integration\Replay\WorkerReplayCheckpointManager;
 use ApnTalk\LaravelFreeswitchEsl\Worker\WorkerSupervisor;
 use Illuminate\Console\Command;
@@ -104,6 +105,8 @@ class FreeSwitchWorkerCommand extends Command
         );
 
         try {
+            $this->warnIfNonLiveRunner($runtimeRunner);
+
             if ($useDb) {
                 return $this->runDbBacked($workerName, $supervisor, $assignmentResolver, $healthReporter);
             }
@@ -331,6 +334,17 @@ class FreeSwitchWorkerCommand extends Command
                 $this->operatorAction($status),
             ));
         }
+    }
+
+    private function warnIfNonLiveRunner(RuntimeRunnerInterface $runtimeRunner): void
+    {
+        if ($this->booleanOption('json') || ! $runtimeRunner instanceof NonLiveRuntimeRunner) {
+            return;
+        }
+
+        $this->warn(
+            'WARNING: freeswitch-esl.runtime.runner=non-live leaves this worker in a truthful non-live/no-op posture; no live ESL session will be maintained.'
+        );
     }
 
     private function recordRuntimeLinkedHealthSnapshots(

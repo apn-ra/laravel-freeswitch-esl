@@ -51,6 +51,7 @@ use ApnTalk\LaravelFreeswitchEsl\Integration\Replay\WorkerReplayCheckpointManage
 use ApnTalk\LaravelFreeswitchEsl\Observability\EventMetricsRecorder;
 use ApnTalk\LaravelFreeswitchEsl\Observability\LogMetricsRecorder;
 use ApnTalk\LaravelFreeswitchEsl\Observability\NullMetricsRecorder;
+use Illuminate\Contracts\Config\Repository as ConfigRepository;
 use Illuminate\Contracts\Events\Dispatcher;
 use Illuminate\Support\ServiceProvider;
 use Psr\Log\LoggerInterface;
@@ -342,7 +343,7 @@ class FreeSwitchEslServiceProvider extends ServiceProvider
     {
         /** @var ProviderDriverRegistryInterface $registry */
         $registry = $this->app->make(ProviderDriverRegistryInterface::class);
-        $drivers = $this->app->make('config')->get('freeswitch-esl.drivers', []);
+        $drivers = $this->config()->get('freeswitch-esl.drivers', []);
 
         foreach ($drivers as $code => $driverClass) {
             if (is_string($code) && is_string($driverClass)) {
@@ -367,11 +368,16 @@ class FreeSwitchEslServiceProvider extends ServiceProvider
 
     private function bootHttpHealthRoutes(): void
     {
-        if ($this->app['config']->get('freeswitch-esl.http.health.enabled', true) !== true) {
+        if ($this->config()->get('freeswitch-esl.http.health.enabled', true) !== true) {
             return;
         }
 
         $this->loadRoutesFrom(__DIR__.'/../../routes/freeswitch-esl-health.php');
+    }
+
+    private function config(): ConfigRepository
+    {
+        return $this->app->make('config');
     }
 
     private function registerCommands(): void

@@ -158,10 +158,24 @@ Key settings:
     ],
 ],
 
+'runtime' => [
+    'runner' => 'esl-react', // esl-react | non-live
+    'react' => [
+        'connector_options' => [],
+    ],
+],
+
 'replay' => [
     'enabled' => false,
 ],
 ```
+
+Runtime notes:
+- `runtime.runner = non-live` is a truthful dry-run/no-op fallback and does not
+  maintain a live ESL session
+- on the real live runner path, per-context `connect_timeout_seconds`,
+  `stream_context_options.socket`, and `stream_context_options.ssl` are
+  projected onto the prepared `apntalk/esl-react` connector path
 
 ---
 
@@ -239,12 +253,16 @@ The package is currently usable for:
 - real load-bearing inflight/backpressure enforcement through `freeswitch-esl.drain_defaults.max_inflight`
 - deterministic lifecycle verification using a simulated ESL server harness that exercises connect, subscribe, disconnect, reconnect observation, and drain posture through the package boundary
 
-Current publication target:
+Current bounded release posture:
 
-- final `0.6.0`
-- validated runtime baseline: `v0.6.0-rc2` at `8602d3fed7f12d829d12538631b35503ac2410ba`
-- later final-release preparation is docs-only and keeps the RC2 runtime evidence applicable to the publish candidate
-- a near-runnable example app cookbook under `examples/laravel-app`
+- the `0.6.x` hardening line is complete and prepared for the bounded `0.6.0`
+  release
+- the runtime evidence anchor remains `v0.6.0-rc2` at
+  `8602d3fed7f12d829d12538631b35503ac2410ba`
+- later release-prep changes above that ref are release-facing docs/materials
+  only and do not change package runtime behavior
+- a near-runnable example app cookbook remains available under
+  `examples/laravel-app`
 
 Still deferred:
 - Laravel-owned runtime supervision, reconnect/backoff ownership, and heartbeat/session lifecycle ownership

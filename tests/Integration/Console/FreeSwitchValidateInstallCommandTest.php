@@ -2,12 +2,14 @@
 
 namespace ApnTalk\LaravelFreeswitchEsl\Tests\Integration\Console;
 
+use ApnTalk\LaravelFreeswitchEsl\Contracts\RuntimeRunnerInterface;
 use ApnTalk\LaravelFreeswitchEsl\ControlPlane\Models\PbxConnectionProfile;
 use ApnTalk\LaravelFreeswitchEsl\ControlPlane\Models\PbxNode;
 use ApnTalk\LaravelFreeswitchEsl\ControlPlane\Models\PbxProvider;
 use ApnTalk\LaravelFreeswitchEsl\ControlPlane\Models\WorkerAssignment;
 use ApnTalk\LaravelFreeswitchEsl\Drivers\FreeSwitchDriver;
 use ApnTalk\LaravelFreeswitchEsl\Events\MetricsRecorded;
+use ApnTalk\LaravelFreeswitchEsl\Integration\NonLiveRuntimeRunner;
 use ApnTalk\LaravelFreeswitchEsl\Tests\TestCase;
 use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Support\Facades\Event;
@@ -119,6 +121,31 @@ class FreeSwitchValidateInstallCommandTest extends TestCase
             'profile_default_present' => true,
             'worker_ingest_worker_present' => true,
         ], $decoded['example']);
+    }
+
+    public function test_validate_install_command_reports_warning_when_non_live_runner_is_selected(): void
+    {
+        $app = $this->app;
+        $this->assertNotNull($app);
+        $app['config']->set('freeswitch-esl.runtime.runner', 'non-live');
+        $app->forgetInstance(RuntimeRunnerInterface::class);
+        $app->instance(RuntimeRunnerInterface::class, new NonLiveRuntimeRunner);
+
+        /** @var Kernel $kernel */
+        $kernel = $app->make(Kernel::class);
+        $exitCode = $kernel->call('freeswitch:validate-install', [
+            '--json' => true,
+        ]);
+
+        /** @var array<string, mixed>|null $decoded */
+        $decoded = json_decode(trim($kernel->output()), true);
+
+        $this->assertSame(0, $exitCode);
+        $this->assertIsArray($decoded);
+        $this->assertFalse($decoded['config']['runtime_runner_live_capable']);
+        $this->assertSame([
+            'WARNING: freeswitch-esl.runtime.runner=non-live keeps the worker in a truthful non-live/no-op posture. Use esl-react for real live ESL sessions.',
+        ], $decoded['warnings']);
     }
 
     public function test_validate_install_command_fails_when_example_seed_shape_is_missing(): void

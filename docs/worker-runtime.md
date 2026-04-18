@@ -238,6 +238,23 @@ The `ConnectionContext` and connection handle are both prepared during `boot()` 
 
 The current adapter supports the default TCP path and now passes an explicit prepared dial URI when the resolved `ConnectionContext` requires a non-default target, including `tls://host:port` for TLS-style handoffs on the supported `apntalk/esl-react` `^0.2.10` line. Direct `apntalk/esl-core` `TransportInterface` polling handoff remains deferred until `apntalk/esl-react` exposes that public path.
 
+Live dial-path clarification:
+- the lazy transport opener retained on `EslCoreConnectionHandle` is not the
+  current live worker dial path
+- the real live path uses `EslReactRuntimeBootstrapInputFactory` to build a
+  prepared React connector/bootstrap input
+- `connect_timeout_seconds` is projected onto the live React connector timeout
+- `stream_context_options.socket` and `stream_context_options.ssl` are
+  projected onto the live React connector `tcp` and `tls` context options
+- broader transport behavior, reconnect, and session lifecycle still remain
+  upstream-owned by `apntalk/esl-react`
+
+Operator warning:
+- `freeswitch-esl.runtime.runner = non-live` is a truthful dry-run/fallback
+  posture only
+- when selected, `freeswitch:worker` can still boot, but it does not maintain a
+  live ESL session and should not be mistaken for production live ingestion
+
 The adapter exposes runner feedback from `RuntimeRunnerHandle::statusSnapshot()` on the supported `apntalk/esl-react` `^0.2.10` line and registers `RuntimeRunnerHandle::onLifecycleChange()` so Laravel can refresh cached runtime-owned status truth as the upstream lifecycle changes. Laravel maps that upstream read-only runtime status truth into `WorkerStatus::meta`; it does not reconnect the session, manage heartbeats, execute replay, or own bgapi/event runtime semantics.
 
 This repository now also includes a deterministic simulated ESL server harness

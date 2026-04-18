@@ -79,6 +79,10 @@ Current Laravel bridge event schema posture:
 - `EslReplyReceived::SCHEMA_VERSION = "1.0"`
 - `EslDisconnected::SCHEMA_VERSION = "1.0"`
 
+The wrapper-schema versioning policy for these Laravel bridge events is part of
+the public compatibility surface. See
+`docs/compatibility-policy.md#laravel-bridge-event-schema-version-policy`.
+
 Clarification:
 - these are wrapper-schema versions for the shipped Laravel bridge events
 - they do not mean a separate Laravel-native normalized domain-event layer is
@@ -91,7 +95,13 @@ Stable upstream seams bound in the Laravel container:
 
 Runtime runner binding:
 - `ApnTalk\LaravelFreeswitchEsl\Contracts\RuntimeRunnerInterface` resolves to the `apntalk/esl-react` adapter by default.
-- Set `freeswitch-esl.runtime.runner = non-live` to retain the no-op fallback runner for dry-run or unsupported environments.
+- Set `freeswitch-esl.runtime.runner = non-live` only for dry-run or unsupported environments; this is a truthful no-op fallback and does not maintain a live ESL session.
+
+Current live dial-path posture:
+- `EslCoreConnectionFactory` still prepares the package-owned esl-core handoff bundle and lazy transport opener.
+- The real live runner path goes through `EslReactRuntimeBootstrapInputFactory` into `apntalk/esl-react`'s prepared connector/bootstrap seam.
+- On that live path, per-context `connect_timeout_seconds` maps to the React connector `timeout`, and `stream_context_options.socket` / `stream_context_options.ssl` are projected to the live React connector's `tcp` / `tls` options.
+- Arbitrary esl-core transport context does not automatically become a separate live transport architecture here; runtime lifecycle ownership remains upstream in `apntalk/esl-react`.
 
 Current connection-mode scope:
 - the shipped Laravel package public surface targets FreeSWITCH ESL inbound

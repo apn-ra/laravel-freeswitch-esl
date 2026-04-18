@@ -32,6 +32,7 @@ use ApnTalk\LaravelFreeswitchEsl\Exceptions\PbxNotFoundException;
 use ApnTalk\LaravelFreeswitchEsl\Integration\EslCoreCommandFactory;
 use ApnTalk\LaravelFreeswitchEsl\Integration\EslCoreConnectionHandle;
 use ApnTalk\LaravelFreeswitchEsl\Integration\EslCorePipelineFactory;
+use ApnTalk\LaravelFreeswitchEsl\Integration\NonLiveRuntimeRunner;
 use ApnTalk\LaravelFreeswitchEsl\Integration\Replay\WorkerReplayCheckpointManager;
 use ApnTalk\LaravelFreeswitchEsl\Tests\TestCase;
 use Illuminate\Contracts\Console\Kernel;
@@ -416,6 +417,131 @@ class FreeSwitchWorkerCommandTest extends TestCase
         $this->assertTrue($snapshot->meta['runtime_active']);
         $this->assertSame('disconnect observed', $snapshot->meta['runtime_last_disconnect_reason_message']);
         $this->assertSame('failure summary', $snapshot->meta['runtime_last_failure_message']);
+    }
+
+    public function test_worker_command_warns_when_non_live_runner_is_selected(): void
+    {
+        $node = $this->makeNode(1, 'primary-fs');
+        $registry = new class($node) implements PbxRegistryInterface
+        {
+            public int $findBySlugCalls = 0;
+
+            public function __construct(private readonly PbxNode $node) {}
+
+            public function findById(int $id): PbxNode
+            {
+                return $this->node;
+            }
+
+            public function findBySlug(string $slug): PbxNode
+            {
+                $this->findBySlugCalls++;
+
+                return $this->node;
+            }
+
+            public function allActive(): array
+            {
+                return [$this->node];
+            }
+
+            public function allByCluster(string $cluster): array
+            {
+                return [$this->node];
+            }
+
+            public function allByTags(array $tags): array
+            {
+                return [$this->node];
+            }
+
+            public function allByProvider(string $providerCode): array
+            {
+                return [$this->node];
+            }
+        };
+
+        $assignmentResolver = new class($node) implements WorkerAssignmentResolverInterface
+        {
+            public function __construct(private readonly PbxNode $node) {}
+
+            public function resolveNodes(WorkerAssignment $assignment): array
+            {
+                return [$this->node];
+            }
+
+            public function resolveForWorkerName(string $workerName): array
+            {
+                return [];
+            }
+        };
+
+        $connectionResolver = new class implements ConnectionResolverInterface
+        {
+            public function resolveForNode(int $pbxNodeId): ConnectionContext
+            {
+                return $this->context('primary-fs');
+            }
+
+            public function resolveForSlug(string $slug): ConnectionContext
+            {
+                return $this->context($slug);
+            }
+
+            public function resolveForPbxNode(PbxNode $node): ConnectionContext
+            {
+                return $this->context($node->slug);
+            }
+
+            private function context(string $slug): ConnectionContext
+            {
+                return new ConnectionContext(
+                    pbxNodeId: 1,
+                    pbxNodeSlug: $slug,
+                    providerCode: 'freeswitch',
+                    host: '127.0.0.1',
+                    port: 8021,
+                    username: '',
+                    resolvedPassword: 'ClueCon',
+                    transport: 'tcp',
+                    connectionProfileId: null,
+                    connectionProfileName: 'default',
+                );
+            }
+        };
+
+        $connectionFactory = new class implements ConnectionFactoryInterface
+        {
+            public function create(ConnectionContext $context): EslCoreConnectionHandle
+            {
+                $commandFactory = new EslCoreCommandFactory;
+
+                return new EslCoreConnectionHandle(
+                    context: $context,
+                    pipeline: (new EslCorePipelineFactory)->createPipeline(),
+                    openingSequence: $commandFactory->buildOpeningSequence($context),
+                    closingSequence: $commandFactory->buildClosingSequence(),
+                    transportOpener: fn () => new InMemoryTransport,
+                );
+            }
+        };
+        $runtimeRunner = new NonLiveRuntimeRunner;
+
+        $this->app['config']->set('freeswitch-esl.runtime.runner', 'non-live');
+        $this->app->instance(PbxRegistryInterface::class, $registry);
+        $this->app->instance(WorkerAssignmentResolverInterface::class, $assignmentResolver);
+        $this->app->instance(ConnectionResolverInterface::class, $connectionResolver);
+        $this->app->instance(ConnectionFactoryInterface::class, $connectionFactory);
+        $this->app->instance(RuntimeRunnerInterface::class, $runtimeRunner);
+        $this->app->instance(LoggerInterface::class, new NullLogger);
+
+        $this->artisan('freeswitch:worker', [
+            '--worker' => 'ingest-worker',
+            '--pbx' => 'primary-fs',
+        ])
+            ->expectsOutputToContain('WARNING: freeswitch-esl.runtime.runner=non-live leaves this worker in a truthful non-live/no-op posture; no live ESL session will be maintained.')
+            ->expectsOutputToContain('Prepared runtime handoff for 1/1 node(s); runtime runner invoked for 1/1 node(s); push lifecycle observed for 0/1 node(s); live runtime observed for 0/1 node(s).')
+            ->assertExitCode(0);
     }
 
     public function test_worker_command_db_path_prepares_runtime_handoffs_for_resolved_nodes(): void

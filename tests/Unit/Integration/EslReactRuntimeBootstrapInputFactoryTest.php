@@ -109,6 +109,79 @@ class EslReactRuntimeBootstrapInputFactoryTest extends TestCase
         $this->assertCount(1, $input->runtimeConfig()->replayCaptureSinks);
     }
 
+    public function test_create_projects_timeout_and_stream_context_options_to_live_react_connector(): void
+    {
+        $factory = new EslReactRuntimeBootstrapInputFactory(
+            connectorOptions: [
+                'dns' => false,
+                'happy_eyeballs' => false,
+                'timeout' => 9.0,
+                'tcp' => ['bindto' => '0:0'],
+                'tls' => ['verify_peer' => true],
+            ],
+        );
+
+        $input = $factory->create($this->makeHandoff($this->makeContext(
+            host: '192.0.2.10',
+            port: 7443,
+            transport: 'tls',
+            driverParameters: [
+                'connect_timeout_seconds' => 4.5,
+                'stream_context_options' => [
+                    'socket' => ['tcp_nodelay' => true],
+                    'ssl' => ['verify_peer' => false, 'verify_peer_name' => false],
+                ],
+            ],
+        )));
+
+        $connector = $input->connector();
+        $connectors = $this->readPrivateProperty($connector, 'connectors');
+        $this->assertIsArray($connectors);
+
+        $tcpConnector = $connectors['tcp'];
+        $tlsConnector = $connectors['tls'];
+
+        $this->assertSame(4.5, $this->readPrivateProperty($tcpConnector, 'timeout'));
+        $this->assertSame(4.5, $this->readPrivateProperty($tlsConnector, 'timeout'));
+
+        $wrappedTcpConnector = $this->readPrivateProperty($tcpConnector, 'connector');
+        $wrappedTlsConnector = $this->readPrivateProperty($tlsConnector, 'connector');
+
+        $this->assertSame(
+            ['bindto' => '0:0', 'tcp_nodelay' => true],
+            $this->readPrivateProperty($wrappedTcpConnector, 'context')
+        );
+        $this->assertSame(
+            ['verify_peer' => false, 'verify_peer_name' => false],
+            $this->readPrivateProperty($wrappedTlsConnector, 'context')
+        );
+    }
+
+    public function test_create_does_not_override_non_array_connector_entries_when_projecting_context_options(): void
+    {
+        $factory = new EslReactRuntimeBootstrapInputFactory(
+            connectorOptions: [
+                'dns' => false,
+                'happy_eyeballs' => false,
+                'tcp' => false,
+            ],
+        );
+
+        $input = $factory->create($this->makeHandoff($this->makeContext(
+            driverParameters: [
+                'stream_context_options' => [
+                    'socket' => ['tcp_nodelay' => true],
+                ],
+            ],
+        )));
+
+        $connector = $input->connector();
+        $connectors = $this->readPrivateProperty($connector, 'connectors');
+
+        $this->assertIsArray($connectors);
+        $this->assertArrayNotHasKey('tcp', $connectors);
+    }
+
     private function makeHandoff(ConnectionContext $context): EslCoreConnectionHandle
     {
         return new EslCoreConnectionHandle(
@@ -145,5 +218,22 @@ class EslReactRuntimeBootstrapInputFactoryTest extends TestCase
             driverParameters: $driverParameters,
             workerSessionId: $workerSessionId,
         );
+    }
+
+    private function readPrivateProperty(object $object, string $name): mixed
+    {
+        $reflection = new \ReflectionObject($object);
+
+        while (! $reflection->hasProperty($name) && ($reflection = $reflection->getParentClass()) !== false) {
+        }
+
+        if (! $reflection instanceof \ReflectionClass) {
+            throw new \RuntimeException(sprintf('Property [%s] not found.', $name));
+        }
+
+        $property = $reflection->getProperty($name);
+        $property->setAccessible(true);
+
+        return $property->getValue($object);
     }
 }

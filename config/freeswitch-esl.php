@@ -135,12 +135,18 @@ return [
     | Supported values:
     |   'esl-react' - adapt RuntimeHandoffInterface into apntalk/esl-react's
     |                 prepared bootstrap input and invoke its runner seam
-    |   'non-live'  - retain the truthful no-op runner for dry-run/fallback use
+    |   'non-live'  - retain the truthful no-op runner for dry-run/fallback use;
+    |                 workers will not maintain a live ESL session
     */
     'runtime' => [
         'runner' => env('FREESWITCH_ESL_RUNTIME_RUNNER', 'esl-react'),
 
         'react' => [
+            // Live runtime connector options passed to React\Socket\Connector.
+            // Use top-level 'timeout', nested 'tcp' socket options, and nested
+            // 'tls' SSL options. Per-context connect_timeout_seconds and
+            // stream_context_options.socket/ssl are projected onto this live
+            // connector path when present.
             'connector_options' => [],
         ],
     ],
