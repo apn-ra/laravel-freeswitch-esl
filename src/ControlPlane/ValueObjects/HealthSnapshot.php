@@ -104,6 +104,12 @@ final class HealthSnapshot
                 'runtime_last_failure_class' => self::metaString($status->meta, 'runtime_last_error_class'),
                 'runtime_last_failure_message' => self::metaString($status->meta, 'runtime_last_error_message'),
                 'runtime_draining' => self::metaBool($status->meta, 'runtime_draining') ?? $status->isDraining(),
+                'max_inflight' => self::metaInt($status->meta, 'max_inflight'),
+                'backpressure_active' => self::metaBool($status->meta, 'backpressure_active'),
+                'backpressure_limit_reached' => self::metaBool($status->meta, 'backpressure_limit_reached'),
+                'backpressure_reason' => self::metaString($status->meta, 'backpressure_reason'),
+                'backpressure_rejected_total' => self::metaInt($status->meta, 'backpressure_rejected_total'),
+                'backpressure_last_rejected_at' => self::metaString($status->meta, 'backpressure_last_rejected_at'),
             ],
             capturedAt: new \DateTimeImmutable,
         );

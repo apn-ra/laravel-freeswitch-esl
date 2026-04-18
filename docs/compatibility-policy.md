@@ -5,6 +5,7 @@
 | Package version | PHP | Laravel |
 |---|---|---|
 | `0.5.x` | 8.3, 8.4 | 11, 12 |
+| `0.6.x` | 8.3, 8.4 | 11, 12 |
 
 Support for PHP 8.2 and below, and Laravel 10, is not planned.
 
@@ -22,7 +23,12 @@ Support for PHP 8.2 and below, and Laravel 10, is not planned.
 | `0.6.x` | Additional hardening and operator-surface polish without taking upstream runtime/replay ownership |
 | `1.0.0` | Only after runtime and multi-PBX behavior are stable |
 
-**Current repo posture:** `0.1.x` control-plane scope is complete, `0.2.x` `apntalk/esl-core` integration is in place, `0.3.x` runtime-prep seams are landed, `0.4.x` runtime observation is in place, and the current `0.5.x` line now includes real `apntalk/esl-replay` integration, bounded checkpoint/reporting surfaces, runtime-linked DB-backed health snapshot persistence, optional HTTP health/readiness/liveness routes over the same DB-backed model, a Laravel-facing metrics hook with a safe no-op default, and conservative human/machine-readable health/status operator surfaces.
+**Current repo posture:** `0.1.x` control-plane scope is complete, `0.2.x` `apntalk/esl-core` integration is in place, `0.3.x` runtime-prep seams are landed, `0.4.x` runtime observation is in place, `0.5.x` replay integration is in place, and the current `0.6.x` line now includes truthful authority docs, shipped metrics drivers with a non-null default, load-bearing inflight/backpressure enforcement, deterministic simulated ESL lifecycle verification, and a near-runnable example app cookbook without moving protocol, reconnect, or replay ownership out of upstream packages.
+
+Support-floor rationale:
+- composer requires PHP `^8.3`
+- the supported `apntalk/esl-react` `^0.2.10` runtime dependency also requires PHP `^8.3`
+- this repository therefore does not truthfully support PHP 8.2 on the current release line
 
 Current worker/runtime truth:
 - `WorkerRuntime::run()` invokes the Laravel-owned runtime runner seam; the default binding calls `apntalk/esl-react`, and the `non-live` fallback may return immediately

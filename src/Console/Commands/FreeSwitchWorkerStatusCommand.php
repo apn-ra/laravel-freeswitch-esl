@@ -50,6 +50,7 @@ class FreeSwitchWorkerStatusCommand extends Command
             metrics: $metrics,
             checkpointManager: $checkpointManager,
             drainTimeoutMilliseconds: (int) $config->get('freeswitch-esl.drain_defaults.timeout_ms', 30000),
+            maxInflight: (int) $config->get('freeswitch-esl.drain_defaults.max_inflight', 100),
             checkpointIntervalSeconds: (int) $config->get('freeswitch-esl.worker_defaults.checkpoint_interval_seconds', 60),
         );
 

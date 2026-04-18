@@ -6,7 +6,7 @@ For bounded health snapshot/readiness/liveness semantics, see `docs/health-model
 
 ---
 
-## Stable public surfaces (current 0.5.x runtime/reporting checkpoint)
+## Stable public surfaces (current 0.6.x hardening checkpoint)
 
 ### Contracts (`src/Contracts/`)
 
@@ -26,7 +26,7 @@ which is explicitly `@internal`.
 | `WorkerInterface` | Worker boot/run/drain/shutdown lifecycle |
 | `WorkerAssignmentResolverInterface` | Assignment scope resolution |
 | `HealthReporterInterface` | Structured health snapshot contract |
-| `MetricsRecorderInterface` | Laravel-facing metrics hook contract with a no-op default binding |
+| `MetricsRecorderInterface` | Laravel-facing metrics hook contract with shipped `log`, `event`, and `null` drivers |
 | `SecretResolverInterface` | Credential resolution contract |
 
 ### Value objects (`src/ControlPlane/ValueObjects/`)
@@ -72,6 +72,7 @@ These surfaces are now shipped and should be treated as public package surfaces 
 | `EslEventReceived` | Laravel event carrying typed event, normalized event, and `ConnectionContext` |
 | `EslReplyReceived` | Laravel event carrying typed reply and `ConnectionContext` |
 | `EslDisconnected` | Laravel event carrying disconnect notice context |
+| `MetricsRecorded` | Laravel event emitted by the shipped event-backed metrics recorder |
 
 Current Laravel bridge event schema posture:
 - `EslEventReceived::SCHEMA_VERSION = "1.0"`
@@ -134,5 +135,13 @@ or extend `HealthReporter` and re-bind in your `AppServiceProvider`.
 
 ### Custom metrics recorder
 
-Bind your implementation against `MetricsRecorderInterface` after the service provider loads.
-The package default is `NullMetricsRecorder`, which emits nothing until your app replaces it.
+The package ships three metrics drivers selected through
+`freeswitch-esl.observability.metrics.driver`:
+
+- `log` — default; emits structured log records
+- `event` — dispatches `MetricsRecorded`
+- `null` — explicit no-op fallback
+
+Bind your own implementation against `MetricsRecorderInterface` after the
+service provider loads if you need StatsD, Prometheus, OpenTelemetry, or
+another sink.

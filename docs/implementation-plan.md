@@ -140,8 +140,12 @@ Set up the repository as a serious long-term package, not a proof of concept.
 ### Support target
 For the package itself:
 
-- PHP 8.2+
+- PHP 8.3+
 - Laravel 11 and 12
+
+This floor is set by the currently supported `apntalk/esl-react` line used by
+this repository. The package should not claim PHP 8.2 compatibility while the
+shipped upstream runtime dependency requires PHP 8.3.
 
 ### Exit criteria
 - package installs cleanly
@@ -310,15 +314,22 @@ Integrate FreeSWITCH ESL transport and runtime using APNTalk’s own libraries.
 - `apntalk/esl-core` provides protocol/client contracts, typed protocol objects, parsing, command abstractions, and FreeSWITCH-facing core behavior
 - `apntalk/esl-react` provides async connection runtime, reconnect lifecycle, and long-lived worker-safe runtime behavior
 
-### Build
-- `ApnTalkEslClientFactory`
-- `ApnTalkReactRuntimeFactory`
-- `ConnectionManager`
-- `SubscriptionManager`
-- `ReconnectPolicy`
-- `HeartbeatMonitor`
-- `CommandDispatcherAdapter`
-- `BgapiTracker`
+### Current shipped shape
+- `EslCoreConnectionFactory` and `EslCoreConnectionHandle` own the Laravel-side prepared handoff bundle
+- `EslCoreCommandFactory`, `EslCorePipelineFactory`, and `EslCoreEventBridge` adapt `apntalk/esl-core` into Laravel-facing seams
+- `EslReactRuntimeBootstrapInputFactory` and `EslReactRuntimeRunnerAdapter` adapt the prepared handoff bundle into the upstream `apntalk/esl-react` runner
+
+### Delegated upstream responsibilities
+- connection/session lifecycle
+- subscription management
+- reconnect/backoff policy
+- heartbeat monitoring
+- bgapi runtime tracking
+
+Those runtime mechanics are intentionally delegated to `apntalk/esl-react`.
+Old plan names such as `ConnectionManager`, `SubscriptionManager`,
+`ReconnectPolicy`, `HeartbeatMonitor`, and `BgapiTracker` should be treated as
+superseded plan wording rather than missing Laravel-owned classes.
 
 ### Features
 - connect/authenticate
@@ -359,12 +370,19 @@ Expose the control plane and runtime cleanly inside Laravel.
 - Laravel event bridge
 
 ### Laravel services
-- `FreeswitchManager`
-- `PbxRegistryManager`
-- `FreeswitchConnectionManager`
-- `WorkerRuntimeManager`
+- `FreeSwitchEslServiceProvider`
+- `FreeSwitchEslManager`
 - `HealthReporter`
-- `ReplayInspector`
+- `HealthSummaryBuilder`
+- `WorkerSupervisor`
+- `WorkerRuntime`
+- `WorkerStatusReportBuilder`
+- `WorkerCheckpointHistoryReportBuilder`
+
+Older manager-style names such as `FreeswitchManager`, `PbxRegistryManager`,
+`FreeswitchConnectionManager`, and `WorkerRuntimeManager` are superseded by the
+current service-provider bindings, control-plane services, and worker/runtime
+orchestration surfaces already shipped in this repository.
 
 ### Artisan commands
 - `freeswitch:ping --pbx=`
@@ -460,18 +478,26 @@ Build a real long-lived worker system, not a helper loop.
 Laravel package-owned:
 - `WorkerRuntime`
 - `WorkerSupervisor`
-- `AssignmentRunner`
-- `DrainController`
-- `RetryController`
-- `CheckpointStore`
-- `DeadLetterStore`
-- `BackpressureController`
+- replay-backed checkpoint coordination via `WorkerReplayCheckpointManager`
+- bounded drain coordination and inflight bookkeeping inside `WorkerRuntime`
+- assignment-aware runtime startup through `WorkerAssignmentResolverInterface`
 
 Reusable APNTalk runtime components should come from `apntalk/esl-react` where appropriate:
 - connection loop/runtime session
 - reconnect state handling
 - subscription lifecycle
 - heartbeat state
+
+Items previously listed here such as `AssignmentRunner`, `DrainController`,
+`RetryController`, `CheckpointStore`, `DeadLetterStore`, and
+`BackpressureController` are not a required one-class-per-concern target for
+this package. In current repo truth:
+- checkpoint persistence belongs upstream to `apntalk/esl-replay`
+- reconnect and heartbeat logic belong upstream to `apntalk/esl-react`
+- bounded drain and backpressure enforcement may live inside `WorkerRuntime`
+  when that remains the smallest coherent implementation
+- dead-letter architecture remains deferred and is out of scope for the bounded
+  `0.6.x` hardening pass
 
 ### Features
 - graceful shutdown
@@ -488,6 +514,11 @@ Reusable APNTalk runtime components should come from `apntalk/esl-react` where a
 - worker drains cleanly
 - worker can target cluster/tag/all-active modes
 - worker failure in one PBX scope does not corrupt others
+
+For the current `0.6.x` hardening target, “survives disconnect/reconnect” means
+this repository proves its Laravel-facing runtime handoff, observation, drain,
+and health/reporting behavior against upstream-owned runtime lifecycle changes.
+It does not move reconnect ownership into this package.
 
 ---
 
@@ -587,6 +618,7 @@ Make the package safe to evolve.
 - deterministic fixtures
 - cluster/tag/all-active worker assignment coverage
 - profile and secret resolution tests
+- package-boundary checks against stale plan-shape drift
 
 ### Exit criteria
 - most logic testable without real PBX
@@ -604,11 +636,18 @@ Ship with a support policy that matches long-term maintenance.
 ### Release stages
 - `0.1.x` repo foundation + control-plane contracts
 - `0.2.x` integrate `apntalk/esl-core`
-- `0.3.x` integrate `apntalk/esl-react`
-- `0.4.x` Laravel worker runtime + assignment orchestration
-- `0.5.x` integrate `apntalk/esl-replay`
+- `0.3.x` land Laravel-owned runtime handoff and runner seams
+- `0.4.x` bind the real `apntalk/esl-react` runner and report upstream runtime observation truthfully
+- `0.5.x` integrate `apntalk/esl-replay` and bounded checkpoint/reporting surfaces
 - `0.6.x` observability + hardening
 - `1.0.0` only after runtime and multi-PBX behavior are stable
+
+Current repo truth before the `0.6.x` hardening pass:
+- `0.1.x` through `0.5.x` architecture is materially present
+- several originally named classes were merged, renamed, or delegated upstream
+- remaining `0.6.x` work is concentrated in observability defaults,
+  load-bearing backpressure, runtime-realistic integration testing, and example
+  app truthfulness rather than missing protocol/runtime ownership
 
 ### Policy docs
 - public API surface

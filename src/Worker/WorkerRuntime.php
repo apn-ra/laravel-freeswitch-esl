@@ -65,6 +65,10 @@ class WorkerRuntime implements WorkerInterface
 
     private bool $drainTerminalCheckpointSaved = false;
 
+    private int $backpressureRejectedTotal = 0;
+
+    private ?\DateTimeImmutable $backpressureLastRejectedAt = null;
+
     private readonly string $sessionId;
 
     /**
@@ -112,6 +116,7 @@ class WorkerRuntime implements WorkerInterface
         private readonly ?MetricsRecorderInterface $metrics = null,
         private readonly ?WorkerReplayCheckpointManager $checkpointManager = null,
         private readonly int $drainTimeoutMilliseconds = 30000,
+        private readonly int $maxInflight = 100,
         private readonly int $checkpointIntervalSeconds = 60,
     ) {
         $this->sessionId = sprintf(
@@ -312,6 +317,12 @@ class WorkerRuntime implements WorkerInterface
                 'drain_completed' => $this->drainCompletedAt !== null,
                 'drain_timed_out' => $this->drainTimedOut,
                 'drain_waiting_on_inflight' => $this->draining && $this->drainCompletedAt === null ? $this->inflightCount : 0,
+                'max_inflight' => $this->maxInflight,
+                'backpressure_limit_reached' => $this->isInflightLimitReached(),
+                'backpressure_active' => $this->backpressureReason() !== null,
+                'backpressure_reason' => $this->backpressureReason(),
+                'backpressure_rejected_total' => $this->backpressureRejectedTotal,
+                'backpressure_last_rejected_at' => $this->backpressureLastRejectedAt?->format(\DateTimeInterface::RFC3339_EXTENDED),
                 'checkpoint_periodic_enabled' => $this->checkpointIntervalSeconds > 0
                     && ($this->checkpointMeta['checkpoint_enabled'] ?? false) === true,
                 'checkpoint_periodic_interval_seconds' => $this->checkpointIntervalSeconds > 0
@@ -362,9 +373,29 @@ class WorkerRuntime implements WorkerInterface
             throw new \InvalidArgumentException('Inflight increment must be >= 1.');
         }
 
+        $rejectionReason = $this->inflightRejectionReason($count);
+
+        if ($rejectionReason !== null) {
+            $this->backpressureRejectedTotal++;
+            $this->backpressureLastRejectedAt = $this->now();
+            $this->metrics?->increment('freeswitch_esl.worker.backpressure_rejected', tags: array_merge(
+                $this->metricTags(),
+                ['reason' => $rejectionReason],
+            ));
+
+            throw WorkerException::inflightRejected(
+                $this->workerName,
+                $this->node->slug,
+                $rejectionReason === 'draining'
+                    ? 'worker is draining'
+                    : sprintf('max_inflight limit [%d] would be exceeded', $this->maxInflight),
+            );
+        }
+
         $this->inflightCount += $count;
         $this->refreshDrainState();
         $this->maybeSavePeriodicCheckpoint();
+        $this->metrics?->gauge('freeswitch_esl.worker.inflight_count', $this->inflightCount, $this->metricTags());
     }
 
     public function completeInflightWork(int $count = 1): void
@@ -376,6 +407,38 @@ class WorkerRuntime implements WorkerInterface
         $this->inflightCount = max(0, $this->inflightCount - $count);
         $this->refreshDrainState();
         $this->maybeSavePeriodicCheckpoint();
+        $this->metrics?->gauge('freeswitch_esl.worker.inflight_count', $this->inflightCount, $this->metricTags());
+    }
+
+    private function inflightRejectionReason(int $count): ?string
+    {
+        if ($this->draining) {
+            return 'draining';
+        }
+
+        if (($this->inflightCount + $count) > $this->maxInflight) {
+            return 'max_inflight';
+        }
+
+        return null;
+    }
+
+    private function backpressureReason(): ?string
+    {
+        if ($this->draining) {
+            return 'draining';
+        }
+
+        if ($this->isInflightLimitReached()) {
+            return 'max_inflight';
+        }
+
+        return null;
+    }
+
+    private function isInflightLimitReached(): bool
+    {
+        return $this->inflightCount >= $this->maxInflight;
     }
 
     private function refreshDrainState(): void

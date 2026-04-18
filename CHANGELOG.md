@@ -10,6 +10,11 @@ This project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Changed
+- reconciled the implementation plan, compatibility policy, and example-app docs with actual shipped component ownership, replacing stale class-name expectations with current merged or upstream-delegated surfaces
+- documented PHP `8.3+` as the truthful support floor across repo authority docs because the supported `apntalk/esl-react` line requires PHP `^8.3`
+- changed the default metrics binding from an implicit no-op to the shipped log-backed recorder, while keeping `event` and explicit `null` drivers available
+- made `freeswitch-esl.drain_defaults.max_inflight` load-bearing in `WorkerRuntime` and surfaced bounded backpressure metadata in worker and health-adjacent status snapshots
+- replaced the placeholder example-app posture with a near-runnable cookbook containing seeders, config guidance, and a small example service provider
 - aligned the upstream dependency floors to `apntalk/esl-core` `^0.2.6`, `apntalk/esl-react` `^0.2.10`, and `apntalk/esl-replay` `^0.9.2`
 - kept the default `apntalk/esl-react` integration on the runtime-owned `RuntimeRunnerHandle::statusSnapshot()` seam while validating compatibility on `v0.2.10`
 - enriched worker status/reporting surfaces with runtime-owned phase, active/recovery posture, connect/disconnect observation, and failure summary metadata without adding reconnect or resume execution
@@ -18,9 +23,12 @@ This project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - made human-readable `freeswitch:health` render a small runtime-linked facts section when the stored DB-backed health snapshot contains selected upstream runtime-status facts
 - added a bounded human-readable runtime-linked snapshot age/staleness hint to `freeswitch:health`, derived from the stored snapshot timestamp rather than inferred live-runtime state
 - added optional JSON HTTP health/readiness/liveness routes over the existing DB-backed health snapshot model without claiming live socket or process-liveness ownership
-- added a Laravel-facing `MetricsRecorderInterface` with a safe no-op default binding and wired bounded worker-lifecycle / health-recording metrics hooks into package-owned surfaces
+- wired bounded worker-lifecycle and health-recording metrics hooks into the shipped metrics drivers and package-owned operator surfaces
 
 ### Added
+
+- added shipped `LogMetricsRecorder` and `EventMetricsRecorder` implementations plus the `MetricsRecorded` Laravel event
+- added a deterministic simulated ESL harness for integration tests proving Laravel-observed connect, subscribe, disconnect, reconnect, and drain posture on the current `apntalk/esl-react` boundary
 
 - integrated `apntalk/esl-replay` as a real runtime dependency and replaced the local replay-store stub with the upstream `ReplayArtifactStoreInterface`
 - added Laravel replay store wiring, an esl-core replay sink adapter, and artifact-envelope adaptation so `apntalk/esl-react` replay hooks can be durably persisted when replay is enabled

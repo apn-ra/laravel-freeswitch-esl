@@ -1,117 +1,157 @@
 # Example: Laravel Application Integration
 
-This directory will contain a minimal reference Laravel application demonstrating
-how to integrate `apntalk/laravel-freeswitch-esl`.
+This directory is a minimal adoption cookbook for `apntalk/laravel-freeswitch-esl`.
+It is intentionally small: enough to validate package install, control-plane
+seeding, worker startup, health routes, and basic observability posture without
+pretending to be a full demo product.
 
-> **Status:** Scaffold placeholder. Full example will be added in a later pass
-> alongside live ESL runtime integration (0.3.x).
+## Posture
 
----
+This example is `near-runnable`, not a published Laravel skeleton. Use it as a
+file set to copy into a fresh Laravel app or into a scratch validation app.
 
-## What this example will cover
+Included here:
 
-1. Installing and configuring the package
-2. Seeding a PBX provider and node
-3. Seeding a connection profile
-4. Seeding worker assignments (DB-backed targeting)
-5. Running diagnostics via artisan commands
-6. Starting a worker process (ephemeral and DB-backed paths)
-7. Binding a custom secret resolver
-8. Inspecting health snapshots
+- [database/seeders/FreeswitchEslExampleSeeder.php](/home/grimange/apn_projects/laravel-freeswitch-esl/examples/laravel-app/database/seeders/FreeswitchEslExampleSeeder.php)
+- [database/seeders/DatabaseSeeder.php](/home/grimange/apn_projects/laravel-freeswitch-esl/examples/laravel-app/database/seeders/DatabaseSeeder.php)
+- [app/Providers/FreeswitchEslExampleServiceProvider.php](/home/grimange/apn_projects/laravel-freeswitch-esl/examples/laravel-app/app/Providers/FreeswitchEslExampleServiceProvider.php)
+- [config/freeswitch-esl.php](/home/grimange/apn_projects/laravel-freeswitch-esl/examples/laravel-app/config/freeswitch-esl.php)
 
----
+## Intended validation flow
 
-## Current usable steps (0.1.x)
+1. Install the package into a fresh Laravel app.
+2. Publish package config and migrations.
+3. Copy the example files from this directory into that app.
+4. Run migrations and the example seeder.
+5. Verify control-plane commands.
+6. Start the worker in ephemeral and DB-backed modes.
+7. Check JSON health endpoints and metrics behavior.
 
-The control-plane layer is functional now. You can follow these steps without a live PBX:
-
-### 1. Install
+## Fresh-app setup
 
 ```bash
+composer create-project laravel/laravel laravel-freeswitch-esl-example
+cd laravel-freeswitch-esl-example
 composer require apntalk/laravel-freeswitch-esl
 php artisan vendor:publish --tag=freeswitch-esl-config
 php artisan vendor:publish --tag=freeswitch-esl-migrations
-php artisan migrate
 ```
 
-### 2. Seed a provider and node
+Copy these example files into the Laravel app:
 
-See `database/seeders/PbxSeeder.php` in this directory (to be added in a later pass).
+- `examples/laravel-app/database/seeders/*` → `database/seeders/`
+- `examples/laravel-app/app/Providers/FreeswitchEslExampleServiceProvider.php` → `app/Providers/`
+- `examples/laravel-app/config/freeswitch-esl.php` → merge the relevant values into your published package config
 
-For now, use tinker or a manual seeder:
+Register the example provider in `bootstrap/providers.php` or
+`config/app.php` depending on your Laravel version:
 
 ```php
-use ApnTalk\LaravelFreeswitchEsl\ControlPlane\Models\PbxProvider;
-use ApnTalk\LaravelFreeswitchEsl\ControlPlane\Models\PbxNode;
-
-$provider = PbxProvider::create([
-    'code'         => 'freeswitch',
-    'name'         => 'FreeSWITCH',
-    'driver_class' => \ApnTalk\LaravelFreeswitchEsl\Drivers\FreeSwitchDriver::class,
-    'is_active'    => true,
-]);
-
-PbxNode::create([
-    'provider_id'         => $provider->id,
-    'name'                => 'Primary FS',
-    'slug'                => 'primary-fs',
-    'host'                => '10.0.0.10',
-    'port'                => 8021,
-    'username'            => '',
-    'password_secret_ref' => 'ClueCon',
-    'transport'           => 'tcp',
-    'is_active'           => true,
-    'cluster'             => 'us-east',
-    'tags_json'           => ['prod'],
-]);
+App\Providers\FreeswitchEslExampleServiceProvider::class,
 ```
 
-### 3. Seed a DB-backed worker assignment
+## Environment
 
-```php
-use ApnTalk\LaravelFreeswitchEsl\ControlPlane\Models\WorkerAssignment;
+The package can validate most of this flow without a live PBX. For a local-only
+bootstrap flow, these example values are enough:
 
-WorkerAssignment::create([
-    'worker_name'     => 'ingest-worker',
-    'assignment_mode' => 'cluster',
-    'cluster'         => 'us-east',
-    'is_active'       => true,
-]);
+```env
+FREESWITCH_ESL_DRIVER=freeswitch
+FREESWITCH_ESL_METRICS_DRIVER=log
+FREESWITCH_ESL_HTTP_HEALTH_ENABLED=true
+FREESWITCH_ESL_REPLAY_ENABLED=false
 ```
 
-### 4. Verify the control plane
+If you have a real validation PBX, also set:
+
+```env
+FREESWITCH_ESL_FALLBACK_ENABLED=false
+FREESWITCH_ESL_HOST=127.0.0.1
+FREESWITCH_ESL_PORT=8021
+FREESWITCH_ESL_PASSWORD=ClueCon
+```
+
+## Seed data
+
+Run the example seeder:
+
+```bash
+php artisan migrate --seed
+```
+
+The seeded example creates:
+
+- provider `freeswitch`
+- PBX node `primary-fs`
+- connection profile `default`
+- DB-backed worker assignment `ingest-worker`
+
+## Control-plane validation
+
+Verify that the package can resolve and report the seeded node:
 
 ```bash
 php artisan freeswitch:ping --pbx=primary-fs
 php artisan freeswitch:status
 php artisan freeswitch:health
+php artisan freeswitch:health --summary --json
 ```
 
-### 5. Start a worker (ephemeral)
+## Worker validation
+
+Ephemeral single-node startup:
 
 ```bash
-php artisan freeswitch:worker --pbx=primary-fs
+php artisan freeswitch:worker --worker=ingest-worker --pbx=primary-fs
 ```
 
-### 6. Start a worker (DB-backed assignment)
+DB-backed startup using the seeded `worker_assignments` row:
 
 ```bash
 php artisan freeswitch:worker --worker=ingest-worker --db
+php artisan freeswitch:worker:status --worker=ingest-worker --db
+php artisan freeswitch:worker:checkpoint-status --worker=ingest-worker
 ```
 
----
+## Health endpoints
 
-## Planned files (to be added)
+The package registers health routes when
+`freeswitch-esl.http.health.enabled=true`.
 
+Validate the JSON surfaces:
+
+```bash
+php artisan serve
+curl http://127.0.0.1:8000/freeswitch-esl/health
+curl http://127.0.0.1:8000/freeswitch-esl/health/live
+curl http://127.0.0.1:8000/freeswitch-esl/health/ready
 ```
-examples/laravel-app/
-  database/
-    seeders/
-      PbxSeeder.php
-  app/
-    Providers/
-      EslServiceProvider.php   — custom secret resolver binding example
-  config/
-    freeswitch-esl.php          — annotated config example
-  README.md                     — this file
+
+## Observability and replay
+
+Basic observability is available immediately through the default log-backed
+metrics driver. Start a worker or record health, then inspect the Laravel log
+for metric records such as:
+
+- `freeswitch_esl.worker.boot`
+- `freeswitch_esl.worker.run_invoked`
+- `freeswitch_esl.health.snapshot_recorded`
+
+Optional replay inspection remains available when replay is enabled:
+
+```env
+FREESWITCH_ESL_REPLAY_ENABLED=true
 ```
+
+```bash
+php artisan freeswitch:replay:inspect --json
+```
+
+That command is most useful after a live or simulated runtime has emitted
+replay artifacts.
+
+## What this example does not claim
+
+- It does not turn this repository into an owner of reconnect semantics.
+- It does not provide a production-ready dashboard or queueing stack.
+- It does not replace upstream live-runtime validation from `apntalk/esl-react`.

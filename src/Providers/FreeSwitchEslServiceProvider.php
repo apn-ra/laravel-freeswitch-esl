@@ -47,6 +47,8 @@ use ApnTalk\LaravelFreeswitchEsl\Integration\Replay\ReplayCaptureSinkFactory;
 use ApnTalk\LaravelFreeswitchEsl\Integration\Replay\ReplayCheckpointStoreFactory;
 use ApnTalk\LaravelFreeswitchEsl\Integration\Replay\ReplayStoreFactory;
 use ApnTalk\LaravelFreeswitchEsl\Integration\Replay\WorkerReplayCheckpointManager;
+use ApnTalk\LaravelFreeswitchEsl\Observability\EventMetricsRecorder;
+use ApnTalk\LaravelFreeswitchEsl\Observability\LogMetricsRecorder;
 use ApnTalk\LaravelFreeswitchEsl\Observability\NullMetricsRecorder;
 use Illuminate\Contracts\Events\Dispatcher;
 use Illuminate\Support\ServiceProvider;
@@ -214,7 +216,24 @@ class FreeSwitchEslServiceProvider extends ServiceProvider
 
     private function registerMetricsRecorder(): void
     {
-        $this->app->singleton(MetricsRecorderInterface::class, NullMetricsRecorder::class);
+        $this->app->singleton(MetricsRecorderInterface::class, function ($app) {
+            $driver = $app['config']->get('freeswitch-esl.observability.metrics.driver', 'log');
+
+            return match ($driver) {
+                'log' => new LogMetricsRecorder(
+                    logger: $app->make(LoggerInterface::class),
+                    level: (string) $app['config']->get('freeswitch-esl.observability.metrics.log_level', 'info'),
+                ),
+                'event' => new EventMetricsRecorder(
+                    events: $app->make(Dispatcher::class),
+                ),
+                'null' => new NullMetricsRecorder,
+                default => throw new \InvalidArgumentException(sprintf(
+                    'Unsupported freeswitch-esl.observability.metrics.driver [%s]. Supported values are [log], [event], and [null].',
+                    is_scalar($driver) ? (string) $driver : get_debug_type($driver),
+                )),
+            };
+        });
     }
 
     private function registerHealthReporter(): void

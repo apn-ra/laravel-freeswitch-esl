@@ -21,6 +21,8 @@ use ApnTalk\LaravelFreeswitchEsl\Integration\EslReactRuntimeBootstrapInputFactor
 use ApnTalk\LaravelFreeswitchEsl\Integration\EslReactRuntimeRunnerAdapter;
 use ApnTalk\LaravelFreeswitchEsl\Integration\NonLiveRuntimeRunner;
 use ApnTalk\LaravelFreeswitchEsl\Integration\Replay\WorkerReplayCheckpointManager;
+use ApnTalk\LaravelFreeswitchEsl\Observability\EventMetricsRecorder;
+use ApnTalk\LaravelFreeswitchEsl\Observability\LogMetricsRecorder;
 use ApnTalk\LaravelFreeswitchEsl\Observability\NullMetricsRecorder;
 use ApnTalk\LaravelFreeswitchEsl\Tests\TestCase;
 
@@ -138,8 +140,30 @@ class FreeSwitchEslServiceProviderTest extends TestCase
         );
     }
 
-    public function test_metrics_recorder_is_bound_to_no_op_default(): void
+    public function test_metrics_recorder_is_bound_to_log_driver_by_default(): void
     {
+        $this->assertInstanceOf(
+            LogMetricsRecorder::class,
+            $this->app->make(MetricsRecorderInterface::class)
+        );
+    }
+
+    public function test_metrics_recorder_binding_can_use_event_driver(): void
+    {
+        $this->app['config']->set('freeswitch-esl.observability.metrics.driver', 'event');
+        $this->app->forgetInstance(MetricsRecorderInterface::class);
+
+        $this->assertInstanceOf(
+            EventMetricsRecorder::class,
+            $this->app->make(MetricsRecorderInterface::class)
+        );
+    }
+
+    public function test_metrics_recorder_binding_can_use_null_driver(): void
+    {
+        $this->app['config']->set('freeswitch-esl.observability.metrics.driver', 'null');
+        $this->app->forgetInstance(MetricsRecorderInterface::class);
+
         $this->assertInstanceOf(
             NullMetricsRecorder::class,
             $this->app->make(MetricsRecorderInterface::class)

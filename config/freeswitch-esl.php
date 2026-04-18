@@ -120,6 +120,21 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Observability
+    |--------------------------------------------------------------------------
+    | Metrics emission is enabled by default through the shipped log-backed
+    | recorder. Set the driver to "event" to emit Laravel events instead, or
+    | "null" to preserve the previous no-op behavior explicitly.
+    */
+    'observability' => [
+        'metrics' => [
+            'driver' => env('FREESWITCH_ESL_METRICS_DRIVER', 'log'),
+            'log_level' => env('FREESWITCH_ESL_METRICS_LOG_LEVEL', 'info'),
+        ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Worker Defaults
     |--------------------------------------------------------------------------
     | Default worker runtime settings when not overridden by an assignment profile.

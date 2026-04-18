@@ -47,7 +47,36 @@ Persisted runtime-linked fields are limited to latest-known facts such as:
 
 This package does not create a full live-status history store.
 
+Worker-derived health snapshots created from `WorkerStatus` now also carry
+bounded flow-control fields in `meta`, including:
+
+- `max_inflight`
+- `backpressure_active`
+- `backpressure_limit_reached`
+- `backpressure_reason`
+- `backpressure_rejected_total`
+
+Those fields help operator tooling explain why a worker is refusing new work.
+They do not imply a durable queue, global scheduler, or dead-letter system.
+
 ## Surfaces
+
+## Metrics emission
+
+Health recording is now load-bearing for observability by default. When
+`HealthReporter::record()` persists a snapshot, the package also emits:
+
+- `freeswitch_esl.health.snapshot_recorded` as a counter
+- `freeswitch_esl.health.inflight_count` as a gauge
+
+Those metrics flow through the configured `MetricsRecorderInterface` driver:
+
+- `log` by default for structured log output
+- `event` for Laravel event dispatch through `MetricsRecorded`
+- `null` for explicit silence
+
+This package still does not ship a Prometheus or OpenTelemetry exporter. Those
+remain application-level integrations via the same interface.
 
 ### CLI
 

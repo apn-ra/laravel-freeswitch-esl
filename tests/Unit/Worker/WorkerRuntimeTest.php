@@ -18,6 +18,7 @@ use ApnTalk\LaravelFreeswitchEsl\Contracts\RuntimeHandoffInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\RuntimeRunnerFeedbackProviderInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\RuntimeRunnerInterface;
 use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\ConnectionContext;
+use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\HealthSnapshot;
 use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\PbxNode;
 use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\RuntimeRunnerFeedback;
 use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\WorkerStatus;
@@ -541,6 +542,71 @@ class WorkerRuntimeTest extends TestCase
         $this->assertTrue($status->meta['drain_timed_out']);
     }
 
+    public function test_begin_inflight_work_rejects_when_max_inflight_would_be_exceeded(): void
+    {
+        $runtime = $this->makeRuntime(maxInflight: 2);
+
+        $runtime->boot();
+        $runtime->beginInflightWork(2);
+
+        $this->assertTrue($runtime->status()->meta['backpressure_limit_reached']);
+        $this->assertTrue($runtime->status()->meta['backpressure_active']);
+        $this->assertSame('max_inflight', $runtime->status()->meta['backpressure_reason']);
+
+        $this->expectException(WorkerException::class);
+        $this->expectExceptionMessage('max_inflight limit [2] would be exceeded');
+
+        $runtime->beginInflightWork();
+    }
+
+    public function test_complete_inflight_work_clears_backpressure_and_allows_recovery(): void
+    {
+        $runtime = $this->makeRuntime(maxInflight: 2);
+
+        $runtime->boot();
+        $runtime->beginInflightWork(2);
+        $runtime->completeInflightWork();
+
+        $status = $runtime->status();
+
+        $this->assertFalse($status->meta['backpressure_limit_reached']);
+        $this->assertFalse($status->meta['backpressure_active']);
+        $this->assertNull($status->meta['backpressure_reason']);
+        $this->assertSame(1, $status->inflightCount);
+
+        $runtime->beginInflightWork();
+
+        $this->assertSame(2, $runtime->status()->inflightCount);
+    }
+
+    public function test_begin_inflight_work_rejects_new_work_while_draining(): void
+    {
+        $runtime = $this->makeRuntime();
+
+        $runtime->boot();
+        $runtime->beginInflightWork();
+        $runtime->drain();
+
+        try {
+            $runtime->beginInflightWork();
+            $this->fail('Expected inflight work to be rejected while draining.');
+        } catch (WorkerException $e) {
+            $this->assertStringContainsString('worker is draining', $e->getMessage());
+        }
+
+        $status = $runtime->status();
+
+        $this->assertTrue($status->meta['backpressure_active']);
+        $this->assertSame('draining', $status->meta['backpressure_reason']);
+        $this->assertSame(1, $status->meta['backpressure_rejected_total']);
+        $this->assertNotNull($status->meta['backpressure_last_rejected_at']);
+
+        $snapshot = HealthSnapshot::fromWorkerStatus($runtime->node(), $status, 'node');
+
+        $this->assertTrue($snapshot->meta['backpressure_active']);
+        $this->assertSame('draining', $snapshot->meta['backpressure_reason']);
+    }
+
     public function test_periodic_checkpoint_saves_only_after_interval_elapses_and_tracks_last_periodic_timestamp(): void
     {
         $checkpointStore = new class implements ReplayCheckpointStoreInterface
@@ -720,10 +786,37 @@ class WorkerRuntimeTest extends TestCase
         $this->assertSame('test-node', $metrics->increments[0]['tags']['pbx_node_slug']);
     }
 
+    public function test_worker_runtime_records_inflight_gauges_and_backpressure_rejections(): void
+    {
+        $metrics = new ArrayMetricsRecorder;
+        $runtime = $this->makeRuntime(metrics: $metrics, maxInflight: 1);
+
+        $runtime->boot();
+        $runtime->beginInflightWork();
+
+        try {
+            $runtime->beginInflightWork();
+            $this->fail('Expected inflight work rejection at max inflight.');
+        } catch (WorkerException) {
+        }
+
+        $runtime->completeInflightWork();
+
+        $this->assertCount(1, array_filter(
+            $metrics->increments,
+            fn (array $metric): bool => $metric['name'] === 'freeswitch_esl.worker.backpressure_rejected'
+        ));
+        $this->assertCount(2, $metrics->gauges);
+        $this->assertSame('freeswitch_esl.worker.inflight_count', $metrics->gauges[0]['name']);
+        $this->assertSame(1, $metrics->gauges[0]['value']);
+        $this->assertSame(0, $metrics->gauges[1]['value']);
+    }
+
     private function makeRuntime(
         ?RuntimeRunnerInterface $runtimeRunner = null,
         ?WorkerReplayCheckpointManager $checkpointManager = null,
         int $drainTimeoutMilliseconds = 30000,
+        int $maxInflight = 100,
         int $checkpointIntervalSeconds = 60,
         ?TestClock $clock = null,
         ?ArrayMetricsRecorder $metrics = null,
@@ -793,7 +886,7 @@ class WorkerRuntimeTest extends TestCase
         };
 
         if ($clock !== null) {
-            return new class($node, $resolver, $connectionFactory, $runtimeRunner ?? new NonLiveRuntimeRunner, $checkpointManager, $drainTimeoutMilliseconds, $checkpointIntervalSeconds, $clock, $metrics) extends WorkerRuntime
+            return new class($node, $resolver, $connectionFactory, $runtimeRunner ?? new NonLiveRuntimeRunner, $checkpointManager, $drainTimeoutMilliseconds, $maxInflight, $checkpointIntervalSeconds, $clock, $metrics) extends WorkerRuntime
             {
                 public function __construct(
                     PbxNode $node,
@@ -802,6 +895,7 @@ class WorkerRuntimeTest extends TestCase
                     RuntimeRunnerInterface $runtimeRunner,
                     ?WorkerReplayCheckpointManager $checkpointManager,
                     int $drainTimeoutMilliseconds,
+                    int $maxInflight,
                     int $checkpointIntervalSeconds,
                     private readonly TestClock $clock,
                     ?ArrayMetricsRecorder $metrics,
@@ -816,6 +910,7 @@ class WorkerRuntimeTest extends TestCase
                         metrics: $metrics,
                         checkpointManager: $checkpointManager,
                         drainTimeoutMilliseconds: $drainTimeoutMilliseconds,
+                        maxInflight: $maxInflight,
                         checkpointIntervalSeconds: $checkpointIntervalSeconds,
                     );
                 }
@@ -837,6 +932,7 @@ class WorkerRuntimeTest extends TestCase
             metrics: $metrics,
             checkpointManager: $checkpointManager,
             drainTimeoutMilliseconds: $drainTimeoutMilliseconds,
+            maxInflight: $maxInflight,
             checkpointIntervalSeconds: $checkpointIntervalSeconds,
         );
     }

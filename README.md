@@ -13,7 +13,7 @@ A production-grade Laravel package that provides:
 - **Worker assignment orchestration** — target one node, a cluster, a tag, or all active nodes
 - **Long-lived worker bootstrapping** — explicit boot/run/drain/shutdown scaffolding, with live async runtime behavior still deferred to `apntalk/esl-react`
 - **Structured health and diagnostics** — machine-usable operational state per node
-- **Metrics hook seam** — a Laravel-facing metrics contract with a safe no-op default
+- **Load-bearing metrics drivers** — shipped log-backed and Laravel event-backed metrics recorders, with structured logging enabled by default
 - **Optional HTTP health integration** — JSON health, readiness, and liveness posture routes over the same DB-backed health snapshot model
 - **Replay-backed integration** — upstream replay capture/store wiring, inspection, bounded checkpoint/drain coordination, and bounded interval-based periodic checkpoints
 
@@ -144,6 +144,13 @@ Key settings:
     'heartbeat_timeout_seconds' => 60,
 ],
 
+'observability' => [
+    'metrics' => [
+        'driver' => 'log', // log | event | null
+        'log_level' => 'info',
+    ],
+],
+
 'http' => [
     'health' => [
         'enabled' => true,
@@ -212,6 +219,8 @@ Current repository posture:
 - `0.2.x` integration is in place for stable `apntalk/esl-core` transport/bootstrap, command, pipeline, and Laravel event-bridge seams
 - `0.3.x` runtime-prep work is in place for adapter-facing runtime handoff bundles, runner seams, and truthful worker/runtime reporting
 - `0.4.x` runtime observation is in place through the default `apntalk/esl-react` runner binding, upstream `RuntimeRunnerHandle::statusSnapshot()`, and push-based `RuntimeRunnerHandle::onLifecycleChange()`
+- `0.5.x` replay integration is in place through `apntalk/esl-replay`, including bounded checkpoint/reporting surfaces and runtime-linked DB-backed health snapshots
+- `0.6.x` hardening is now in place for truthful docs, shipped metrics drivers, load-bearing `max_inflight` enforcement, a deterministic simulated ESL lifecycle harness, and a near-runnable example app cookbook
 
 The package is currently usable for:
 - Control-plane setup (DB-backed PBX inventory)
@@ -225,6 +234,10 @@ The package is currently usable for:
 - a Laravel-owned runtime runner seam that `WorkerRuntime::run()` invokes; the default binding adapts to `apntalk/esl-react`, while `non-live` remains available as a fallback/dry-run runner
 - real upstream runtime-status observation on the supported `apntalk/esl-react` `^0.2.10` line for live connection/session/liveness/reconnect/drain status reporting on the same public runner seam, with validation/stability truth continuing to come from upstream `apntalk/esl-react`
 - richer prepared dial-target handoff into `apntalk/esl-react`, including explicit TLS-style dial URIs when the resolved `ConnectionContext` requires them
+- shipped metrics drivers with structured logging enabled by default and Laravel event dispatch available as an alternative sink
+- real load-bearing inflight/backpressure enforcement through `freeswitch-esl.drain_defaults.max_inflight`
+- deterministic lifecycle verification using a simulated ESL server harness that exercises connect, subscribe, disconnect, reconnect observation, and drain posture through the package boundary
+- a near-runnable example app cookbook under `examples/laravel-app`
 
 Still deferred:
 - Laravel-owned runtime supervision, reconnect/backoff ownership, and heartbeat/session lifecycle ownership
@@ -241,6 +254,7 @@ Current worker status semantics:
 
 Operator output posture:
 - `freeswitch:worker` renders bounded replay-backed checkpoint/recovery hints per node runtime
+- `freeswitch:worker` and `freeswitch:worker:status` now expose bounded backpressure metadata such as `max_inflight`, `backpressure_active`, and rejection posture
 - `freeswitch:worker --json` exposes the same bounded checkpoint/recovery posture in a machine-readable form for automation and now includes additive resume-posture fields without implying resume execution
 - `freeswitch:worker:status` provides a dedicated machine-readable reporting surface that prepares worker runtimes without invoking the bound runtime runner, can report multiple DB-backed worker scopes in one call, and carries the same additive resume-posture fields
 - `freeswitch:worker:checkpoint-status` provides a dedicated machine-readable historical checkpoint summary surface over persisted worker/node/profile checkpoint posture, with bounded optional history entries, additive filters, stable `limit`/`offset` pagination, additive historical pruning-posture fields when those can be derived truthfully from the upstream filesystem retention planner, and additive top-level retention-policy/support-basis metadata for the current invocation
@@ -256,6 +270,17 @@ composer test
 ```
 
 The test suite uses SQLite in-memory and does not require a live PBX.
+
+## Metrics and observability
+
+The package now ships real metrics recorder implementations:
+
+- `log` — default; emits structured metric records through Laravel's logger
+- `event` — dispatches Laravel `MetricsRecorded` events for app-level forwarding
+- `null` — explicit no-op fallback for environments that want silence
+
+Override the default by setting `FREESWITCH_ESL_METRICS_DRIVER`, or rebind
+`MetricsRecorderInterface` in your application if you need a custom sink.
 
 ---
 

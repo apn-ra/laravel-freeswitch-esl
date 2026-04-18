@@ -56,6 +56,7 @@ class WorkerSupervisor
         private readonly ?MetricsRecorderInterface $metrics = null,
         private readonly ?WorkerReplayCheckpointManager $checkpointManager = null,
         private readonly int $drainTimeoutMilliseconds = 30000,
+        private readonly int $maxInflight = 100,
         private readonly int $checkpointIntervalSeconds = 60,
     ) {}
 
@@ -276,6 +277,7 @@ class WorkerSupervisor
                 metrics: $this->metrics,
                 checkpointManager: $this->checkpointManager,
                 drainTimeoutMilliseconds: $this->drainTimeoutMilliseconds,
+                maxInflight: $this->maxInflight,
                 checkpointIntervalSeconds: $this->checkpointIntervalSeconds,
             );
 

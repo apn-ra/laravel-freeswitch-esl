@@ -68,6 +68,29 @@ These fields mean “boot prepared the runtime handoff seam,” “the configure
 When `freeswitch:worker` runs a real worker scope and upstream runtime-status truth is available, Laravel now also projects a bounded `HealthSnapshot` from the per-node `WorkerStatus` and persists the latest runtime-linked health facts through `HealthReporter`. That DB-backed path stores only the latest known upstream runtime-status phase, active/recovery posture, connect/disconnect timestamps and reasons, failure summary, and linkage basis. Human-readable `freeswitch:health` can now render a small runtime-linked facts section from that stored snapshot plus an age/staleness hint derived from the stored snapshot timestamp. It does not create a broader live-status history store and does not claim reconnect completion, session continuity restoration, or global event-loop liveness.
 The package now also exposes optional JSON HTTP health routes over that same persisted model: `GET /freeswitch-esl/health`, `GET /freeswitch-esl/health/live`, and `GET /freeswitch-esl/health/ready`. These routes report bounded DB-backed summary/readiness/liveness posture only; they do not imply current live runtime ownership or reconnect completion.
 
+### Inflight limits and backpressure
+
+`freeswitch-esl.drain_defaults.max_inflight` is now load-bearing in
+`WorkerRuntime`.
+
+Current behavior:
+- `beginInflightWork()` rejects new work when accepting it would exceed the
+  configured `max_inflight`
+- `beginInflightWork()` also rejects new work once drain mode has started
+- rejected work fails closed through `WorkerException`
+- completing inflight work re-opens capacity immediately
+
+Current status metadata includes:
+- `max_inflight`
+- `backpressure_active`
+- `backpressure_limit_reached`
+- `backpressure_reason`
+- `backpressure_rejected_total`
+- `backpressure_last_rejected_at`
+
+This is intentionally bounded package-owned flow control. It is not a full
+queueing, dead-letter, or scheduler architecture.
+
 ### WorkerSupervisor
 
 Manages one or more `WorkerRuntime` instances for an assignment scope.
@@ -199,6 +222,12 @@ The `ConnectionContext` and connection handle are both prepared during `boot()` 
 The current adapter supports the default TCP path and now passes an explicit prepared dial URI when the resolved `ConnectionContext` requires a non-default target, including `tls://host:port` for TLS-style handoffs on the supported `apntalk/esl-react` `^0.2.10` line. Direct `apntalk/esl-core` `TransportInterface` polling handoff remains deferred until `apntalk/esl-react` exposes that public path.
 
 The adapter exposes runner feedback from `RuntimeRunnerHandle::statusSnapshot()` on the supported `apntalk/esl-react` `^0.2.10` line and registers `RuntimeRunnerHandle::onLifecycleChange()` so Laravel can refresh cached runtime-owned status truth as the upstream lifecycle changes. Laravel maps that upstream read-only runtime status truth into `WorkerStatus::meta`; it does not reconnect the session, manage heartbeats, execute replay, or own bgapi/event runtime semantics.
+
+This repository now also includes a deterministic simulated ESL server harness
+in its integration test suite. That harness exercises connect/auth,
+subscription seeding, disconnect observation, reconnect observation, and
+Laravel-owned drain posture through the current package boundary without
+re-implementing upstream runtime logic in this package.
 
 For future accepted-stream/listener-backed adapters, the upstream `InboundConnectionFactory` is now the preferred bootstrap seam. Binding that seam here does not imply listener or runtime ownership in this package.
 
