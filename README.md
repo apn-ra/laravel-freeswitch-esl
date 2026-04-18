@@ -238,6 +238,12 @@ The package is currently usable for:
 - shipped metrics drivers with structured logging enabled by default and Laravel event dispatch available as an alternative sink
 - real load-bearing inflight/backpressure enforcement through `freeswitch-esl.drain_defaults.max_inflight`
 - deterministic lifecycle verification using a simulated ESL server harness that exercises connect, subscribe, disconnect, reconnect observation, and drain posture through the package boundary
+
+Current publication target:
+
+- final `0.6.0`
+- validated runtime baseline: `v0.6.0-rc2` at `8602d3fed7f12d829d12538631b35503ac2410ba`
+- later final-release preparation is docs-only and keeps the RC2 runtime evidence applicable to the publish candidate
 - a near-runnable example app cookbook under `examples/laravel-app`
 
 Still deferred:

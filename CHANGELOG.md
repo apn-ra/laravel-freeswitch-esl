@@ -9,6 +9,13 @@ This project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+Current publication target: `0.6.0`.
+The validated runtime baseline for that final release is `v0.6.0-rc2`
+(`8602d3fed7f12d829d12538631b35503ac2410ba`).
+Later changes on top of that validated ref are release-facing documentation and
+promotion materials only; they do not change package runtime behavior and do
+not require a fresh private live-validation pass.
+
 ### Added
 - added `freeswitch:validate-install` as a bounded local install/adoption validator for config shape, schema presence, container bindings, command discoverability, metrics-recorder wiring, and optional example-seed checks without live ESL
 - added contract tests for `ConnectionResolverInterface` and `HealthReporterInterface`, direct value-object coverage for `ConnectionContext` and `WorkerStatus`, a malformed/null event-bridge regression test, and a lightweight package-boundary enforcement test
