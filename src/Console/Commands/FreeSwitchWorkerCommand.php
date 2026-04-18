@@ -5,6 +5,7 @@ namespace ApnTalk\LaravelFreeswitchEsl\Console\Commands;
 use ApnTalk\LaravelFreeswitchEsl\Console\Support\WorkerStatusReportBuilder;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\ConnectionFactoryInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\ConnectionResolverInterface;
+use ApnTalk\LaravelFreeswitchEsl\Contracts\HealthReporterInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\PbxRegistryInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\RuntimeRunnerInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\WorkerAssignmentResolverInterface;
@@ -80,6 +81,7 @@ class FreeSwitchWorkerCommand extends Command
         ConnectionFactoryInterface $connectionFactory,
         RuntimeRunnerInterface $runtimeRunner,
         LoggerInterface $logger,
+        HealthReporterInterface $healthReporter,
         WorkerReplayCheckpointManager $checkpointManager,
         ConfigRepository $config,
     ): int {
@@ -99,10 +101,10 @@ class FreeSwitchWorkerCommand extends Command
 
         try {
             if ($useDb) {
-                return $this->runDbBacked($workerName, $supervisor, $assignmentResolver);
+                return $this->runDbBacked($workerName, $supervisor, $assignmentResolver, $healthReporter);
             }
 
-            return $this->runEphemeral($workerName, $supervisor, $registry);
+            return $this->runEphemeral($workerName, $supervisor, $registry, $healthReporter);
         } finally {
             $supervisor->shutdown();
         }
@@ -116,6 +118,7 @@ class FreeSwitchWorkerCommand extends Command
         string $workerName,
         WorkerSupervisor $supervisor,
         PbxRegistryInterface $registry,
+        HealthReporterInterface $healthReporter,
     ): int {
         $assignment = $this->buildEphemeralAssignment($workerName, $registry);
 
@@ -139,6 +142,7 @@ class FreeSwitchWorkerCommand extends Command
 
         try {
             $supervisor->run($assignment);
+            $this->recordRuntimeLinkedHealthSnapshots($supervisor, $healthReporter, $assignment->assignmentMode);
             $this->reportPreparedHandoffs($supervisor);
 
             return self::SUCCESS;
@@ -206,6 +210,7 @@ class FreeSwitchWorkerCommand extends Command
         string $workerName,
         WorkerSupervisor $supervisor,
         WorkerAssignmentResolverInterface $assignmentResolver,
+        HealthReporterInterface $healthReporter,
     ): int {
         // --db is mutually exclusive with targeting flags.
         $targeting = array_filter([
@@ -246,6 +251,7 @@ class FreeSwitchWorkerCommand extends Command
 
         try {
             $supervisor->runForNodes($workerName, 'db-backed', $nodes);
+            $this->recordRuntimeLinkedHealthSnapshots($supervisor, $healthReporter, 'db-backed');
             $this->reportPreparedHandoffs($supervisor);
 
             return self::SUCCESS;
@@ -310,6 +316,20 @@ class FreeSwitchWorkerCommand extends Command
                 $this->recoveryAnchors($status),
                 $this->drainPosture($status),
             ));
+        }
+    }
+
+    private function recordRuntimeLinkedHealthSnapshots(
+        WorkerSupervisor $supervisor,
+        HealthReporterInterface $healthReporter,
+        string $assignmentScope,
+    ): void {
+        foreach ($supervisor->healthSnapshots($assignmentScope) as $snapshot) {
+            if (($snapshot->meta['live_runtime_linked'] ?? false) !== true) {
+                continue;
+            }
+
+            $healthReporter->record($snapshot);
         }
     }
 

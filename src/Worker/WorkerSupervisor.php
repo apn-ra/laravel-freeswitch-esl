@@ -7,6 +7,7 @@ use ApnTalk\LaravelFreeswitchEsl\Contracts\ConnectionResolverInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\RuntimeHandoffInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\RuntimeRunnerInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\WorkerAssignmentResolverInterface;
+use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\HealthSnapshot;
 use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\PbxNode;
 use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\WorkerAssignment;
 use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\WorkerStatus;
@@ -220,6 +221,29 @@ class WorkerSupervisor
         }
 
         return $handoffs;
+    }
+
+    /**
+     * Return per-node health snapshots derived from current worker status.
+     *
+     * This remains a Laravel-owned projection over current worker/runtime
+     * status. Runtime truth still comes from the bound runner feedback.
+     *
+     * @return array<string, HealthSnapshot>
+     */
+    public function healthSnapshots(string $assignmentScope): array
+    {
+        $snapshots = [];
+
+        foreach ($this->runtimes as $slug => $runtime) {
+            $snapshots[$slug] = HealthSnapshot::fromWorkerStatus(
+                $runtime->node(),
+                $runtime->status(),
+                $assignmentScope,
+            );
+        }
+
+        return $snapshots;
     }
 
     /**

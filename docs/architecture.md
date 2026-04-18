@@ -99,7 +99,7 @@ PbxNode
 
 The prepared handoff bundle is retained by the worker scaffolding for later runtime-adapter consumption. The current implementation is `EslCoreConnectionHandle`, but runtime adapters should target the Laravel-owned `RuntimeHandoffInterface`. It is not itself a long-lived runtime loop.
 
-`WorkerRuntime::status()` surfaces this seam via `WorkerStatus::meta` and helper methods so operator-facing Laravel scaffolding can distinguish “handoff prepared,” “adapter-ready,” “adapter invoked,” “runner feedback observed,” “push-observed lifecycle updates,” and “live runtime connected.” In the current posture, `WorkerStatus::state = running` means boot completed and handoff prepared, `meta.runtime_adapter_ready` is the adapter-consumable seam flag, `meta.runtime_runner_invoked` means the Laravel-owned runtime runner seam was called, `meta.runtime_feedback_observed` means the bound runner exposed lifecycle feedback, `meta.runtime_push_lifecycle_observed` means the feedback was delivered through upstream `onLifecycleChange()`, and `meta.runtime_loop_active` is true only when the feedback reports a live runtime. On the supported `apntalk/esl-react` `^0.2.7` line, Laravel maps `RuntimeRunnerHandle::lifecycleSnapshot()` into status metadata and subscribes to `RuntimeRunnerHandle::onLifecycleChange()` instead of inferring live-ness from runner startup state. `WorkerSupervisor::runtimeStatuses()` aggregates those snapshots per PBX node slug, while `runtimeHandoffs()` exposes the prepared adapter-facing bundles without taking ownership of session supervision.
+`WorkerRuntime::status()` surfaces this seam via `WorkerStatus::meta` and helper methods so operator-facing Laravel scaffolding can distinguish “handoff prepared,” “adapter-ready,” “adapter invoked,” “runner feedback observed,” “push-observed lifecycle updates,” and “live runtime connected.” In the current posture, `WorkerStatus::state = running` means boot completed and handoff prepared, `meta.runtime_adapter_ready` is the adapter-consumable seam flag, `meta.runtime_runner_invoked` means the Laravel-owned runtime runner seam was called, `meta.runtime_feedback_observed` means the bound runner exposed runtime-owned status feedback, `meta.runtime_push_lifecycle_observed` means the feedback was refreshed through upstream `onLifecycleChange()`, and `meta.runtime_loop_active` is true only when the upstream snapshot reports an active runtime. On the supported `apntalk/esl-react` `^0.2.9` line, Laravel maps `RuntimeRunnerHandle::statusSnapshot()` into status metadata instead of reconstructing reconnect or failure truth locally. `WorkerSupervisor::runtimeStatuses()` aggregates those snapshots per PBX node slug, while `runtimeHandoffs()` exposes the prepared adapter-facing bundles without taking ownership of session supervision.
 
 ### esl-core integration
 
@@ -133,7 +133,7 @@ This package still does not own listener/runtime behavior. The accepted-stream f
 
 ```
 src/Health/
-  HealthReporter     — HealthReporterInterface impl (DB-backed health snapshots)
+  HealthReporter     — HealthReporterInterface impl (DB-backed health snapshots, with additive runtime-linked facts recorded from real worker runs when upstream status truth is available)
 ```
 
 ### Laravel integration
@@ -214,7 +214,9 @@ Every connection context and worker status carries:
 - `worker_session_id` (assigned by WorkerRuntime)
 
 Current `HealthSnapshot` surfaces are narrower. They carry node/provider identity and DB-backed
-health fields, but they do not yet carry connection-profile identity or worker-session identity.
+health fields, and can now persist the latest selected upstream runtime-status facts recorded by
+real worker runs. They still do not carry connection-profile identity, and they do not model a
+durable live-runtime history beyond the latest known linked snapshot.
 
 In `0.1.x`, connection/runtime identity is propagated into structured logs and worker/runtime status
 surfaces, not into full live runtime health telemetry.

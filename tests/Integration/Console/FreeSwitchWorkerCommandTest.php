@@ -16,12 +16,16 @@ use Apntalk\EslReplay\Storage\StoredReplayRecord;
 use ApnTalk\LaravelFreeswitchEsl\Console\Support\WorkerStatusReportBuilder;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\ConnectionFactoryInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\ConnectionResolverInterface;
+use ApnTalk\LaravelFreeswitchEsl\Contracts\HealthReporterInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\PbxRegistryInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\RuntimeHandoffInterface;
+use ApnTalk\LaravelFreeswitchEsl\Contracts\RuntimeRunnerFeedbackProviderInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\RuntimeRunnerInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\WorkerAssignmentResolverInterface;
 use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\ConnectionContext;
+use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\HealthSnapshot;
 use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\PbxNode;
+use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\RuntimeRunnerFeedback;
 use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\WorkerAssignment;
 use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\WorkerStatus;
 use ApnTalk\LaravelFreeswitchEsl\Exceptions\PbxNotFoundException;
@@ -216,6 +220,201 @@ class FreeSwitchWorkerCommandTest extends TestCase
         $this->assertSame('primary-fs', $connectionFactory->contexts[0]->pbxNodeSlug);
         $this->assertNotNull($connectionFactory->contexts[0]->workerSessionId);
         $this->assertSame(1, $runtimeRunner->runCalls);
+    }
+
+    public function test_worker_command_records_runtime_linked_health_snapshot_when_status_snapshot_truth_is_available(): void
+    {
+        $node = $this->makeNode(1, 'primary-fs');
+        $registry = new class($node) implements PbxRegistryInterface
+        {
+            public function __construct(private readonly PbxNode $node) {}
+
+            public function findById(int $id): PbxNode
+            {
+                return $this->node;
+            }
+
+            public function findBySlug(string $slug): PbxNode
+            {
+                return $this->node;
+            }
+
+            public function allActive(): array
+            {
+                return [$this->node];
+            }
+
+            public function allByCluster(string $cluster): array
+            {
+                return [$this->node];
+            }
+
+            public function allByTags(array $tags): array
+            {
+                return [$this->node];
+            }
+
+            public function allByProvider(string $providerCode): array
+            {
+                return [$this->node];
+            }
+        };
+
+        $assignmentResolver = new class($node) implements WorkerAssignmentResolverInterface
+        {
+            public function __construct(private readonly PbxNode $node) {}
+
+            public function resolveNodes(WorkerAssignment $assignment): array
+            {
+                return [$this->node];
+            }
+
+            public function resolveForWorkerName(string $workerName): array
+            {
+                return [];
+            }
+        };
+
+        $connectionResolver = new class implements ConnectionResolverInterface
+        {
+            public function resolveForNode(int $pbxNodeId): ConnectionContext
+            {
+                return $this->context('primary-fs');
+            }
+
+            public function resolveForSlug(string $slug): ConnectionContext
+            {
+                return $this->context($slug);
+            }
+
+            public function resolveForPbxNode(PbxNode $node): ConnectionContext
+            {
+                return $this->context($node->slug);
+            }
+
+            private function context(string $slug): ConnectionContext
+            {
+                return new ConnectionContext(
+                    pbxNodeId: 1,
+                    pbxNodeSlug: $slug,
+                    providerCode: 'freeswitch',
+                    host: '127.0.0.1',
+                    port: 8021,
+                    username: '',
+                    resolvedPassword: 'ClueCon',
+                    transport: 'tcp',
+                    connectionProfileId: null,
+                    connectionProfileName: 'default',
+                );
+            }
+        };
+
+        $connectionFactory = new class implements ConnectionFactoryInterface
+        {
+            public function create(ConnectionContext $context): EslCoreConnectionHandle
+            {
+                return new EslCoreConnectionHandle(
+                    context: $context,
+                    pipeline: (new EslCorePipelineFactory)->createPipeline(),
+                    openingSequence: [],
+                    closingSequence: [],
+                    transportOpener: fn () => new InMemoryTransport,
+                );
+            }
+        };
+
+        $runtimeRunner = new class implements RuntimeRunnerFeedbackProviderInterface, RuntimeRunnerInterface
+        {
+            private ?RuntimeRunnerFeedback $feedback = null;
+
+            public function run(RuntimeHandoffInterface $handoff): void
+            {
+                $this->feedback = new RuntimeRunnerFeedback(
+                    state: RuntimeRunnerFeedback::STATE_RUNNING,
+                    source: 'apntalk/esl-react-runtime-status-snapshot',
+                    delivery: 'snapshot',
+                    statusPhase: 'active',
+                    endpoint: $handoff->endpoint(),
+                    sessionId: $handoff->context()->workerSessionId,
+                    connectionState: 'authenticated',
+                    sessionState: 'active',
+                    isConnected: true,
+                    isAuthenticated: true,
+                    isLive: true,
+                    isRuntimeActive: true,
+                    isRecoveryInProgress: false,
+                    isReconnecting: false,
+                    isDraining: false,
+                    isStopped: false,
+                    reconnectAttempts: 2,
+                    lastHeartbeatAtMicros: 1700000.0,
+                    lastSuccessfulConnectAtMicros: 1600000.0,
+                    lastDisconnectAtMicros: 1650000.0,
+                    lastDisconnectReasonClass: \RuntimeException::class,
+                    lastDisconnectReasonMessage: 'disconnect observed',
+                    lastFailureAtMicros: 1660000.0,
+                    lastRuntimeErrorClass: \LogicException::class,
+                    lastRuntimeErrorMessage: 'failure summary',
+                );
+            }
+
+            public function runtimeFeedback(): ?RuntimeRunnerFeedback
+            {
+                return $this->feedback;
+            }
+        };
+
+        $healthReporter = new class implements HealthReporterInterface
+        {
+            /** @var list<HealthSnapshot> */
+            public array $recorded = [];
+
+            public function forNode(int $pbxNodeId): HealthSnapshot
+            {
+                throw new \BadMethodCallException('Not used in worker command health recording test.');
+            }
+
+            public function forAllActive(): array
+            {
+                return [];
+            }
+
+            public function forCluster(string $cluster): array
+            {
+                return [];
+            }
+
+            public function record(HealthSnapshot $snapshot): void
+            {
+                $this->recorded[] = $snapshot;
+            }
+        };
+
+        $this->app->instance(PbxRegistryInterface::class, $registry);
+        $this->app->instance(WorkerAssignmentResolverInterface::class, $assignmentResolver);
+        $this->app->instance(ConnectionResolverInterface::class, $connectionResolver);
+        $this->app->instance(ConnectionFactoryInterface::class, $connectionFactory);
+        $this->app->instance(RuntimeRunnerInterface::class, $runtimeRunner);
+        $this->app->instance(HealthReporterInterface::class, $healthReporter);
+        $this->app->instance(LoggerInterface::class, new NullLogger);
+
+        $this->artisan('freeswitch:worker', [
+            '--worker' => 'health-worker',
+            '--pbx' => 'primary-fs',
+        ])->assertExitCode(0);
+
+        $this->assertCount(1, $healthReporter->recorded);
+        $snapshot = $healthReporter->recorded[0];
+        $this->assertSame(HealthSnapshot::STATUS_HEALTHY, $snapshot->status);
+        $this->assertSame('authenticated', $snapshot->connectionState);
+        $this->assertSame('node', $snapshot->workerAssignmentScope);
+        $this->assertSame(2, $snapshot->retryAttempt);
+        $this->assertTrue($snapshot->meta['live_runtime_linked']);
+        $this->assertSame('apntalk/esl-react-runtime-status-snapshot', $snapshot->meta['runtime_truth_source']);
+        $this->assertSame('active', $snapshot->meta['runtime_status_phase']);
+        $this->assertTrue($snapshot->meta['runtime_active']);
+        $this->assertSame('disconnect observed', $snapshot->meta['runtime_last_disconnect_reason_message']);
+        $this->assertSame('failure summary', $snapshot->meta['runtime_last_failure_message']);
     }
 
     public function test_worker_command_db_path_prepares_runtime_handoffs_for_resolved_nodes(): void
@@ -836,6 +1035,9 @@ class FreeSwitchWorkerCommandTest extends TestCase
         $this->assertCount(1, $decoded['nodes']);
         $this->assertSame('primary-fs', $decoded['nodes'][0]['pbx_node_slug']);
         $this->assertSame('running', $decoded['nodes'][0]['worker_runtime_state']);
+        $this->assertNull($decoded['nodes'][0]['runtime_status_phase']);
+        $this->assertNull($decoded['nodes'][0]['runtime_active']);
+        $this->assertNull($decoded['nodes'][0]['runtime_recovery_in_progress']);
         $this->assertTrue($decoded['nodes'][0]['checkpoint_enabled']);
         $this->assertSame(
             'worker-runtime.json-worker.freeswitch.primary-fs.default',
@@ -883,6 +1085,21 @@ class FreeSwitchWorkerCommandTest extends TestCase
             lastHeartbeatAt: null,
             bootedAt: null,
             meta: [
+                'runtime_status_phase' => 'reconnecting',
+                'runtime_active' => true,
+                'runtime_recovery_in_progress' => true,
+                'runtime_connection_state' => 'reconnecting',
+                'runtime_session_state' => 'disconnected',
+                'runtime_authenticated' => false,
+                'runtime_reconnect_attempts' => 5,
+                'runtime_last_heartbeat_at' => '2026-04-17T12:04:00.000+00:00',
+                'runtime_last_successful_connect_at' => '2026-04-17T12:00:00.000+00:00',
+                'runtime_last_disconnect_at' => '2026-04-17T12:04:30.000+00:00',
+                'runtime_last_disconnect_reason_class' => \RuntimeException::class,
+                'runtime_last_disconnect_reason_message' => 'disconnect observed',
+                'runtime_last_failure_at' => '2026-04-17T12:04:45.000+00:00',
+                'runtime_last_error_class' => \LogicException::class,
+                'runtime_last_error_message' => 'failure summary',
                 'checkpoint_enabled' => true,
                 'checkpoint_key' => 'worker-runtime.json-worker.freeswitch.primary-fs.default',
                 'checkpoint_saved_at' => '2026-04-17T12:00:00.000+00:00',
@@ -906,6 +1123,21 @@ class FreeSwitchWorkerCommandTest extends TestCase
 
         $this->assertSame('primary-fs', $result['pbx_node_slug']);
         $this->assertSame(WorkerStatus::STATE_RUNNING, $result['worker_runtime_state']);
+        $this->assertSame('reconnecting', $result['runtime_status_phase']);
+        $this->assertTrue($result['runtime_active']);
+        $this->assertTrue($result['runtime_recovery_in_progress']);
+        $this->assertSame('reconnecting', $result['runtime_connection_state']);
+        $this->assertSame('disconnected', $result['runtime_session_state']);
+        $this->assertFalse($result['runtime_authenticated']);
+        $this->assertSame(5, $result['runtime_reconnect_attempts']);
+        $this->assertSame('2026-04-17T12:04:00.000+00:00', $result['runtime_last_heartbeat_at']);
+        $this->assertSame('2026-04-17T12:00:00.000+00:00', $result['runtime_last_successful_connect_at']);
+        $this->assertSame('2026-04-17T12:04:30.000+00:00', $result['runtime_last_disconnect_at']);
+        $this->assertSame(\RuntimeException::class, $result['runtime_last_disconnect_reason_class']);
+        $this->assertSame('disconnect observed', $result['runtime_last_disconnect_reason_message']);
+        $this->assertSame('2026-04-17T12:04:45.000+00:00', $result['runtime_last_failure_at']);
+        $this->assertSame(\LogicException::class, $result['runtime_last_failure_class']);
+        $this->assertSame('failure summary', $result['runtime_last_failure_message']);
         $this->assertTrue($result['checkpoint_enabled']);
         $this->assertSame('worker-runtime.json-worker.freeswitch.primary-fs.default', $result['checkpoint_key']);
         $this->assertSame('2026-04-17T12:00:00.000+00:00', $result['checkpoint_saved_at']);

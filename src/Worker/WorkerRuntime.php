@@ -10,6 +10,7 @@ use ApnTalk\LaravelFreeswitchEsl\Contracts\RuntimeRunnerInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\WorkerInterface;
 use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\ConnectionContext;
 use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\PbxNode;
+use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\RuntimeRunnerFeedback;
 use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\WorkerStatus;
 use ApnTalk\LaravelFreeswitchEsl\Exceptions\WorkerException;
 use ApnTalk\LaravelFreeswitchEsl\Integration\Replay\WorkerReplayCheckpointManager;
@@ -242,16 +243,17 @@ class WorkerRuntime implements WorkerInterface
     {
         $this->refreshDrainState();
         $this->maybeSavePeriodicCheckpoint();
+        $runtimeFeedback = $this->runtimeFeedback();
 
         return new WorkerStatus(
             sessionId: $this->sessionId,
             workerName: $this->workerName,
-            state: $this->state,
+            state: $this->effectiveState($runtimeFeedback),
             assignedNodeSlugs: [$this->node->slug],
             inflightCount: $this->inflightCount,
-            retryAttempt: 0,
+            retryAttempt: $runtimeFeedback?->reconnectAttempts ?? 0,
             isDraining: $this->draining,
-            lastHeartbeatAt: $this->lastHeartbeatAt,
+            lastHeartbeatAt: $runtimeFeedback?->lastHeartbeatAt() ?? $this->lastHeartbeatAt,
             bootedAt: $this->bootedAt,
             meta: array_merge([
                 'context_resolved' => $this->resolvedContext !== null,
@@ -270,6 +272,7 @@ class WorkerRuntime implements WorkerInterface
                 'runtime_feedback_delivery' => null,
                 'runtime_push_lifecycle_observed' => false,
                 'runtime_runner_state' => null,
+                'runtime_status_phase' => null,
                 'runtime_runner_endpoint' => null,
                 'runtime_runner_session_id' => null,
                 'runtime_startup_error_class' => null,
@@ -279,11 +282,22 @@ class WorkerRuntime implements WorkerInterface
                 'runtime_connected' => null,
                 'runtime_authenticated' => null,
                 'runtime_live' => null,
+                'runtime_active' => null,
+                'runtime_recovery_in_progress' => null,
                 'runtime_reconnecting' => null,
                 'runtime_draining' => null,
                 'runtime_stopped' => null,
                 'runtime_reconnect_attempts' => null,
                 'runtime_last_heartbeat_at_micros' => null,
+                'runtime_last_heartbeat_at' => null,
+                'runtime_last_successful_connect_at_micros' => null,
+                'runtime_last_successful_connect_at' => null,
+                'runtime_last_disconnect_at_micros' => null,
+                'runtime_last_disconnect_at' => null,
+                'runtime_last_disconnect_reason_class' => null,
+                'runtime_last_disconnect_reason_message' => null,
+                'runtime_last_failure_at_micros' => null,
+                'runtime_last_failure_at' => null,
                 'runtime_last_error_class' => null,
                 'runtime_last_error_message' => null,
                 'drain_started_at' => $this->drainStartedAt?->format(\DateTimeInterface::RFC3339_EXTENDED),
@@ -298,31 +312,27 @@ class WorkerRuntime implements WorkerInterface
                     ? $this->checkpointIntervalSeconds
                     : null,
                 'checkpoint_periodic_last_saved_at' => $this->lastPeriodicCheckpointAt?->format(\DateTimeInterface::RFC3339_EXTENDED),
-            ], $this->runtimeFeedbackMeta(), $this->checkpointMeta),
+            ], $runtimeFeedback?->toMeta() ?? [], $this->checkpointMeta),
         );
     }
 
-    /**
-     * @return array<string, mixed>
-     */
-    private function runtimeFeedbackMeta(): array
+    private function runtimeFeedback(): ?RuntimeRunnerFeedback
     {
         if (! $this->runtimeRunner instanceof RuntimeRunnerFeedbackProviderInterface) {
-            return [];
+            return null;
         }
 
-        $feedback = $this->runtimeRunner->runtimeFeedback();
-
-        if ($feedback === null) {
-            return [];
-        }
-
-        return $feedback->toMeta();
+        return $this->runtimeRunner->runtimeFeedback();
     }
 
     public function sessionId(): string
     {
         return $this->sessionId;
+    }
+
+    public function node(): PbxNode
+    {
+        return $this->node;
     }
 
     public function resolvedContext(): ?ConnectionContext
@@ -466,5 +476,22 @@ class WorkerRuntime implements WorkerInterface
     protected function now(): \DateTimeImmutable
     {
         return new \DateTimeImmutable;
+    }
+
+    private function effectiveState(?RuntimeRunnerFeedback $feedback): string
+    {
+        if ($this->state === WorkerStatus::STATE_SHUTDOWN) {
+            return WorkerStatus::STATE_SHUTDOWN;
+        }
+
+        if ($this->draining) {
+            return WorkerStatus::STATE_DRAINING;
+        }
+
+        return match ($feedback?->statusPhase) {
+            'reconnecting' => WorkerStatus::STATE_RECONNECTING,
+            'failed' => WorkerStatus::STATE_FAILED,
+            default => $this->state,
+        };
     }
 }

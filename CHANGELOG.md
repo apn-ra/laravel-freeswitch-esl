@@ -9,6 +9,12 @@ This project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+- aligned the default `apntalk/esl-react` integration to the runtime-owned `RuntimeRunnerHandle::statusSnapshot()` seam on `v0.2.9`
+- enriched worker status/reporting surfaces with runtime-owned phase, active/recovery posture, connect/disconnect observation, and failure summary metadata without adding reconnect or resume execution
+- made aggregate health JSON summaries report whether provided snapshots are actually live-runtime-linked instead of hard-coding that posture
+- made real `freeswitch:worker` runs persist selected upstream runtime-status facts into DB-backed health snapshots so later `freeswitch:health` reads can surface the latest linked phase, connect/disconnect, and failure posture conservatively
+
 ### Added
 
 - integrated `apntalk/esl-replay` `v0.9.1` as a real runtime dependency and replaced the local replay-store stub with the upstream `ReplayArtifactStoreInterface`
