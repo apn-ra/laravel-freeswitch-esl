@@ -6,6 +6,7 @@ use ApnTalk\LaravelFreeswitchEsl\Console\Support\WorkerStatusReportBuilder;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\ConnectionFactoryInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\ConnectionResolverInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\HealthReporterInterface;
+use ApnTalk\LaravelFreeswitchEsl\Contracts\MetricsRecorderInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\PbxRegistryInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\RuntimeRunnerInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\WorkerAssignmentResolverInterface;
@@ -82,6 +83,7 @@ class FreeSwitchWorkerCommand extends Command
         RuntimeRunnerInterface $runtimeRunner,
         LoggerInterface $logger,
         HealthReporterInterface $healthReporter,
+        MetricsRecorderInterface $metrics,
         WorkerReplayCheckpointManager $checkpointManager,
         ConfigRepository $config,
     ): int {
@@ -94,6 +96,7 @@ class FreeSwitchWorkerCommand extends Command
             connectionFactory: $connectionFactory,
             runtimeRunner: $runtimeRunner,
             logger: $logger,
+            metrics: $metrics,
             checkpointManager: $checkpointManager,
             drainTimeoutMilliseconds: (int) $config->get('freeswitch-esl.drain_defaults.timeout_ms', 30000),
             checkpointIntervalSeconds: (int) $config->get('freeswitch-esl.worker_defaults.checkpoint_interval_seconds', 60),

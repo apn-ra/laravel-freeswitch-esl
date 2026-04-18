@@ -9,11 +9,14 @@ use ApnTalk\LaravelFreeswitchEsl\Contracts\RuntimeHandoffInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\RuntimeRunnerInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\WorkerAssignmentResolverInterface;
 use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\ConnectionContext;
+use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\HealthSnapshot;
 use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\PbxNode;
+use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\RuntimeRunnerFeedback;
 use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\WorkerStatus;
 use ApnTalk\LaravelFreeswitchEsl\Integration\EslCoreCommandFactory;
 use ApnTalk\LaravelFreeswitchEsl\Integration\EslCoreConnectionHandle;
 use ApnTalk\LaravelFreeswitchEsl\Integration\EslCorePipelineFactory;
+use ApnTalk\LaravelFreeswitchEsl\Tests\Support\Fakes\MutableRuntimeRunner;
 use ApnTalk\LaravelFreeswitchEsl\Worker\WorkerSupervisor;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
@@ -260,6 +263,146 @@ class WorkerSupervisorTest extends TestCase
         $this->assertSame(WorkerStatus::STATE_RUNNING, $statuses['node-a']->state);
         $this->assertTrue($statuses['node-a']->meta['connection_handoff_prepared']);
         $this->assertFalse($statuses['node-a']->meta['runtime_runner_invoked']);
+    }
+
+    public function test_health_snapshots_follow_runtime_feedback_transitions_for_a_node(): void
+    {
+        $node = $this->makeNode(1, 'node-a');
+        $assignmentResolver = $this->createStub(WorkerAssignmentResolverInterface::class);
+        $connectionResolver = new class implements ConnectionResolverInterface
+        {
+            public function resolveForNode(int $pbxNodeId): ConnectionContext
+            {
+                return $this->context('node-a');
+            }
+
+            public function resolveForSlug(string $slug): ConnectionContext
+            {
+                return $this->context($slug);
+            }
+
+            public function resolveForPbxNode(PbxNode $node): ConnectionContext
+            {
+                return $this->context($node->slug);
+            }
+
+            private function context(string $slug): ConnectionContext
+            {
+                return new ConnectionContext(
+                    pbxNodeId: 1,
+                    pbxNodeSlug: $slug,
+                    providerCode: 'freeswitch',
+                    host: '127.0.0.1',
+                    port: 8021,
+                    username: '',
+                    resolvedPassword: 'ClueCon',
+                    transport: 'tcp',
+                    connectionProfileId: null,
+                    connectionProfileName: 'default',
+                );
+            }
+        };
+
+        $connectionFactory = new class implements ConnectionFactoryInterface
+        {
+            public function create(ConnectionContext $context): EslCoreConnectionHandle
+            {
+                $commandFactory = new EslCoreCommandFactory;
+
+                return new EslCoreConnectionHandle(
+                    context: $context,
+                    pipeline: (new EslCorePipelineFactory)->createPipeline(),
+                    openingSequence: $commandFactory->buildOpeningSequence($context),
+                    closingSequence: $commandFactory->buildClosingSequence(),
+                    transportOpener: fn () => new InMemoryTransport,
+                );
+            }
+        };
+
+        $runtimeRunner = new MutableRuntimeRunner(
+            runCallback: function (RuntimeHandoffInterface $handoff, MutableRuntimeRunner $runner): void {
+                $runner->setFeedback(new RuntimeRunnerFeedback(
+                    state: RuntimeRunnerFeedback::STATE_RUNNING,
+                    source: 'apntalk/esl-react-runtime-status-snapshot',
+                    delivery: 'push',
+                    statusPhase: 'active',
+                    endpoint: $handoff->endpoint(),
+                    sessionId: $handoff->context()->workerSessionId,
+                    isConnected: true,
+                    isAuthenticated: true,
+                    isLive: true,
+                    isRuntimeActive: true,
+                    isRecoveryInProgress: false,
+                    lastHeartbeatAtMicros: 1800000.0,
+                    lastSuccessfulConnectAtMicros: 1750000.0,
+                ));
+            },
+        );
+
+        $supervisor = new WorkerSupervisor(
+            assignmentResolver: $assignmentResolver,
+            connectionResolver: $connectionResolver,
+            connectionFactory: $connectionFactory,
+            runtimeRunner: $runtimeRunner,
+            logger: new NullLogger,
+        );
+
+        $supervisor->runForNodes('worker-a', 'db-backed', [$node]);
+
+        $activeSnapshot = $supervisor->healthSnapshots('db-backed')['node-a'];
+
+        $this->assertSame(HealthSnapshot::STATUS_HEALTHY, $activeSnapshot->status);
+        $this->assertTrue($activeSnapshot->meta['live_runtime_linked']);
+        $this->assertSame('active', $activeSnapshot->meta['runtime_status_phase']);
+
+        $runtimeRunner->setFeedback(new RuntimeRunnerFeedback(
+            state: RuntimeRunnerFeedback::STATE_RUNNING,
+            source: 'apntalk/esl-react-runtime-status-snapshot',
+            delivery: 'push',
+            statusPhase: 'reconnecting',
+            isConnected: false,
+            isAuthenticated: false,
+            isLive: true,
+            isRuntimeActive: true,
+            isRecoveryInProgress: true,
+            reconnectAttempts: 2,
+            lastHeartbeatAtMicros: 1800000.0,
+            lastSuccessfulConnectAtMicros: 1750000.0,
+            lastDisconnectAtMicros: 1810000.0,
+            lastDisconnectReasonClass: \RuntimeException::class,
+            lastDisconnectReasonMessage: 'disconnect observed',
+        ));
+
+        $reconnectingSnapshot = $supervisor->healthSnapshots('db-backed')['node-a'];
+
+        $this->assertSame(HealthSnapshot::STATUS_DEGRADED, $reconnectingSnapshot->status);
+        $this->assertSame('reconnecting', $reconnectingSnapshot->meta['runtime_status_phase']);
+        $this->assertTrue($reconnectingSnapshot->meta['runtime_recovery_in_progress']);
+        $this->assertSame('disconnect observed', $reconnectingSnapshot->meta['runtime_last_disconnect_reason_message']);
+
+        $runtimeRunner->setFeedback(new RuntimeRunnerFeedback(
+            state: RuntimeRunnerFeedback::STATE_RUNNING,
+            source: 'apntalk/esl-react-runtime-status-snapshot',
+            delivery: 'push',
+            statusPhase: 'active',
+            isConnected: true,
+            isAuthenticated: true,
+            isLive: true,
+            isRuntimeActive: true,
+            isRecoveryInProgress: false,
+            reconnectAttempts: 0,
+            lastHeartbeatAtMicros: 1900000.0,
+            lastSuccessfulConnectAtMicros: 1890000.0,
+            lastDisconnectAtMicros: 1810000.0,
+            lastDisconnectReasonClass: \RuntimeException::class,
+            lastDisconnectReasonMessage: 'disconnect observed',
+        ));
+
+        $recoveredSnapshot = $supervisor->healthSnapshots('db-backed')['node-a'];
+
+        $this->assertSame(HealthSnapshot::STATUS_HEALTHY, $recoveredSnapshot->status);
+        $this->assertSame('active', $recoveredSnapshot->meta['runtime_status_phase']);
+        $this->assertFalse($recoveredSnapshot->meta['runtime_recovery_in_progress']);
     }
 
     private function makeNode(int $id, string $slug): PbxNode

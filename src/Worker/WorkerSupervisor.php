@@ -4,6 +4,7 @@ namespace ApnTalk\LaravelFreeswitchEsl\Worker;
 
 use ApnTalk\LaravelFreeswitchEsl\Contracts\ConnectionFactoryInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\ConnectionResolverInterface;
+use ApnTalk\LaravelFreeswitchEsl\Contracts\MetricsRecorderInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\RuntimeHandoffInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\RuntimeRunnerInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\WorkerAssignmentResolverInterface;
@@ -52,6 +53,7 @@ class WorkerSupervisor
         private readonly ConnectionFactoryInterface $connectionFactory,
         private readonly RuntimeRunnerInterface $runtimeRunner,
         private readonly LoggerInterface $logger,
+        private readonly ?MetricsRecorderInterface $metrics = null,
         private readonly ?WorkerReplayCheckpointManager $checkpointManager = null,
         private readonly int $drainTimeoutMilliseconds = 30000,
         private readonly int $checkpointIntervalSeconds = 60,
@@ -271,6 +273,7 @@ class WorkerSupervisor
                 connectionFactory: $this->connectionFactory,
                 runtimeRunner: $this->runtimeRunner,
                 logger: $this->logger,
+                metrics: $this->metrics,
                 checkpointManager: $this->checkpointManager,
                 drainTimeoutMilliseconds: $this->drainTimeoutMilliseconds,
                 checkpointIntervalSeconds: $this->checkpointIntervalSeconds,

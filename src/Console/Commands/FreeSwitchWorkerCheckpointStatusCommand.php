@@ -5,6 +5,7 @@ namespace ApnTalk\LaravelFreeswitchEsl\Console\Commands;
 use ApnTalk\LaravelFreeswitchEsl\Console\Support\WorkerCheckpointHistoryReportBuilder;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\ConnectionFactoryInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\ConnectionResolverInterface;
+use ApnTalk\LaravelFreeswitchEsl\Contracts\MetricsRecorderInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\PbxRegistryInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\RuntimeRunnerInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\WorkerAssignmentResolverInterface;
@@ -43,6 +44,7 @@ class FreeSwitchWorkerCheckpointStatusCommand extends Command
         ConnectionResolverInterface $connectionResolver,
         ConnectionFactoryInterface $connectionFactory,
         RuntimeRunnerInterface $runtimeRunner,
+        MetricsRecorderInterface $metrics,
         LoggerInterface $logger,
         WorkerReplayCheckpointManager $checkpointManager,
         ConfigRepository $config,
@@ -53,6 +55,7 @@ class FreeSwitchWorkerCheckpointStatusCommand extends Command
             connectionFactory: $connectionFactory,
             runtimeRunner: $runtimeRunner,
             logger: $logger,
+            metrics: $metrics,
             checkpointManager: $checkpointManager,
             drainTimeoutMilliseconds: (int) $config->get('freeswitch-esl.drain_defaults.timeout_ms', 30000),
             checkpointIntervalSeconds: (int) $config->get('freeswitch-esl.worker_defaults.checkpoint_interval_seconds', 60),

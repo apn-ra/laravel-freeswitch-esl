@@ -66,6 +66,7 @@ This makes the worker handoff state explicit and inspectable without claiming ow
 These fields mean “boot prepared the runtime handoff seam,” “the configured runner was invoked,” and “Laravel observed upstream runner lifecycle state.” They do not give Laravel ownership of reconnect, heartbeat, or session lifecycle behavior.
 
 When `freeswitch:worker` runs a real worker scope and upstream runtime-status truth is available, Laravel now also projects a bounded `HealthSnapshot` from the per-node `WorkerStatus` and persists the latest runtime-linked health facts through `HealthReporter`. That DB-backed path stores only the latest known upstream runtime-status phase, active/recovery posture, connect/disconnect timestamps and reasons, failure summary, and linkage basis. Human-readable `freeswitch:health` can now render a small runtime-linked facts section from that stored snapshot plus an age/staleness hint derived from the stored snapshot timestamp. It does not create a broader live-status history store and does not claim reconnect completion, session continuity restoration, or global event-loop liveness.
+The package now also exposes optional JSON HTTP health routes over that same persisted model: `GET /freeswitch-esl/health`, `GET /freeswitch-esl/health/live`, and `GET /freeswitch-esl/health/ready`. These routes report bounded DB-backed summary/readiness/liveness posture only; they do not imply current live runtime ownership or reconnect completion.
 
 ### WorkerSupervisor
 

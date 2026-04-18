@@ -2,7 +2,7 @@
 
 > **Status:** Partially implemented.
 > `apntalk/esl-core` is now required directly and this package already ships the Laravel adapter layer for typed commands, inbound decoding, and event dispatch.
-> Higher-level app-facing normalized projections and replay-linked event workflows remain future work for `0.4.x`–`0.5.x`.
+> Higher-level app-facing normalized projections and replay-linked event workflows remain deferred until a later bounded pass; they are not part of the currently shipped `0.5.x` public surface.
 
 ---
 

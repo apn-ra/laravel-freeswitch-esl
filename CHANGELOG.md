@@ -16,6 +16,8 @@ This project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - made real `freeswitch:worker` runs persist selected upstream runtime-status facts into DB-backed health snapshots so later `freeswitch:health` reads can surface the latest linked phase, connect/disconnect, and failure posture conservatively
 - made human-readable `freeswitch:health` render a small runtime-linked facts section when the stored DB-backed health snapshot contains selected upstream runtime-status facts
 - added a bounded human-readable runtime-linked snapshot age/staleness hint to `freeswitch:health`, derived from the stored snapshot timestamp rather than inferred live-runtime state
+- added optional JSON HTTP health/readiness/liveness routes over the existing DB-backed health snapshot model without claiming live socket or process-liveness ownership
+- added a Laravel-facing `MetricsRecorderInterface` with a safe no-op default binding and wired bounded worker-lifecycle / health-recording metrics hooks into package-owned surfaces
 
 ### Added
 
@@ -39,6 +41,8 @@ This project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - added additive machine-readable resume-posture fields to `freeswitch:worker --json` and `freeswitch:worker:status`, derived from the existing replay-backed checkpoint/recovery facts while keeping `resume_execution_supported = false`
 - added explicit `schemaVersion = "1.0"` to the shipped Laravel bridge events (`EslEventReceived`, `EslReplyReceived`, `EslDisconnected`) so wrapper-schema changes can be tracked separately from package SemVer
 - added `freeswitch:health --summary` as a bounded aggregate DB-backed health surface with conservative readiness/liveness posture and unchanged default `freeswitch:health` output semantics
+- added deterministic downstream reconnect/recovery proof for Laravel-owned `WorkerRuntime`, `WorkerSupervisor`, and `HealthReporter` observation/projection behavior using a test-only mutable runtime runner seam
+- added `docs/health-model.md` to unify bounded CLI/HTTP health, readiness, liveness, and runtime-linked snapshot semantics
 
 ## [0.4.6] - 2026-04-17
 

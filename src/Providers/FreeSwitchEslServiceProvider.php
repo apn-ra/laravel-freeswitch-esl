@@ -21,6 +21,7 @@ use ApnTalk\LaravelFreeswitchEsl\Console\Commands\FreeSwitchWorkerStatusCommand;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\ConnectionFactoryInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\ConnectionResolverInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\HealthReporterInterface;
+use ApnTalk\LaravelFreeswitchEsl\Contracts\MetricsRecorderInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\PbxRegistryInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\ProviderDriverRegistryInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\RuntimeRunnerInterface;
@@ -34,6 +35,7 @@ use ApnTalk\LaravelFreeswitchEsl\ControlPlane\Services\SecretResolver;
 use ApnTalk\LaravelFreeswitchEsl\ControlPlane\Services\WorkerAssignmentResolver;
 use ApnTalk\LaravelFreeswitchEsl\Facades\FreeSwitchEslManager;
 use ApnTalk\LaravelFreeswitchEsl\Health\HealthReporter;
+use ApnTalk\LaravelFreeswitchEsl\Health\HealthSummaryBuilder;
 use ApnTalk\LaravelFreeswitchEsl\Integration\EslCoreCommandFactory;
 use ApnTalk\LaravelFreeswitchEsl\Integration\EslCoreConnectionFactory;
 use ApnTalk\LaravelFreeswitchEsl\Integration\EslCoreEventBridge;
@@ -45,6 +47,7 @@ use ApnTalk\LaravelFreeswitchEsl\Integration\Replay\ReplayCaptureSinkFactory;
 use ApnTalk\LaravelFreeswitchEsl\Integration\Replay\ReplayCheckpointStoreFactory;
 use ApnTalk\LaravelFreeswitchEsl\Integration\Replay\ReplayStoreFactory;
 use ApnTalk\LaravelFreeswitchEsl\Integration\Replay\WorkerReplayCheckpointManager;
+use ApnTalk\LaravelFreeswitchEsl\Observability\NullMetricsRecorder;
 use Illuminate\Contracts\Events\Dispatcher;
 use Illuminate\Support\ServiceProvider;
 use Psr\Log\LoggerInterface;
@@ -82,7 +85,9 @@ class FreeSwitchEslServiceProvider extends ServiceProvider
         $this->registerReplayIntegration();
         $this->registerRuntimeRunner();
         $this->registerWorkerAssignmentResolver();
+        $this->registerMetricsRecorder();
         $this->registerHealthReporter();
+        $this->registerHealthSummaryBuilder();
         $this->registerManager();
         $this->registerEslCoreIntegration();
     }
@@ -96,6 +101,7 @@ class FreeSwitchEslServiceProvider extends ServiceProvider
         }
 
         $this->bootProviderDrivers();
+        $this->bootHttpHealthRoutes();
     }
 
     // -------------------------------------------------------------------------
@@ -206,17 +212,28 @@ class FreeSwitchEslServiceProvider extends ServiceProvider
         });
     }
 
+    private function registerMetricsRecorder(): void
+    {
+        $this->app->singleton(MetricsRecorderInterface::class, NullMetricsRecorder::class);
+    }
+
     private function registerHealthReporter(): void
     {
         $this->app->singleton(HealthReporterInterface::class, function ($app) {
             return new HealthReporter(
                 pbxRegistry: $app->make(PbxRegistryInterface::class),
+                metrics: $app->make(MetricsRecorderInterface::class),
                 heartbeatTimeoutSeconds: $app['config']->get(
                     'freeswitch-esl.health.heartbeat_timeout_seconds',
                     60
                 ),
             );
         });
+    }
+
+    private function registerHealthSummaryBuilder(): void
+    {
+        $this->app->singleton(HealthSummaryBuilder::class);
     }
 
     private function registerManager(): void
@@ -326,6 +343,15 @@ class FreeSwitchEslServiceProvider extends ServiceProvider
         $this->publishes([
             __DIR__.'/../../database/migrations' => database_path('migrations'),
         ], 'freeswitch-esl-migrations');
+    }
+
+    private function bootHttpHealthRoutes(): void
+    {
+        if ($this->app['config']->get('freeswitch-esl.http.health.enabled', true) !== true) {
+            return;
+        }
+
+        $this->loadRoutesFrom(__DIR__.'/../../routes/freeswitch-esl-health.php');
     }
 
     private function registerCommands(): void

@@ -3,6 +3,7 @@
 namespace ApnTalk\LaravelFreeswitchEsl\Health;
 
 use ApnTalk\LaravelFreeswitchEsl\Contracts\HealthReporterInterface;
+use ApnTalk\LaravelFreeswitchEsl\Contracts\MetricsRecorderInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\PbxRegistryInterface;
 use ApnTalk\LaravelFreeswitchEsl\ControlPlane\Models\PbxNode as PbxNodeModel;
 use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\HealthSnapshot;
@@ -20,6 +21,7 @@ class HealthReporter implements HealthReporterInterface
 {
     public function __construct(
         private readonly PbxRegistryInterface $pbxRegistry,
+        private readonly MetricsRecorderInterface $metrics,
         private readonly int $heartbeatTimeoutSeconds,
     ) {}
 
@@ -62,6 +64,16 @@ class HealthReporter implements HealthReporterInterface
             'last_heartbeat_at' => $snapshot->lastHeartbeatAt,
             'settings_json' => $settings,
         ]);
+
+        $tags = [
+            'provider_code' => $snapshot->providerCode,
+            'pbx_node_slug' => $snapshot->pbxNodeSlug,
+            'status' => $snapshot->status,
+            'live_runtime_linked' => ($snapshot->meta['live_runtime_linked'] ?? false) === true,
+        ];
+
+        $this->metrics->increment('freeswitch_esl.health.snapshot_recorded', tags: $tags);
+        $this->metrics->gauge('freeswitch_esl.health.inflight_count', $snapshot->inflightCount, $tags);
     }
 
     private function snapshotFromNode(

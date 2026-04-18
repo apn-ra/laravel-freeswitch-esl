@@ -104,6 +104,22 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | HTTP Health Integration
+    |--------------------------------------------------------------------------
+    | Optional Laravel route registration for DB-backed health snapshot and
+    | bounded readiness/liveness posture output. These routes reuse the
+    | existing HealthReporter surface and do not imply live runtime ownership.
+    */
+    'http' => [
+        'health' => [
+            'enabled' => env('FREESWITCH_ESL_HTTP_HEALTH_ENABLED', true),
+            'prefix' => env('FREESWITCH_ESL_HTTP_HEALTH_PREFIX', 'freeswitch-esl/health'),
+            'middleware' => [],
+        ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Worker Defaults
     |--------------------------------------------------------------------------
     | Default worker runtime settings when not overridden by an assignment profile.

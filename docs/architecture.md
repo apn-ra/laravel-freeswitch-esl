@@ -134,6 +134,7 @@ This package still does not own listener/runtime behavior. The accepted-stream f
 ```
 src/Health/
   HealthReporter     — HealthReporterInterface impl (DB-backed health snapshots, with additive runtime-linked facts recorded from real worker runs when upstream status truth is available)
+  HealthSummaryBuilder — shared bounded readiness/liveness summary builder for CLI and HTTP health surfaces
 ```
 
 ### Laravel integration
@@ -147,6 +148,7 @@ src/Console/Commands/
   FreeSwitchStatusCommand         — freeswitch:status
   FreeSwitchWorkerCommand         — freeswitch:worker
   FreeSwitchHealthCommand         — freeswitch:health (DB-backed snapshots plus optional bounded aggregate summary)
+  Http\Controllers\HealthSnapshotController — optional JSON health/readiness/liveness routes over the same DB-backed snapshots
   FreeSwitchReplayInspectCommand  — freeswitch:replay:inspect
 
 src/Facades/
@@ -217,6 +219,8 @@ Current `HealthSnapshot` surfaces are narrower. They carry node/provider identit
 health fields, and can now persist the latest selected upstream runtime-status facts recorded by
 real worker runs. They still do not carry connection-profile identity, and they do not model a
 durable live-runtime history beyond the latest known linked snapshot.
+For the exact bounded health/readiness/liveness semantics used by the CLI and HTTP operator
+surfaces, see `docs/health-model.md`.
 
 In `0.1.x`, connection/runtime identity is propagated into structured logs and worker/runtime status
 surfaces, not into full live runtime health telemetry.

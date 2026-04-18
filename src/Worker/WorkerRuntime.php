@@ -4,6 +4,7 @@ namespace ApnTalk\LaravelFreeswitchEsl\Worker;
 
 use ApnTalk\LaravelFreeswitchEsl\Contracts\ConnectionFactoryInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\ConnectionResolverInterface;
+use ApnTalk\LaravelFreeswitchEsl\Contracts\MetricsRecorderInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\RuntimeHandoffInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\RuntimeRunnerFeedbackProviderInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\RuntimeRunnerInterface;
@@ -108,6 +109,7 @@ class WorkerRuntime implements WorkerInterface
         private readonly ConnectionFactoryInterface $connectionFactory,
         private readonly RuntimeRunnerInterface $runtimeRunner,
         private readonly LoggerInterface $logger,
+        private readonly ?MetricsRecorderInterface $metrics = null,
         private readonly ?WorkerReplayCheckpointManager $checkpointManager = null,
         private readonly int $drainTimeoutMilliseconds = 30000,
         private readonly int $checkpointIntervalSeconds = 60,
@@ -153,6 +155,7 @@ class WorkerRuntime implements WorkerInterface
 
         $this->bootedAt = $this->now();
         $this->state = WorkerStatus::STATE_RUNNING;
+        $this->metrics?->increment('freeswitch_esl.worker.boot', tags: $this->metricTags());
     }
 
     public function run(): void
@@ -176,6 +179,7 @@ class WorkerRuntime implements WorkerInterface
         $this->runtimeRunner->run($runtimeHandoff);
         $this->runtimeRunnerInvoked = true;
         $this->maybeSavePeriodicCheckpoint();
+        $this->metrics?->increment('freeswitch_esl.worker.run_invoked', tags: $this->metricTags());
 
         $this->logger->info('Worker run completed after runtime runner invocation', [
             'session_id' => $this->sessionId,
@@ -210,6 +214,7 @@ class WorkerRuntime implements WorkerInterface
         );
 
         $this->refreshDrainState();
+        $this->metrics?->increment('freeswitch_esl.worker.drain_requested', tags: $this->metricTags());
     }
 
     public function shutdown(): void
@@ -237,6 +242,7 @@ class WorkerRuntime implements WorkerInterface
         ]);
 
         $this->state = WorkerStatus::STATE_SHUTDOWN;
+        $this->metrics?->increment('freeswitch_esl.worker.shutdown', tags: $this->metricTags());
     }
 
     public function status(): WorkerStatus
@@ -493,5 +499,17 @@ class WorkerRuntime implements WorkerInterface
             'failed' => WorkerStatus::STATE_FAILED,
             default => $this->state,
         };
+    }
+
+    /**
+     * @return array<string, int|string>
+     */
+    private function metricTags(): array
+    {
+        return [
+            'worker_name' => $this->workerName,
+            'provider_code' => $this->node->providerCode,
+            'pbx_node_slug' => $this->node->slug,
+        ];
     }
 }

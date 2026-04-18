@@ -2,10 +2,11 @@
 
 The stable public API surface of `apntalk/laravel-freeswitch-esl` is defined here.
 For the full compatibility and deprecation policy, see `docs/compatibility-policy.md`.
+For bounded health snapshot/readiness/liveness semantics, see `docs/health-model.md`.
 
 ---
 
-## Stable public surfaces (current 0.4.x runtime observation checkpoint)
+## Stable public surfaces (current 0.5.x runtime/reporting checkpoint)
 
 ### Contracts (`src/Contracts/`)
 
@@ -25,6 +26,7 @@ which is explicitly `@internal`.
 | `WorkerInterface` | Worker boot/run/drain/shutdown lifecycle |
 | `WorkerAssignmentResolverInterface` | Assignment scope resolution |
 | `HealthReporterInterface` | Structured health snapshot contract |
+| `MetricsRecorderInterface` | Laravel-facing metrics hook contract with a no-op default binding |
 | `SecretResolverInterface` | Credential resolution contract |
 
 ### Value objects (`src/ControlPlane/ValueObjects/`)
@@ -49,6 +51,7 @@ All value objects are stable public API:
 | `FreeSwitchEslServiceProvider` | Service provider class name is stable |
 | All registered container bindings | Stable (interface → implementation map) |
 | Config key `freeswitch-esl` | Config shape is stable; see `config/freeswitch-esl.php` |
+| HTTP health routes | `GET /freeswitch-esl/health`, `GET /freeswitch-esl/health/live`, `GET /freeswitch-esl/health/ready` |
 | All artisan command signatures | `freeswitch:ping`, `freeswitch:status`, `freeswitch:worker`, `freeswitch:worker:status`, `freeswitch:worker:checkpoint-status`, `freeswitch:health`, `freeswitch:replay:inspect` |
 | DB migration table names | `pbx_providers`, `pbx_nodes`, `pbx_connection_profiles`, `worker_assignments` |
 | DB column names | Stable; see `database/migrations/` |
@@ -101,6 +104,7 @@ Current worker/runtime posture notes:
 - `WorkerStatus::state = running` currently means boot completed and runtime handoff prepared; use `WorkerStatus::isHandoffPrepared()`, `isRuntimeRunnerInvoked()`, `isRuntimeFeedbackObserved()`, and `isRuntimeLoopActive()` to distinguish prepared scaffolding, seam invocation, observed runner feedback, and upstream runtime-status-derived live async session state.
 - worker drain/checkpoint status is surfaced conservatively through `WorkerStatus::meta`, including bounded replay-backed checkpoint save/resume hints, additive periodic checkpoint metadata, and bounded drain completion/timeout fields; this does not imply live session recovery or replay execution
 - `freeswitch:worker` now renders those bounded replay-backed checkpoint/recovery hints in human-readable operator output, `freeswitch:worker --json` exposes the same posture plus additive machine-readable resume-posture fields in a stable form, `freeswitch:worker:status` provides a dedicated reporting-oriented JSON surface that prepares runtimes without invoking the runtime runner and carries the same additive resume-posture fields, and `freeswitch:worker:checkpoint-status` provides a dedicated historical checkpoint summary surface over persisted checkpoint state with additive filters, stable `limit`/`offset` pagination, additive historical pruning-posture fields when those can be derived truthfully from upstream filesystem retention planning, and additive top-level retention-policy/support-basis metadata for the current invocation; `freeswitch:health --summary` exposes a bounded aggregate DB-backed health summary with conservative readiness/liveness posture, and human-readable `freeswitch:health` can now show a small runtime-linked facts section plus a bounded age/staleness hint derived from the stored snapshot timestamp when the snapshot contains selected upstream runtime-status facts from a real worker run, while `freeswitch:health` and `freeswitch:status` remain intentionally narrower and do not show live worker recovery posture
+- the optional HTTP health routes reuse the same DB-backed `HealthReporter` model and expose JSON-only bounded summary, readiness posture, and liveness posture surfaces; they do not claim current live socket state, reconnect completion, or process/event-loop liveness beyond the latest persisted snapshot facts
 
 ---
 
@@ -127,3 +131,8 @@ set `secret_resolver.resolver_class` to your FQCN.
 
 Bind your implementation against `HealthReporterInterface` after the service provider loads,
 or extend `HealthReporter` and re-bind in your `AppServiceProvider`.
+
+### Custom metrics recorder
+
+Bind your implementation against `MetricsRecorderInterface` after the service provider loads.
+The package default is `NullMetricsRecorder`, which emits nothing until your app replaces it.

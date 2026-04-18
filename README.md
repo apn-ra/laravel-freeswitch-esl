@@ -13,6 +13,8 @@ A production-grade Laravel package that provides:
 - **Worker assignment orchestration** — target one node, a cluster, a tag, or all active nodes
 - **Long-lived worker bootstrapping** — explicit boot/run/drain/shutdown scaffolding, with live async runtime behavior still deferred to `apntalk/esl-react`
 - **Structured health and diagnostics** — machine-usable operational state per node
+- **Metrics hook seam** — a Laravel-facing metrics contract with a safe no-op default
+- **Optional HTTP health integration** — JSON health, readiness, and liveness posture routes over the same DB-backed health snapshot model
 - **Replay-backed integration** — upstream replay capture/store wiring, inspection, bounded checkpoint/drain coordination, and bounded interval-based periodic checkpoints
 
 ## What this package is not
@@ -142,6 +144,13 @@ Key settings:
     'heartbeat_timeout_seconds' => 60,
 ],
 
+'http' => [
+    'health' => [
+        'enabled' => true,
+        'prefix' => 'freeswitch-esl/health',
+    ],
+],
+
 'replay' => [
     'enabled' => false,
 ],
@@ -166,11 +175,20 @@ Key settings:
 | `freeswitch:health` | Show health snapshots, with `--summary` for a bounded aggregate DB-backed summary |
 | `freeswitch:replay:inspect` | Inspect replay capture store |
 
+HTTP health routes:
+
+| Route | Description |
+|---|---|
+| `GET /freeswitch-esl/health` | JSON DB-backed health summary with snapshot list |
+| `GET /freeswitch-esl/health/live` | JSON bounded liveness posture over the latest DB-backed snapshots |
+| `GET /freeswitch-esl/health/ready` | JSON bounded readiness posture over the latest DB-backed snapshots |
+
 ---
 
 ## Architecture
 
 See `docs/architecture.md` for the full architectural overview.
+See `docs/health-model.md` for the bounded DB-backed health/readiness/liveness model.
 
 The core flow:
 
@@ -211,6 +229,7 @@ The package is currently usable for:
 Still deferred:
 - Laravel-owned runtime supervision, reconnect/backoff ownership, and heartbeat/session lifecycle ownership
 - replay execution/re-injection and live-session recovery from replay checkpoints
+- stronger live-process liveness guarantees than the latest DB-backed health snapshot model can prove
 
 `WorkerRuntime::run()` now invokes the Laravel-owned `RuntimeRunnerInterface` seam. By default, the package maps `RuntimeHandoffInterface` into `apntalk/esl-react`'s `PreparedRuntimeBootstrapInput` and calls the upstream runner. On the supported `apntalk/esl-react` `^0.2.9` line, Laravel consumes `RuntimeRunnerHandle::statusSnapshot()` and registers `RuntimeRunnerHandle::onLifecycleChange()` so machine-readable worker and health-adjacent surfaces can reflect runtime-owned phase, reconnect posture, connect/disconnect observation, and failure summaries without claiming reconnect or resume execution ownership. Laravel can also pass an explicit prepared dial URI when the resolved transport requires it. Reconnect, heartbeat, session lifecycle, bgapi/event runtime semantics, and broader runtime supervision remain owned by the bound runner.
 

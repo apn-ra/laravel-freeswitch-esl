@@ -8,6 +8,7 @@ use Apntalk\EslReplay\Contracts\ReplayCheckpointStoreInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\ConnectionFactoryInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\ConnectionResolverInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\HealthReporterInterface;
+use ApnTalk\LaravelFreeswitchEsl\Contracts\MetricsRecorderInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\PbxRegistryInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\ProviderDriverRegistryInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\RuntimeRunnerInterface;
@@ -20,6 +21,7 @@ use ApnTalk\LaravelFreeswitchEsl\Integration\EslReactRuntimeBootstrapInputFactor
 use ApnTalk\LaravelFreeswitchEsl\Integration\EslReactRuntimeRunnerAdapter;
 use ApnTalk\LaravelFreeswitchEsl\Integration\NonLiveRuntimeRunner;
 use ApnTalk\LaravelFreeswitchEsl\Integration\Replay\WorkerReplayCheckpointManager;
+use ApnTalk\LaravelFreeswitchEsl\Observability\NullMetricsRecorder;
 use ApnTalk\LaravelFreeswitchEsl\Tests\TestCase;
 
 class FreeSwitchEslServiceProviderTest extends TestCase
@@ -136,6 +138,14 @@ class FreeSwitchEslServiceProviderTest extends TestCase
         );
     }
 
+    public function test_metrics_recorder_is_bound_to_no_op_default(): void
+    {
+        $this->assertInstanceOf(
+            NullMetricsRecorder::class,
+            $this->app->make(MetricsRecorderInterface::class)
+        );
+    }
+
     public function test_connection_profile_resolver_is_bound(): void
     {
         $this->assertInstanceOf(
@@ -170,6 +180,7 @@ class FreeSwitchEslServiceProviderTest extends TestCase
         $this->assertArrayHasKey('retry_defaults', $config);
         $this->assertArrayHasKey('drain_defaults', $config);
         $this->assertArrayHasKey('health', $config);
+        $this->assertArrayHasKey('http', $config);
         $this->assertArrayHasKey('replay', $config);
     }
 

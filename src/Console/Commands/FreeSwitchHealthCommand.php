@@ -5,6 +5,7 @@ namespace ApnTalk\LaravelFreeswitchEsl\Console\Commands;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\HealthReporterInterface;
 use ApnTalk\LaravelFreeswitchEsl\Contracts\PbxRegistryInterface;
 use ApnTalk\LaravelFreeswitchEsl\ControlPlane\ValueObjects\HealthSnapshot;
+use ApnTalk\LaravelFreeswitchEsl\Health\HealthSummaryBuilder;
 use Carbon\CarbonImmutable;
 use Illuminate\Console\Command;
 
@@ -21,8 +22,11 @@ class FreeSwitchHealthCommand extends Command
 
     protected $description = 'Show health status of PBX nodes';
 
-    public function handle(HealthReporterInterface $reporter, PbxRegistryInterface $registry): int
-    {
+    public function handle(
+        HealthReporterInterface $reporter,
+        PbxRegistryInterface $registry,
+        HealthSummaryBuilder $summaryBuilder,
+    ): int {
         $pbx = $this->stringOption('pbx');
         $cluster = $this->stringOption('cluster');
         $withSummary = $this->booleanOption('summary');
@@ -34,20 +38,11 @@ class FreeSwitchHealthCommand extends Command
                 $cluster !== null => $reporter->forCluster($cluster),
                 default => $reporter->forAllActive(),
             };
-            $summary = $this->summary($snapshots);
+            $summary = $summaryBuilder->summary($snapshots);
 
             if ($asJson) {
-                $liveRuntimeLinked = $this->isRuntimeLinked($snapshots);
                 $payload = $withSummary
-                    ? [
-                        'report_surface' => 'health_snapshot_summary',
-                        'snapshot_basis' => 'db_health_snapshot',
-                        'live_runtime_linked' => $liveRuntimeLinked,
-                        'summary' => $summary,
-                        'liveness_posture' => $this->aggregatePosture($summary),
-                        'readiness_posture' => $this->aggregatePosture($summary),
-                        'snapshots' => array_map(fn ($s) => $s->toArray(), $snapshots),
-                    ]
+                    ? $summaryBuilder->buildSummaryPayload($snapshots)
                     : array_map(fn ($s) => $s->toArray(), $snapshots);
 
                 $this->line($this->jsonString($payload));
@@ -62,8 +57,8 @@ class FreeSwitchHealthCommand extends Command
                     $this->line(sprintf(
                         'Aggregate DB-backed health summary: %d node(s); readiness %s; liveness %s.',
                         $summary['node_count'],
-                        $this->aggregatePosture($summary),
-                        $this->aggregatePosture($summary),
+                        $summaryBuilder->aggregatePosture($summary),
+                        $summaryBuilder->aggregatePosture($summary),
                     ));
                 }
 
@@ -93,8 +88,8 @@ class FreeSwitchHealthCommand extends Command
                     $summary['degraded_count'],
                     $summary['unhealthy_count'],
                     $summary['unknown_count'],
-                    $this->aggregatePosture($summary),
-                    $this->aggregatePosture($summary),
+                    $summaryBuilder->aggregatePosture($summary),
+                    $summaryBuilder->aggregatePosture($summary),
                 ));
             }
 
@@ -128,66 +123,6 @@ class FreeSwitchHealthCommand extends Command
     private function jsonString(array $value): string
     {
         return json_encode($value, JSON_PRETTY_PRINT) ?: '[]';
-    }
-
-    /**
-     * @param  list<HealthSnapshot>  $snapshots
-     * @return array<string, int>
-     */
-    private function summary(array $snapshots): array
-    {
-        $summary = [
-            'node_count' => count($snapshots),
-            'healthy_count' => 0,
-            'degraded_count' => 0,
-            'unhealthy_count' => 0,
-            'unknown_count' => 0,
-        ];
-
-        foreach ($snapshots as $snapshot) {
-            match ($snapshot->status) {
-                HealthSnapshot::STATUS_HEALTHY => $summary['healthy_count']++,
-                HealthSnapshot::STATUS_DEGRADED => $summary['degraded_count']++,
-                HealthSnapshot::STATUS_UNHEALTHY => $summary['unhealthy_count']++,
-                default => $summary['unknown_count']++,
-            };
-        }
-
-        return $summary;
-    }
-
-    /**
-     * @param  array<string, int>  $summary
-     */
-    private function aggregatePosture(array $summary): string
-    {
-        if (($summary['node_count'] ?? 0) === 0) {
-            return HealthSnapshot::STATUS_UNKNOWN;
-        }
-
-        if (($summary['unhealthy_count'] ?? 0) > 0) {
-            return HealthSnapshot::STATUS_UNHEALTHY;
-        }
-
-        if ((($summary['degraded_count'] ?? 0) > 0) || (($summary['unknown_count'] ?? 0) > 0)) {
-            return HealthSnapshot::STATUS_DEGRADED;
-        }
-
-        return HealthSnapshot::STATUS_HEALTHY;
-    }
-
-    /**
-     * @param  list<HealthSnapshot>  $snapshots
-     */
-    private function isRuntimeLinked(array $snapshots): bool
-    {
-        foreach ($snapshots as $snapshot) {
-            if (($snapshot->meta['live_runtime_linked'] ?? false) === true) {
-                return true;
-            }
-        }
-
-        return false;
     }
 
     /**

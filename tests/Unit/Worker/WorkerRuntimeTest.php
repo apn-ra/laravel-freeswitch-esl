@@ -27,6 +27,8 @@ use ApnTalk\LaravelFreeswitchEsl\Integration\EslCoreConnectionHandle;
 use ApnTalk\LaravelFreeswitchEsl\Integration\EslCorePipelineFactory;
 use ApnTalk\LaravelFreeswitchEsl\Integration\NonLiveRuntimeRunner;
 use ApnTalk\LaravelFreeswitchEsl\Integration\Replay\WorkerReplayCheckpointManager;
+use ApnTalk\LaravelFreeswitchEsl\Tests\Support\Fakes\ArrayMetricsRecorder;
+use ApnTalk\LaravelFreeswitchEsl\Tests\Support\Fakes\MutableRuntimeRunner;
 use ApnTalk\LaravelFreeswitchEsl\Worker\WorkerRuntime;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
@@ -309,6 +311,148 @@ class WorkerRuntimeTest extends TestCase
         $this->assertNotNull($status->meta['runtime_last_failure_at']);
     }
 
+    public function test_status_observes_disconnect_and_recovery_transitions_from_mutable_runtime_feedback(): void
+    {
+        $runtimeRunner = new MutableRuntimeRunner(
+            runCallback: function (RuntimeHandoffInterface $handoff, MutableRuntimeRunner $runner): void {
+                $runner->setFeedback(new RuntimeRunnerFeedback(
+                    state: RuntimeRunnerFeedback::STATE_RUNNING,
+                    source: 'apntalk/esl-react-runtime-status-snapshot',
+                    delivery: 'push',
+                    statusPhase: 'active',
+                    endpoint: $handoff->endpoint(),
+                    sessionId: $handoff->context()->workerSessionId,
+                    isConnected: true,
+                    isAuthenticated: true,
+                    isLive: true,
+                    isRuntimeActive: true,
+                    isRecoveryInProgress: false,
+                    reconnectAttempts: 0,
+                    lastHeartbeatAtMicros: 1800000.0,
+                    lastSuccessfulConnectAtMicros: 1750000.0,
+                ));
+            },
+        );
+
+        $runtime = $this->makeRuntime($runtimeRunner);
+
+        $runtime->boot();
+        $runtime->run();
+
+        $activeStatus = $runtime->status();
+
+        $this->assertSame(WorkerStatus::STATE_RUNNING, $activeStatus->state);
+        $this->assertSame('active', $activeStatus->meta['runtime_status_phase']);
+        $this->assertTrue($activeStatus->meta['runtime_active']);
+        $this->assertFalse($activeStatus->meta['runtime_recovery_in_progress']);
+
+        $runtimeRunner->setFeedback(new RuntimeRunnerFeedback(
+            state: RuntimeRunnerFeedback::STATE_RUNNING,
+            source: 'apntalk/esl-react-runtime-status-snapshot',
+            delivery: 'push',
+            statusPhase: 'reconnecting',
+            endpoint: $runtime->runtimeHandoff()?->endpoint(),
+            sessionId: $runtime->sessionId(),
+            isConnected: false,
+            isAuthenticated: false,
+            isLive: true,
+            isRuntimeActive: true,
+            isRecoveryInProgress: true,
+            reconnectAttempts: 3,
+            lastHeartbeatAtMicros: 1800000.0,
+            lastSuccessfulConnectAtMicros: 1750000.0,
+            lastDisconnectAtMicros: 1810000.0,
+            lastDisconnectReasonClass: \RuntimeException::class,
+            lastDisconnectReasonMessage: 'link dropped',
+        ));
+
+        $reconnectingStatus = $runtime->status();
+
+        $this->assertSame(WorkerStatus::STATE_RECONNECTING, $reconnectingStatus->state);
+        $this->assertSame(3, $reconnectingStatus->retryAttempt);
+        $this->assertSame('reconnecting', $reconnectingStatus->meta['runtime_status_phase']);
+        $this->assertTrue($reconnectingStatus->meta['runtime_recovery_in_progress']);
+        $this->assertSame('link dropped', $reconnectingStatus->meta['runtime_last_disconnect_reason_message']);
+
+        $runtimeRunner->setFeedback(new RuntimeRunnerFeedback(
+            state: RuntimeRunnerFeedback::STATE_RUNNING,
+            source: 'apntalk/esl-react-runtime-status-snapshot',
+            delivery: 'push',
+            statusPhase: 'active',
+            endpoint: $runtime->runtimeHandoff()?->endpoint(),
+            sessionId: $runtime->sessionId(),
+            isConnected: true,
+            isAuthenticated: true,
+            isLive: true,
+            isRuntimeActive: true,
+            isRecoveryInProgress: false,
+            reconnectAttempts: 0,
+            lastHeartbeatAtMicros: 1900000.0,
+            lastSuccessfulConnectAtMicros: 1890000.0,
+            lastDisconnectAtMicros: 1810000.0,
+            lastDisconnectReasonClass: \RuntimeException::class,
+            lastDisconnectReasonMessage: 'link dropped',
+        ));
+
+        $recoveredStatus = $runtime->status();
+
+        $this->assertSame(WorkerStatus::STATE_RUNNING, $recoveredStatus->state);
+        $this->assertSame('active', $recoveredStatus->meta['runtime_status_phase']);
+        $this->assertFalse($recoveredStatus->meta['runtime_recovery_in_progress']);
+        $this->assertSame('link dropped', $recoveredStatus->meta['runtime_last_disconnect_reason_message']);
+        $this->assertNotNull($recoveredStatus->meta['runtime_last_successful_connect_at']);
+    }
+
+    public function test_status_observes_failed_transition_from_mutable_runtime_feedback(): void
+    {
+        $runtimeRunner = new MutableRuntimeRunner(
+            runCallback: function (RuntimeHandoffInterface $handoff, MutableRuntimeRunner $runner): void {
+                $runner->setFeedback(new RuntimeRunnerFeedback(
+                    state: RuntimeRunnerFeedback::STATE_RUNNING,
+                    source: 'apntalk/esl-react-runtime-status-snapshot',
+                    delivery: 'push',
+                    statusPhase: 'active',
+                    endpoint: $handoff->endpoint(),
+                    sessionId: $handoff->context()->workerSessionId,
+                    isConnected: true,
+                    isAuthenticated: true,
+                    isLive: true,
+                    isRuntimeActive: true,
+                    isRecoveryInProgress: false,
+                ));
+            },
+        );
+
+        $runtime = $this->makeRuntime($runtimeRunner);
+
+        $runtime->boot();
+        $runtime->run();
+        $runtimeRunner->setFeedback(new RuntimeRunnerFeedback(
+            state: RuntimeRunnerFeedback::STATE_FAILED,
+            source: 'apntalk/esl-react-runtime-status-snapshot',
+            delivery: 'push',
+            statusPhase: 'failed',
+            endpoint: $runtime->runtimeHandoff()?->endpoint(),
+            sessionId: $runtime->sessionId(),
+            isConnected: false,
+            isAuthenticated: false,
+            isLive: false,
+            isRuntimeActive: false,
+            isRecoveryInProgress: false,
+            lastFailureAtMicros: 1910000.0,
+            lastRuntimeErrorClass: \LogicException::class,
+            lastRuntimeErrorMessage: 'runtime failed',
+        ));
+
+        $status = $runtime->status();
+
+        $this->assertSame(WorkerStatus::STATE_FAILED, $status->state);
+        $this->assertSame('failed', $status->meta['runtime_status_phase']);
+        $this->assertFalse($status->meta['runtime_active']);
+        $this->assertSame(\LogicException::class, $status->meta['runtime_last_error_class']);
+        $this->assertSame('runtime failed', $status->meta['runtime_last_error_message']);
+    }
+
     public function test_drain_records_checkpoint_and_completes_immediately_when_no_inflight(): void
     {
         $savedCheckpoint = null;
@@ -557,12 +701,32 @@ class WorkerRuntimeTest extends TestCase
         $this->assertSame('drain-completed', $checkpointStore->saved[2]->metadata['checkpoint_reason']);
     }
 
+    public function test_worker_runtime_records_metrics_for_boot_run_drain_and_shutdown(): void
+    {
+        $metrics = new ArrayMetricsRecorder;
+        $runtime = $this->makeRuntime(metrics: $metrics);
+
+        $runtime->boot();
+        $runtime->run();
+        $runtime->drain();
+        $runtime->shutdown();
+
+        $this->assertCount(4, $metrics->increments);
+        $this->assertSame('freeswitch_esl.worker.boot', $metrics->increments[0]['name']);
+        $this->assertSame('freeswitch_esl.worker.run_invoked', $metrics->increments[1]['name']);
+        $this->assertSame('freeswitch_esl.worker.drain_requested', $metrics->increments[2]['name']);
+        $this->assertSame('freeswitch_esl.worker.shutdown', $metrics->increments[3]['name']);
+        $this->assertSame('test-worker', $metrics->increments[0]['tags']['worker_name']);
+        $this->assertSame('test-node', $metrics->increments[0]['tags']['pbx_node_slug']);
+    }
+
     private function makeRuntime(
         ?RuntimeRunnerInterface $runtimeRunner = null,
         ?WorkerReplayCheckpointManager $checkpointManager = null,
         int $drainTimeoutMilliseconds = 30000,
         int $checkpointIntervalSeconds = 60,
         ?TestClock $clock = null,
+        ?ArrayMetricsRecorder $metrics = null,
     ): WorkerRuntime {
         $node = new PbxNode(
             id: 1,
@@ -629,7 +793,7 @@ class WorkerRuntimeTest extends TestCase
         };
 
         if ($clock !== null) {
-            return new class($node, $resolver, $connectionFactory, $runtimeRunner ?? new NonLiveRuntimeRunner, $checkpointManager, $drainTimeoutMilliseconds, $checkpointIntervalSeconds, $clock) extends WorkerRuntime
+            return new class($node, $resolver, $connectionFactory, $runtimeRunner ?? new NonLiveRuntimeRunner, $checkpointManager, $drainTimeoutMilliseconds, $checkpointIntervalSeconds, $clock, $metrics) extends WorkerRuntime
             {
                 public function __construct(
                     PbxNode $node,
@@ -640,6 +804,7 @@ class WorkerRuntimeTest extends TestCase
                     int $drainTimeoutMilliseconds,
                     int $checkpointIntervalSeconds,
                     private readonly TestClock $clock,
+                    ?ArrayMetricsRecorder $metrics,
                 ) {
                     parent::__construct(
                         workerName: 'test-worker',
@@ -648,6 +813,7 @@ class WorkerRuntimeTest extends TestCase
                         connectionFactory: $connectionFactory,
                         runtimeRunner: $runtimeRunner,
                         logger: new NullLogger,
+                        metrics: $metrics,
                         checkpointManager: $checkpointManager,
                         drainTimeoutMilliseconds: $drainTimeoutMilliseconds,
                         checkpointIntervalSeconds: $checkpointIntervalSeconds,
@@ -668,6 +834,7 @@ class WorkerRuntimeTest extends TestCase
             connectionFactory: $connectionFactory,
             runtimeRunner: $runtimeRunner ?? new NonLiveRuntimeRunner,
             logger: new NullLogger,
+            metrics: $metrics,
             checkpointManager: $checkpointManager,
             drainTimeoutMilliseconds: $drainTimeoutMilliseconds,
             checkpointIntervalSeconds: $checkpointIntervalSeconds,
