@@ -4,20 +4,20 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "409742b459d04f9d27def022aadbf2c2",
+    "content-hash": "09f9b6f1e53e76acb9a2bc05eb01e575",
     "packages": [
         {
             "name": "apntalk/esl-core",
-            "version": "v0.2.5",
+            "version": "v0.2.6",
             "source": {
                 "type": "git",
                 "url": "https://github.com/apn-ra/esl-core.git",
-                "reference": "257135e719d570d05c288b67a055e18cdbc0fa12"
+                "reference": "930c340b917104b48229a89c5b6157461f8fa1ed"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/apn-ra/esl-core/zipball/257135e719d570d05c288b67a055e18cdbc0fa12",
-                "reference": "257135e719d570d05c288b67a055e18cdbc0fa12",
+                "url": "https://api.github.com/repos/apn-ra/esl-core/zipball/930c340b917104b48229a89c5b6157461f8fa1ed",
+                "reference": "930c340b917104b48229a89c5b6157461f8fa1ed",
                 "shasum": ""
             },
             "require": {
@@ -54,26 +54,26 @@
             ],
             "support": {
                 "issues": "https://github.com/apn-ra/esl-core/issues",
-                "source": "https://github.com/apn-ra/esl-core/tree/v0.2.5"
+                "source": "https://github.com/apn-ra/esl-core/tree/v0.2.6"
             },
-            "time": "2026-04-16T23:02:27+00:00"
+            "time": "2026-04-18T01:55:05+00:00"
         },
         {
             "name": "apntalk/esl-react",
-            "version": "v0.2.9",
+            "version": "v0.2.10",
             "source": {
                 "type": "git",
                 "url": "https://github.com/apn-ra/esl-react.git",
-                "reference": "7ca0a8e9e113904e4192d56cd39d4ab893107b14"
+                "reference": "3ec3f814902761fa05317e859d04369f2dea1907"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/apn-ra/esl-react/zipball/7ca0a8e9e113904e4192d56cd39d4ab893107b14",
-                "reference": "7ca0a8e9e113904e4192d56cd39d4ab893107b14",
+                "url": "https://api.github.com/repos/apn-ra/esl-react/zipball/3ec3f814902761fa05317e859d04369f2dea1907",
+                "reference": "3ec3f814902761fa05317e859d04369f2dea1907",
                 "shasum": ""
             },
             "require": {
-                "apntalk/esl-core": "^0.2",
+                "apntalk/esl-core": "^0.2.6",
                 "php": "^8.3",
                 "react/event-loop": "^1.5",
                 "react/promise": "^3.2",
@@ -114,20 +114,20 @@
                 "issues": "https://github.com/apn-ra/esl-react/issues",
                 "source": "https://github.com/apn-ra/esl-react"
             },
-            "time": "2026-04-17T23:37:23+00:00"
+            "time": "2026-04-18T02:42:41+00:00"
         },
         {
             "name": "apntalk/esl-replay",
-            "version": "v0.9.1",
+            "version": "v0.9.2",
             "source": {
                 "type": "git",
                 "url": "https://github.com/apn-ra/esl-replay.git",
-                "reference": "bfea6ffd0e4a1ce940b314f82e3ce36ff267f819"
+                "reference": "aa8752f3b6d1ccd6972c99a97bc2259c5a760b84"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/apn-ra/esl-replay/zipball/bfea6ffd0e4a1ce940b314f82e3ce36ff267f819",
-                "reference": "bfea6ffd0e4a1ce940b314f82e3ce36ff267f819",
+                "url": "https://api.github.com/repos/apn-ra/esl-replay/zipball/aa8752f3b6d1ccd6972c99a97bc2259c5a760b84",
+                "reference": "aa8752f3b6d1ccd6972c99a97bc2259c5a760b84",
                 "shasum": ""
             },
             "require": {
@@ -152,9 +152,9 @@
             "description": "Durable replay artifact platform for FreeSWITCH ESL runtime output",
             "support": {
                 "issues": "https://github.com/apn-ra/esl-replay/issues",
-                "source": "https://github.com/apn-ra/esl-replay/tree/v0.9.1"
+                "source": "https://github.com/apn-ra/esl-replay/tree/v0.9.2"
             },
-            "time": "2026-04-17T09:27:46+00:00"
+            "time": "2026-04-18T02:21:08+00:00"
         },
         {
             "name": "brick/math",

@@ -10,7 +10,8 @@ This project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Changed
-- aligned the default `apntalk/esl-react` integration to the runtime-owned `RuntimeRunnerHandle::statusSnapshot()` seam on `v0.2.9`
+- aligned the upstream dependency floors to `apntalk/esl-core` `^0.2.6`, `apntalk/esl-react` `^0.2.10`, and `apntalk/esl-replay` `^0.9.2`
+- kept the default `apntalk/esl-react` integration on the runtime-owned `RuntimeRunnerHandle::statusSnapshot()` seam while validating compatibility on `v0.2.10`
 - enriched worker status/reporting surfaces with runtime-owned phase, active/recovery posture, connect/disconnect observation, and failure summary metadata without adding reconnect or resume execution
 - made aggregate health JSON summaries report whether provided snapshots are actually live-runtime-linked instead of hard-coding that posture
 - made real `freeswitch:worker` runs persist selected upstream runtime-status facts into DB-backed health snapshots so later `freeswitch:health` reads can surface the latest linked phase, connect/disconnect, and failure posture conservatively
@@ -21,7 +22,7 @@ This project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
-- integrated `apntalk/esl-replay` `v0.9.1` as a real runtime dependency and replaced the local replay-store stub with the upstream `ReplayArtifactStoreInterface`
+- integrated `apntalk/esl-replay` as a real runtime dependency and replaced the local replay-store stub with the upstream `ReplayArtifactStoreInterface`
 - added Laravel replay store wiring, an esl-core replay sink adapter, and artifact-envelope adaptation so `apntalk/esl-react` replay hooks can be durably persisted when replay is enabled
 - made `freeswitch:replay:inspect` read real upstream stored replay records and filter them by PBX node/runtime metadata
 - enabled replay integration coverage for store binding, metadata propagation, bounded reads, and replay inspection behavior

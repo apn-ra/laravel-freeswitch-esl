@@ -26,7 +26,7 @@ Support for PHP 8.2 and below, and Laravel 10, is not planned.
 
 Current worker/runtime truth:
 - `WorkerRuntime::run()` invokes the Laravel-owned runtime runner seam; the default binding calls `apntalk/esl-react`, and the `non-live` fallback may return immediately
-- Laravel consumes runner-handle feedback for status reporting; on the supported `apntalk/esl-react` `^0.2.9` line, runtime status snapshots and push-based lifecycle callbacks provide connection/session/liveness/reconnect/drain truth and prepared dial targets can be passed explicitly for non-default transports. Validation/stability truth for reconnect, heartbeat, and bgapi/event runtime behavior remains upstream-owned and upstream-documented.
+- Laravel consumes runner-handle feedback for status reporting; on the supported `apntalk/esl-react` `^0.2.10` line, runtime status snapshots and push-based lifecycle callbacks provide connection/session/liveness/reconnect/drain truth and prepared dial targets can be passed explicitly for non-default transports. Validation/stability truth for reconnect, heartbeat, and bgapi/event runtime behavior remains upstream-owned and upstream-documented.
 - `WorkerStatus::state = running` currently means handoff prepared, not live async session active
 - reconnecting/failed worker states are now surfaced when upstream runtime status snapshots report those phases; Laravel still does not own reconnect or failure-recovery mechanics
 - HTTP health/readiness/liveness routes and the CLI health summary now expose conservative bounded DB-backed posture only, not process/event-loop liveness guarantees
