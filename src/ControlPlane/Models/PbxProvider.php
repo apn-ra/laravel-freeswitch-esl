@@ -35,16 +35,26 @@ class PbxProvider extends Model
         'settings_json' => 'array',
     ];
 
+    /**
+     * @return HasMany<PbxNode, $this>
+     */
     public function nodes(): HasMany
     {
         return $this->hasMany(PbxNode::class, 'provider_id');
     }
 
+    /**
+     * @return HasMany<PbxConnectionProfile, $this>
+     */
     public function connectionProfiles(): HasMany
     {
         return $this->hasMany(PbxConnectionProfile::class, 'provider_id');
     }
 
+    /**
+     * @param  Builder<self>  $query
+     * @return Builder<self>
+     */
     public function scopeActive(Builder $query): Builder
     {
         return $query->where('is_active', true);

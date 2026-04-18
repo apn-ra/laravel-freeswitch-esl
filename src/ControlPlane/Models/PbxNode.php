@@ -46,38 +46,63 @@ class PbxNode extends Model
         'last_heartbeat_at' => 'datetime',
     ];
 
+    /**
+     * @return BelongsTo<PbxProvider, $this>
+     */
     public function provider(): BelongsTo
     {
         return $this->belongsTo(PbxProvider::class, 'provider_id');
     }
 
+    /**
+     * @return HasMany<WorkerAssignment, $this>
+     */
     public function workerAssignments(): HasMany
     {
         return $this->hasMany(WorkerAssignment::class, 'pbx_node_id');
     }
 
+    /**
+     * @param  Builder<self>  $query
+     * @return Builder<self>
+     */
     public function scopeActive(Builder $query): Builder
     {
         return $query->where('is_active', true);
     }
 
+    /**
+     * @param  Builder<self>  $query
+     * @return Builder<self>
+     */
     public function scopeInCluster(Builder $query, string $cluster): Builder
     {
         return $query->where('cluster', $cluster);
     }
 
+    /**
+     * @param  Builder<self>  $query
+     * @return Builder<self>
+     */
     public function scopeWithTag(Builder $query, string $tag): Builder
     {
-        /** @var Builder $scoped */
+        /** @var Builder<self> $scoped */
         $scoped = $query->whereJsonContains('tags_json', $tag);
 
         return $scoped;
     }
 
+    /**
+     * @param  Builder<self>  $query
+     * @return Builder<self>
+     */
     public function scopeForProvider(Builder $query, string $providerCode): Builder
     {
         return $query->whereHas(
             'provider',
+            /**
+             * @param  Builder<PbxProvider>  $q
+             */
             fn (Builder $q) => $q->where('code', $providerCode)
         );
     }

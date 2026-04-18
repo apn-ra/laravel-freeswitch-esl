@@ -27,9 +27,6 @@ abstract class AsyncLoopTestCase extends TestCase
         parent::tearDown();
     }
 
-    /**
-     * @return mixed
-     */
     protected function await(PromiseInterface $promise, float $timeoutSeconds = 1.0): mixed
     {
         $settled = false;

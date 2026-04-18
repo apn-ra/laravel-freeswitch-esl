@@ -38,6 +38,9 @@ class PbxConnectionProfile extends Model
         'settings_json' => 'array',
     ];
 
+    /**
+     * @return BelongsTo<PbxProvider, $this>
+     */
     public function provider(): BelongsTo
     {
         return $this->belongsTo(PbxProvider::class, 'provider_id');

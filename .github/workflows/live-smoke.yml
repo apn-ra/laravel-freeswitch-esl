@@ -1,0 +1,146 @@
+name: Live Smoke
+
+on:
+  workflow_dispatch:
+    inputs:
+      timeout_seconds:
+        description: Timeout in seconds for read-only event validation
+        required: false
+        default: '8'
+      capture_frames:
+        description: Capture raw inbound frames as workflow artifacts
+        required: false
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+jobs:
+  live-smoke:
+    name: Read-only ESL smoke
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check smoke configuration
+        id: config
+        env:
+          SMOKE_HOST: ${{ secrets.FREESWITCH_ESL_SMOKE_HOST }}
+          SMOKE_PORT: ${{ secrets.FREESWITCH_ESL_SMOKE_PORT }}
+          SMOKE_PASSWORD: ${{ secrets.FREESWITCH_ESL_SMOKE_PASSWORD }}
+        run: |
+          set -euo pipefail
+
+          missing=()
+
+          [[ -n "${SMOKE_HOST}" ]] || missing+=("FREESWITCH_ESL_SMOKE_HOST")
+          [[ -n "${SMOKE_PORT}" ]] || missing+=("FREESWITCH_ESL_SMOKE_PORT")
+          [[ -n "${SMOKE_PASSWORD}" ]] || missing+=("FREESWITCH_ESL_SMOKE_PASSWORD")
+
+          if [[ ${#missing[@]} -gt 0 ]]; then
+            echo "should_run=false" >> "${GITHUB_OUTPUT}"
+            {
+              echo "## Live smoke skipped"
+              echo
+              echo "Missing required secrets:"
+              printf -- '- `%s`\n' "${missing[@]}"
+            } >> "${GITHUB_STEP_SUMMARY}"
+            exit 0
+          fi
+
+          echo "should_run=true" >> "${GITHUB_OUTPUT}"
+          {
+            echo "## Live smoke will run"
+            echo
+            echo "- host secret present"
+            echo "- port secret present"
+            echo "- password secret present"
+            echo "- timeout: `${{ inputs.timeout_seconds }}` seconds"
+            echo "- raw frame capture: `${{ inputs.capture_frames }}`"
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+      - name: Setup PHP
+        if: steps.config.outputs.should_run == 'true'
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          coverage: none
+
+      - name: Install dependencies
+        if: steps.config.outputs.should_run == 'true'
+        run: composer install --prefer-dist --no-interaction --no-progress
+
+      - name: Run read-only live smoke
+        if: steps.config.outputs.should_run == 'true'
+        env:
+          FREESWITCH_ESL_SMOKE_HOST: ${{ secrets.FREESWITCH_ESL_SMOKE_HOST }}
+          FREESWITCH_ESL_SMOKE_PORT: ${{ secrets.FREESWITCH_ESL_SMOKE_PORT }}
+          FREESWITCH_ESL_SMOKE_PASSWORD: ${{ secrets.FREESWITCH_ESL_SMOKE_PASSWORD }}
+          SMOKE_TIMEOUT: ${{ inputs.timeout_seconds }}
+          CAPTURE_FRAMES: ${{ inputs.capture_frames }}
+        run: |
+          set -euo pipefail
+
+          ARTIFACT_DIR="build/live-smoke"
+          CAPTURE_DIR="${ARTIFACT_DIR}/captures"
+          mkdir -p "${ARTIFACT_DIR}"
+
+          capture_arg=()
+          if [[ "${CAPTURE_FRAMES}" == 'true' ]]; then
+            mkdir -p "${CAPTURE_DIR}"
+            capture_arg=(--capture-dir="${CAPTURE_DIR}")
+          fi
+
+          php vendor/apntalk/esl-core/tools/smoke/live_freeswitch_readonly_validate.php \
+            auth \
+            "${FREESWITCH_ESL_SMOKE_HOST}" \
+            "${FREESWITCH_ESL_SMOKE_PORT}" \
+            --password-env=FREESWITCH_ESL_SMOKE_PASSWORD \
+            "${capture_arg[@]}" \
+            > "${ARTIFACT_DIR}/auth.json"
+
+          php vendor/apntalk/esl-core/tools/smoke/live_freeswitch_readonly_validate.php \
+            api \
+            "${FREESWITCH_ESL_SMOKE_HOST}" \
+            "${FREESWITCH_ESL_SMOKE_PORT}" \
+            --password-env=FREESWITCH_ESL_SMOKE_PASSWORD \
+            "${capture_arg[@]}" \
+            > "${ARTIFACT_DIR}/api-status.json"
+
+          php vendor/apntalk/esl-core/tools/smoke/live_freeswitch_readonly_validate.php \
+            event-plain \
+            "${FREESWITCH_ESL_SMOKE_HOST}" \
+            "${FREESWITCH_ESL_SMOKE_PORT}" \
+            --password-env=FREESWITCH_ESL_SMOKE_PASSWORD \
+            --timeout="${SMOKE_TIMEOUT}" \
+            "${capture_arg[@]}" \
+            > "${ARTIFACT_DIR}/event-plain.json"
+
+          php vendor/apntalk/esl-core/tools/smoke/live_freeswitch_readonly_validate.php \
+            event-json \
+            "${FREESWITCH_ESL_SMOKE_HOST}" \
+            "${FREESWITCH_ESL_SMOKE_PORT}" \
+            --password-env=FREESWITCH_ESL_SMOKE_PASSWORD \
+            --timeout="${SMOKE_TIMEOUT}" \
+            "${capture_arg[@]}" \
+            > "${ARTIFACT_DIR}/event-json.json"
+
+          {
+            echo "## Live smoke outputs"
+            echo
+            echo "- \`auth.json\`"
+            echo "- \`api-status.json\`"
+            echo "- \`event-plain.json\`"
+            echo "- \`event-json.json\`"
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+      - name: Upload live smoke artifacts
+        if: always() && steps.config.outputs.should_run == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: live-smoke-${{ github.run_id }}
+          path: build/live-smoke
+          if-no-files-found: error

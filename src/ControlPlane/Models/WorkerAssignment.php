@@ -31,16 +31,27 @@ class WorkerAssignment extends Model
         'is_active' => 'boolean',
     ];
 
+    /**
+     * @return BelongsTo<PbxNode, $this>
+     */
     public function pbxNode(): BelongsTo
     {
         return $this->belongsTo(PbxNode::class, 'pbx_node_id');
     }
 
+    /**
+     * @param  Builder<self>  $query
+     * @return Builder<self>
+     */
     public function scopeActive(Builder $query): Builder
     {
         return $query->where('is_active', true);
     }
 
+    /**
+     * @param  Builder<self>  $query
+     * @return Builder<self>
+     */
     public function scopeForWorker(Builder $query, string $workerName): Builder
     {
         return $query->where('worker_name', $workerName);

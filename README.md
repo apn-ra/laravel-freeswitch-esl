@@ -271,6 +271,25 @@ composer test
 
 The test suite uses SQLite in-memory and does not require a live PBX.
 
+For `0.6.x` RC framing and upgrade notes, see
+`docs/releases/0.6.0-rc1.md`.
+
+### Optional live smoke workflow
+
+The repository also ships an optional manual GitHub Actions workflow at
+`.github/workflows/live-smoke.yml`.
+
+Workflow posture:
+
+- `workflow_dispatch` only
+- read-only and bounded to connect/auth/`api status`/event subscription checks
+- skipped cleanly when the required GitHub secrets are absent
+- uploads JSON outputs and raw-frame captures for troubleshooting when it runs
+
+This workflow is not part of the default CI gate.
+It validates environment reachability and FreeSWITCH ESL auth/bootstrap truth in
+a real deployment without moving live runtime ownership into this package.
+
 ## Metrics and observability
 
 The package now ships real metrics recorder implementations:

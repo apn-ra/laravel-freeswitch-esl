@@ -24,11 +24,15 @@ This project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - added a bounded human-readable runtime-linked snapshot age/staleness hint to `freeswitch:health`, derived from the stored snapshot timestamp rather than inferred live-runtime state
 - added optional JSON HTTP health/readiness/liveness routes over the existing DB-backed health snapshot model without claiming live socket or process-liveness ownership
 - wired bounded worker-lifecycle and health-recording metrics hooks into the shipped metrics drivers and package-owned operator surfaces
+- removed a stale PHPStan unmatched-ignore configuration and tightened Eloquent generic annotations so `vendor/bin/phpstan analyse --no-progress` is clean release evidence
+- removed the default HTML coverage-report request from `phpunit.xml` so `vendor/bin/phpunit` and `composer test` are truthful non-coverage release gates in the default environment
 
 ### Added
 
 - added shipped `LogMetricsRecorder` and `EventMetricsRecorder` implementations plus the `MetricsRecorded` Laravel event
 - added a deterministic simulated ESL harness for integration tests proving Laravel-observed connect, subscribe, disconnect, reconnect, and drain posture on the current `apntalk/esl-react` boundary
+- added `docs/releases/0.6.0-rc1.md` as the bounded release-candidate note for the `0.6.x` hardening line
+- added an optional manual GitHub Actions live smoke workflow that runs bounded read-only connect/auth/status/subscription checks when the required secrets are present and skips cleanly otherwise
 
 - integrated `apntalk/esl-replay` as a real runtime dependency and replaced the local replay-store stub with the upstream `ReplayArtifactStoreInterface`
 - added Laravel replay store wiring, an esl-core replay sink adapter, and artifact-envelope adaptation so `apntalk/esl-react` replay hooks can be durably persisted when replay is enabled
@@ -52,6 +56,14 @@ This project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - added `freeswitch:health --summary` as a bounded aggregate DB-backed health surface with conservative readiness/liveness posture and unchanged default `freeswitch:health` output semantics
 - added deterministic downstream reconnect/recovery proof for Laravel-owned `WorkerRuntime`, `WorkerSupervisor`, and `HealthReporter` observation/projection behavior using a test-only mutable runtime runner seam
 - added `docs/health-model.md` to unify bounded CLI/HTTP health, readiness, liveness, and runtime-linked snapshot semantics
+
+### Upgrade Notes
+
+- PHP `8.3+` is required on the current `0.6.x` line; PHP `8.2` is not supported
+- `freeswitch-esl.observability.metrics.driver` now defaults to `log`, not an implicit no-op path
+- `freeswitch-esl.drain_defaults.max_inflight` is now enforced fail-closed during overload or drain, so existing non-zero values now affect runtime behavior
+- worker JSON/reporting surfaces now include additive bounded backpressure and rejection metadata for automation
+- `examples/laravel-app` is now a cookbook for validation and onboarding, not a placeholder README
 
 ## [0.4.6] - 2026-04-17
 

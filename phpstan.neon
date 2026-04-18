@@ -8,7 +8,4 @@ parameters:
         - src
     excludePaths:
         - src/Providers/FreeSwitchEslServiceProvider.php
-    ignoreErrors:
-        -
-            identifier: missingType.generics
     treatPhpDocTypesAsCertain: false
